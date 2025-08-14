@@ -1153,44 +1153,60 @@
                 draw(ctx) {
                     // Adiciona efeito de piscar para I-Frames
                     if (this.invincibilityTimer > 0 && frameCount % 8 < 4) {
-                        // Pula o desenho em alguns frames para criar o efeito de piscar
-                        // É preciso restaurar o save() que será chamado no final da função
-                        this.animationFrame++; // Garante que a animação continue progredindo
-                        return;
+                        this.animationFrame++;
+                        return; // Pula o desenho, criando o efeito de piscar
                     }
 
                     ctx.save();
-                    ctx.translate(this.x - camera.x, this.y - camera.y); // Aplica o deslocamento da câmara
+                    ctx.translate(this.x - camera.x, this.y - camera.y);
 
                     // Squash and Stretch
                     let scaleX = 1;
                     let scaleY = 1;
                     if (this.squashStretchTimer > 0) {
                         const progress = this.squashStretchTimer / CONFIG.PLAYER_LANDING_SQUASH_DURATION;
-                        scaleY = 1 - (0.3 * Math.sin(Math.PI * progress)); // Achata e volta
-                        scaleX = 1 + (0.3 * Math.sin(Math.PI * progress)); // Alarga e volta
+                        scaleY = 1 - (0.3 * Math.sin(Math.PI * progress));
+                        scaleX = 1 + (0.3 * Math.sin(Math.PI * progress));
                         this.squashStretchTimer--;
                     }
-                    ctx.scale(this.facingRight ? scaleX : -scaleX, scaleY); // Vira e aplica squash
+                    ctx.scale(this.facingRight ? scaleX : -scaleX, scaleY);
 
-                    // Feedback de dano
+                    // --- LÓGICA DO CONTORNO ---
+                    const contourColor = this.invincibilityTimer > 0 ? 'gold' : 'white';
+                    ctx.strokeStyle = contourColor;
+                    ctx.lineWidth = 5;
+                    ctx.lineJoin = 'round'; // Para cantos mais suaves
+
+                    ctx.beginPath();
+                    // Corpo
+                    ctx.moveTo(0, -this.radius * 1.5);
+                    ctx.lineTo(this.radius * 1.2, this.radius * 0.8);
+                    ctx.lineTo(-this.radius * 1.2, this.radius * 0.8);
+                    ctx.closePath();
+                    // Asa Direita
+                    ctx.moveTo(this.radius * 0.8, -this.radius * 0.5);
+                    ctx.quadraticCurveTo(this.radius * 2, -this.radius * 1.5, this.radius * 1.5, this.radius * 0.5);
+                    ctx.lineTo(this.radius * 0.8, this.radius * 0.8);
+                    ctx.closePath();
+                    // Asa Esquerda
+                    ctx.moveTo(-this.radius * 0.8, -this.radius * 0.5);
+                    ctx.quadraticCurveTo(-this.radius * 2, -this.radius * 1.5, -this.radius * 1.5, this.radius * 0.5);
+                    ctx.lineTo(-this.radius * 0.8, this.radius * 0.8);
+                    ctx.closePath();
+                    ctx.stroke();
+
+
+                    // --- LÓGICA DE DESENHO ORIGINAL ---
                     if (this.hitTimer > 0) {
                         ctx.fillStyle = 'red';
-                        // OTIMIZAÇÃO: shadowBlur removido
-                        // ctx.shadowColor = 'red';
-                        // ctx.shadowBlur = 20;
                         this.hitTimer--;
                     } else {
                         ctx.fillStyle = 'white';
-                        // OTIMIZAÇÃO: Animação de pulso com shadowBlur removida
-                        // ctx.shadowColor = 'cyan';
-                        // const pulse = Math.sin(this.animationFrame * 0.1) * 5 + 10;
-                        // ctx.shadowBlur = pulse;
                     }
 
-                    // Desenha o corpo principal (triângulo base)
+                    // Corpo principal
                     ctx.beginPath();
-                    ctx.moveTo(0, -this.radius * 1.5); // Ponta mais alta
+                    ctx.moveTo(0, -this.radius * 1.5);
                     ctx.lineTo(this.radius * 1.2, this.radius * 0.8);
                     ctx.lineTo(-this.radius * 1.2, this.radius * 0.8);
                     ctx.closePath();
@@ -1199,7 +1215,7 @@
                     ctx.lineWidth = 2;
                     ctx.stroke();
 
-                    // Desenha as "asas" (formas adicionais)
+                    // Asas
                     ctx.beginPath();
                     ctx.moveTo(this.radius * 0.8, -this.radius * 0.5);
                     ctx.quadraticCurveTo(this.radius * 2, -this.radius * 1.5, this.radius * 1.5, this.radius * 0.5);
@@ -1216,7 +1232,7 @@
                     ctx.fill();
                     ctx.stroke();
 
-                    // Desenha o escudo se ativo
+                    // Escudo
                     if (this.shielded) {
                         ctx.beginPath();
                         ctx.arc(0, 0, this.radius * 1.5, 0, Math.PI * 2);
@@ -1226,7 +1242,6 @@
                     }
 
                     ctx.restore();
-                    // ctx.shadowBlur = 0; // Desnecessário pois foi removido
                     this.animationFrame++;
                 }
 
