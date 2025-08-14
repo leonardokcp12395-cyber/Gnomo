@@ -1051,9 +1051,19 @@
                     this.onGround = true;
                     this.shielded = false; // Para a habilidade Égide Divina
                     this.shieldTimer = 0; // Duração do escudo
+                    this.invincibilityTimer = 0; // Para I-Frames
+                    this.knockbackVelocity = { x: 0, y: 0 }; // Para knockback
                 }
 
                 draw(ctx) {
+                    // Adiciona efeito de piscar para I-Frames
+                    if (this.invincibilityTimer > 0 && frameCount % 8 < 4) {
+                        // Pula o desenho em alguns frames para criar o efeito de piscar
+                        // É preciso restaurar o save() que será chamado no final da função
+                        this.animationFrame++; // Garante que a animação continue progredindo
+                        return;
+                    }
+
                     ctx.save();
                     ctx.translate(this.x - camera.x, this.y - camera.y); // Aplica o deslocamento da câmara
 
@@ -1126,6 +1136,11 @@
                 }
 
                 update() {
+                    // Decrementa o temporizador de invencibilidade
+                    if (this.invincibilityTimer > 0) {
+                        this.invincibilityTimer--;
+                    }
+
                     this.handleMovement();
                     this.applyGravity(); // Aplica gravidade ao jogador
                     this.updateSkills();
@@ -1142,6 +1157,16 @@
                 }
 
                 handleMovement() {
+                    // Aplica knockback primeiro
+                    this.x += this.knockbackVelocity.x;
+                    this.y += this.knockbackVelocity.y;
+                    this.knockbackVelocity.x *= 0.9; // Atrito
+                    this.knockbackVelocity.y *= 0.9;
+                    if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 0.1) {
+                        this.knockbackVelocity.x = 0;
+                        this.knockbackVelocity.y = 0;
+                    }
+
                     if (this.isDashing) {
                         this.x += this.dashDirection.x * CONFIG.PLAYER_DASH_FORCE;
                         this.y += this.dashDirection.y * CONFIG.PLAYER_DASH_FORCE;
@@ -1172,8 +1197,10 @@
                         this.facingRight = dx > 0;
                     }
 
-                    // Aplica o movimento horizontal
-                    this.x += dx * this.speed;
+                    // Aplica o movimento horizontal (apenas se não estiver a sofrer knockback forte)
+                    if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 1) {
+                        this.x += dx * this.speed;
+                    }
 
                     // Lógica de Salto unificada
                     const jumpPressed = isMobile ? (movementVector.y < -0.5) : (keys['w'] || keys['ArrowUp'] || keys[' ']);
@@ -1272,17 +1299,34 @@
                     }
                 }
 
-                takeDamage(amount) {
+                takeDamage(amount, source = null) {
+                    // Se estiver em dash ou invencível (I-Frames), ignora o dano
+                    if (this.isDashing || this.invincibilityTimer > 0) {
+                        return;
+                    }
+
                     if (this.shielded) {
                         this.shielded = false;
-                        // Efeito visual de quebra de escudo
-                        for(let i=0; i<20; i++) particleManager.createParticle(this.x, this.y, 'cyan', 3); // <<<<<<< MUDANÇA 1
-                        return; // Bloqueia o dano
+                        for(let i=0; i<20; i++) particleManager.createParticle(this.x, this.y, 'cyan', 3);
+                        return;
                     }
+
                     this.health -= amount;
-                    this.hitTimer = 30; // Pisca por 30 frames
-                    SoundManager.play('damage', '8n'); // Passa uma duração para o NoiseSynth
+                    this.hitTimer = 30;
+                    SoundManager.play('damage', '8n');
                     screenShake = { intensity: 5, duration: 15 };
+
+                    // Ativa I-Frames
+                    this.invincibilityTimer = 60; // 1 segundo de invencibilidade
+
+                    // Aplica knockback se uma fonte for fornecida
+                    if (source) {
+                        const knockbackForce = 8; // Força do knockback
+                        const angle = Math.atan2(this.y - source.y, this.x - source.x);
+                        this.knockbackVelocity.x = Math.cos(angle) * knockbackForce;
+                        this.knockbackVelocity.y = Math.sin(angle) * knockbackForce;
+                    }
+
                     if (this.health <= 0) {
                         this.health = 0;
                         this.isDead = true;
@@ -2841,10 +2885,11 @@
                 for (let enemy of nearbyEnemies) {
                     if (enemy.isDead) continue;
                     if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < player.radius + enemy.radius) {
-                        player.takeDamage(enemy.damage);
+                        player.takeDamage(enemy.damage, enemy); // Passa o inimigo como fonte do dano
+                        // O knockback do inimigo já é aplicado no takeDamage do inimigo, mas podemos manter um pequeno empurrão para separação
                         const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-                        enemy.x += Math.cos(angle) * 15;
-                        enemy.y += Math.sin(angle) * 15;
+                        enemy.x += Math.cos(angle) * 5;
+                        enemy.y += Math.sin(angle) * 5;
                     }
                 }
             }
@@ -2855,7 +2900,7 @@
                 for (const eProj of enemyProjectilePool) {
                     if (!eProj.active) continue;
                     if (Math.hypot(player.x - eProj.x, player.y - eProj.y) < player.radius + eProj.radius) {
-                        player.takeDamage(eProj.damage);
+                        player.takeDamage(eProj.damage, eProj); // Passa o projétil inimigo como fonte do dano
                         for (let i = 0; i < 10; i++) {
                             if (particleManager) particleManager.createParticle(eProj.x, eProj.y, 'orange', 1.5); // <<<<<<< MUDANÇA 1
                         }
