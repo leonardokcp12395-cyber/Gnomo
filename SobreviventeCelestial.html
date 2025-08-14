@@ -909,6 +909,18 @@
                     start: () => { isGoldenFrenzyActive = true; },
                     update: () => {},
                     end: () => { isGoldenFrenzyActive = false; }
+                },
+                'distortion_zone': {
+                    name: "Zona de Distorção",
+                    duration: 60 * 60, // 1 minuto
+                    start: () => {
+                        CONFIG.GRAVITY /= 2;
+                        showTemporaryMessage("Gravidade Reduzida!", "magenta");
+                    },
+                    update: () => {},
+                    end: () => {
+                        CONFIG.GRAVITY = 0.5; // Restaura para o valor padrão
+                    }
                 }
             };
 
