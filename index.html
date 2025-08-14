@@ -203,6 +203,14 @@
             width: 100%;
             font-weight: bold;
         }
+        #event-display {
+            text-align: center;
+            margin-top: 5px;
+            font-size: 1.5em;
+            color: #FFD700; /* Dourado */
+            text-shadow: 0 0 8px rgba(255, 215, 0, 0.7);
+            font-weight: bold;
+        }
         #skills-hud {
             display: flex;
             gap: 12px; /* Mais espaço entre ícones */
@@ -541,6 +549,9 @@
                 <button id="pause-button" class="ui-button">II</button>
             </div>
             <div id="timer">00:00</div>
+            <div id="event-display" class="hidden">
+                <strong id="event-name"></strong>: <span id="event-timer"></span>
+            </div>
             <div id="skills-hud"></div>
         </div>
         <button id="dash-button-mobile" class="ui-button hidden">»</button>
@@ -570,6 +581,7 @@
     let enemyProjectilePool;
     let xpOrbPool;
     let damageNumberPool;
+            let meteorWarningPool;
     let qtree; // Variável global para o Quadtree
 
     // Variável para calcular o tempo decorrido entre frames
@@ -754,8 +766,75 @@
                 { duration: 110, enemies: [{ type: 'speeder', count: 15, spawnInterval: 30 }, { type: 'summoner', count: 1, spawnInterval: 250 }, { type: 'shooter', count: 4, spawnInterval: 100 }], eliteChance: 0.06 },
             ];
 
+            // --- GERENCIADOR DE EVENTOS GLOBAIS ---
+            const EVENTS = {
+                'meteor_shower': {
+                    name: "Chuva de Meteoros",
+                    duration: 30 * 60,
+                    start: () => {},
+                    update: () => {
+                        // Spawna um novo aviso de meteoro a cada 20 frames
+                        if (frameCount % 20 === 0) {
+                            // Tenta encontrar uma plataforma de chão. Se não, usa uma posição padrão.
+                            const groundPlatform = platforms.find(p => p.height > 100) || { y: canvas.height * 0.8 };
+                            const groundY = groundPlatform.y;
+                            
+                            // Spawna o aviso perto do jogador
+                            const spawnX = player.x + (Math.random() - 0.5) * canvas.width;
+                            activeMeteorWarnings.push(getFromPool(meteorWarningPool, spawnX, groundY));
+                        }
+                    },
+                    end: () => {}
+                },
+                'golden_frenzy': {
+                    name: "Frenesi Dourado",
+                    duration: 30 * 60, // 30 segundos
+                    start: () => { isGoldenFrenzyActive = true; },
+                    update: () => {},
+                    end: () => { isGoldenFrenzyActive = false; }
+                }
+            };
+
+            const eventManager = {
+                timeUntilNextEvent: 120 * 60, // 2 minutos para o primeiro evento
+                currentEvent: null,
+                eventTimer: 0,
+                
+                update() {
+                    if (this.currentEvent) {
+                        this.eventTimer--;
+                        if (EVENTS[this.currentEvent]?.update) {
+                            EVENTS[this.currentEvent].update();
+                        }
+                        
+                        if (this.eventTimer <= 0) {
+                            const endedEventName = EVENTS[this.currentEvent]?.name || 'Evento';
+                            if (EVENTS[this.currentEvent]?.end) {
+                                EVENTS[this.currentEvent].end();
+                            }
+                            this.currentEvent = null;
+                            this.timeUntilNextEvent = (Math.random() * 60 + 120) * 60; // Próximo evento em 2 a 3 minutos
+                            showTemporaryMessage(`${endedEventName} terminou!`, 'white');
+                        }
+                    } else {
+                        this.timeUntilNextEvent--;
+                        if (this.timeUntilNextEvent <= 0) {
+                            const eventNames = Object.keys(EVENTS);
+                            const nextEvent = eventNames[Math.floor(Math.random() * eventNames.length)];
+                            this.currentEvent = nextEvent;
+                            this.eventTimer = EVENTS[nextEvent].duration;
+                            if (EVENTS[nextEvent]?.start) {
+                                EVENTS[nextEvent].start();
+                            }
+                            showTemporaryMessage(EVENTS[nextEvent].name, 'gold');
+                        }
+                    }
+                }
+            };
+
             // --- VARIÁVEIS GLOBAIS DE ESTADO ---
             let gameState = 'menu'; // 'menu', 'playing', 'paused', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades'
+            let activeMeteorWarnings = [];
             let keys = {}; // Para controlos de teclado
             let gameTime = 0; // Tempo em segundos (agora baseado em deltaTime)
             let frameCount = 0; // Contador de frames
@@ -765,6 +844,7 @@
             };
             let screenShake = { intensity: 0, duration: 0 };
             let hitStopTimer = 0; // Para o efeito de "hit stop"
+            let isGoldenFrenzyActive = false; // Flag para o evento Frenesi Dourado
             const isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
             // --- CONTROLO MÓVEL DINÂMICO ---
@@ -1839,6 +1919,17 @@
                             powerUps.push(new PowerUp(this.x, this.y, 'nuke'));
                             showTemporaryMessage("NUKE!", "yellow"); // Feedback para power-up
                         }
+
+                    // Lógica para o evento Frenesi Dourado
+                    if (isGoldenFrenzyActive) {
+                        const gemChance = 0.1; // 10% de chance
+                        if (Math.random() < gemChance) {
+                            playerGems++;
+                            showTemporaryMessage("+1 Gema!", 'violet');
+                            savePermanentData();
+                        }
+                    }
+
                         if (this.isElite) { // Larga gemas se for inimigo de elite
                             const gemsDropped = Math.floor(Math.random() * 3) + 1; // 1 a 3 gemas
                             playerGems += gemsDropped;
@@ -2459,6 +2550,44 @@
                 }
             }
 
+            class MeteorWarningIndicator extends Entity {
+                constructor() {
+                    super();
+                }
+                init(x, y, life = 60) { // 1 segundo de aviso
+                    super.reset();
+                    this.x = x;
+                    this.y = y;
+                    this.radius = 20;
+                    this.life = life;
+                    this.initialLife = life;
+                }
+                update() {
+                    this.life--;
+                    if (this.life <= 0) {
+                        this.isDead = true;
+                        // Spawna o meteoro vindo de cima
+                        const meteorStartX = this.x;
+                        const meteorStartY = camera.y - 50; // Acima da tela
+                        getFromPool(enemyProjectilePool, meteorStartX, meteorStartY, Math.PI / 2, 8, 20); // angulo, velocidade, dano
+                    }
+                }
+                draw(ctx) {
+                    // Desenha um círculo de aviso no chão
+                    ctx.save();
+                    ctx.translate(this.x - camera.x, this.y - camera.y);
+                    const progress = this.life / this.initialLife;
+                    const alpha = 1 - progress; // Fade in
+                    const radius = this.radius * (1 - progress); // Cresce
+                    ctx.strokeStyle = `rgba(255, 100, 0, ${alpha})`;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+
             class DemoPlayer extends Entity {
                 constructor(x, y) {
                     super(x, y, 25); // Um pouco maior que o jogador normal
@@ -2657,6 +2786,7 @@
                 enemyProjectilePool = createPool(EnemyProjectile, 50);
                 xpOrbPool = createPool(XPOrb, 100);
                 damageNumberPool = createPool(DamageNumber, 50);
+                meteorWarningPool = createPool(MeteorWarningIndicator, 20);
 
                 player.addSkill('divine_lance');
 
@@ -2666,6 +2796,7 @@
                 powerUps = [];
                 activeStaticFields = [];
                 activeDamageNumbers = [];
+                activeMeteorWarnings = [];
 
                 // Limpa o HTML do HUD
                 document.getElementById('skills-hud').innerHTML = '';
@@ -2676,6 +2807,7 @@
                 enemyProjectilePool.forEach(p => releaseToPool(p));
                 xpOrbPool.forEach(o => releaseToPool(o));
                 damageNumberPool.forEach(dn => releaseToPool(dn));
+                meteorWarningPool.forEach(p => releaseToPool(p));
 
                 gameTime = 0; frameCount = 0;
                 score = { kills: 0, time: 0 };
@@ -2685,6 +2817,10 @@
                 waveEnemiesRemaining = 0;
                 waveCooldownTimer = 0;
                 startNextWave();
+
+                // Reinicia o gerenciador de eventos
+                eventManager.currentEvent = null;
+                eventManager.timeUntilNextEvent = 120 * 60; // Reinicia o temporizador para o próximo jogo
 
                 setGameState('playing');
             }
@@ -2935,6 +3071,8 @@
                 gameTime += deltaTime;
                 frameCount++;
 
+                eventManager.update();
+
                 // Redefinir e preencher o Quadtree em cada frame
                 const worldBounds = new Rectangle(-CONFIG.WORLD_BOUNDS.width, -CONFIG.WORLD_BOUNDS.height, CONFIG.WORLD_BOUNDS.width * 2, CONFIG.WORLD_BOUNDS.height * 2);
                 qtree = new Quadtree(worldBounds, 4);
@@ -2958,6 +3096,7 @@
                 powerUps.forEach(p => p.update());
                 activeVortexes.forEach(v => v.update());
                 activeStaticFields.forEach(sf => sf.update());
+                activeMeteorWarnings.forEach(w => w.update());
 
                 spawnEnemies();
                 handleCollisions();
@@ -2968,6 +3107,7 @@
                 removeDeadEntities(activeVortexes);
                 removeDeadEntities(activeStaticFields);
                 removeDeadEntities(activeDamageNumbers);
+                removeDeadEntities(activeMeteorWarnings);
 
                 if (screenShake.duration > 0) {
                     screenShake.duration--;
@@ -3023,6 +3163,7 @@
                 powerUps.forEach(p => p.draw(ctx));
                 activeVortexes.forEach(v => v.draw(ctx)); // CORRIGIDO (estava v.update())
                 activeStaticFields.forEach(sf => sf.draw(ctx)); // CORRIGIDO (estava v.update())
+                activeMeteorWarnings.forEach(w => w.draw(ctx));
                 enemies.forEach(e => e.draw(ctx));
                 for (const p of projectilePool) { if (p.active) p.draw(ctx); }
                 for (const p of enemyProjectilePool) { if (p.active) p.draw(ctx); }
@@ -3178,6 +3319,21 @@
                 }
             }
 
+            function updateEventHUD() {
+                const eventDisplay = document.getElementById('event-display');
+                if (eventManager.currentEvent) {
+                    const eventNameEl = document.getElementById('event-name');
+                    const eventTimerEl = document.getElementById('event-timer');
+                    const remainingSeconds = Math.ceil(eventManager.eventTimer / 60);
+
+                    eventDisplay.classList.remove('hidden');
+                    eventNameEl.textContent = EVENTS[eventManager.currentEvent].name;
+                    eventTimerEl.textContent = `${remainingSeconds}s`;
+                } else {
+                    eventDisplay.classList.add('hidden');
+                }
+            }
+
             function updateHUD() {
                 if (player) {
                     document.getElementById('health-bar').style.width = `${(player.health / player.maxHealth) * 100}%`;
@@ -3192,6 +3348,7 @@
                 const gameTimeInSeconds = gameTime / (1000.0 / 60.0);
                 document.getElementById('timer').innerText = formatTime(Math.floor(gameTimeInSeconds));
 
+                updateEventHUD();
                 updateSkillsHUD();
             }
 
