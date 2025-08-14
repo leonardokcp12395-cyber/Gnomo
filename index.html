@@ -871,7 +871,8 @@
             const SoundManager = {
                 initialized: false,
                 sfx: {},
-                bgm: null,
+                bgm: { main: null, boss: null, bass: null }, // Objeto para armazenar loops de BGM
+                bgmNotes: ["C3", "E3", "G3"], // Notas iniciais
 
                 init() {
                     if (this.initialized) return;
@@ -881,72 +882,85 @@
                     const sfxVolume = new Tone.Volume(-5).connect(masterVolume);
                     const bgmVolumeNode = new Tone.Volume(-20).connect(masterVolume);
 
-                    // SFX de XP (mais melódico)
+                    // SFX...
                     this.sfx.xp = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 }, volume: -12 }).connect(sfxVolume);
-
-                    // SFX de Subir de Nível (acorde ascendente)
                     this.sfx.levelUp = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "triangle" }, envelope: { attack: 0.02, decay: 0.2, sustain: 0.1, release: 0.3 }, volume: -8 }).connect(sfxVolume);
-
-                    // SFX de Dano (mais agressivo) - NoiseSynth
                     this.sfx.damage = new Tone.NoiseSynth({ noise: { type: "brown" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }, volume: -3 }).connect(sfxVolume);
-
-                    // SFX de Lança (mais nítido) - MembraneSynth
                     this.sfx.lance = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 8, envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.4 }, volume: -15 }).connect(sfxVolume);
-
-                    // SFX de Nuke (explosão massiva) - NoiseSynth
                     this.sfx.nuke = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.01, decay: 0.8, sustain: 0, release: 1 }, volume: 0 }).connect(sfxVolume);
-
-                    // SFX de Disparo de Inimigo (novo) - Synth
                     this.sfx.enemyShot = new Tone.Synth({ oscillator: { type: "square" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 }, volume: -10 }).connect(sfxVolume);
-
-                    // SFX de Explosão de Partículas (novo) - NoiseSynth
                     this.sfx.particleBurst = new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.3 }, volume: -5 }).connect(sfxVolume);
-
-                    // SFX de UI Click (novo)
                     this.sfx.uiClick = new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.1 }, volume: -20 }).connect(sfxVolume);
-
-                    // SFX de Aterragem do Jogador (novo)
                     this.sfx.land = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 }, volume: -15 }).connect(sfxVolume);
 
-                    // Música de Fundo (BGM)
-                    this.bgm = new Tone.Loop(time => {
-                        const notes = ["C3", "E3", "G3", "A3", "F3", "D3"];
-                        const synth = new Tone.Synth().connect(bgmVolumeNode);
-                        synth.triggerAttackRelease(notes[Math.floor(Math.random() * notes.length)], "2n", time);
-                    }, "2n").start(0);
+                    // BGM Principal
+                    const mainSynth = new Tone.Synth({ oscillator: { type: 'sine' } }).connect(bgmVolumeNode);
+                    this.bgm.main = new Tone.Loop(time => {
+                        mainSynth.triggerAttackRelease(this.bgmNotes[Math.floor(Math.random() * this.bgmNotes.length)], "2n", time);
+                    }, "2n");
 
-                    // Inicialmente, a BGM está em mute até o contexto de áudio começar
+                    // Linha de Baixo (para evolução)
+                    const bassSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, volume: -10 }).connect(bgmVolumeNode);
+                    this.bgm.bass = new Tone.Loop(time => {
+                        bassSynth.triggerAttackRelease("C2", "1n", time);
+                    }, "1n");
+
+                    // BGM do Chefe
+                    const bossSynth = new Tone.FMSynth({ harmonicity: 3, modulationIndex: 10, envelope: { attack: 0.01, decay: 0.2 }, modulationEnvelope: { attack: 0.01, decay: 0.2 } }).connect(bgmVolumeNode);
+                    this.bgm.boss = new Tone.Loop(time => {
+                        const notes = ["C2", "G2", "C2", "Ab2"];
+                        bossSynth.triggerAttackRelease(notes[Math.floor(Math.random() * notes.length)], "8n", time);
+                    }, "4n");
+
                     Tone.Transport.pause();
+                },
+
+                updateBGM(waveNumber) {
+                    if (waveNumber >= 5 && waveNumber < 10) {
+                        this.bgmNotes = ["C3", "E3", "G3", "A3", "B3"];
+                    } else if (waveNumber >= 10) {
+                        this.bgmNotes = ["C3", "E3", "G3", "A3", "B3", "D4", "F4"];
+                        if (this.bgm.bass.state !== 'started') {
+                            this.bgm.bass.start(0);
+                        }
+                    }
+                },
+
+                playMainBGM() {
+                    this.startAudioContext();
+                    if (this.bgm.boss.state === 'started') this.bgm.boss.stop();
+                    if (this.bgm.main.state !== 'started') this.bgm.main.start(0);
+                },
+
+                playBossBGM() {
+                    this.startAudioContext();
+                    if (this.bgm.main.state === 'started') this.bgm.main.stop();
+                    if (this.bgm.bass && this.bgm.bass.state === 'started') this.bgm.bass.stop();
+                    if (this.bgm.boss.state !== 'started') this.bgm.boss.start(0);
                 },
 
                 async startAudioContext() {
                     if (Tone.context.state !== 'running') {
                         try {
                             await Tone.start();
-                            Tone.Transport.start(); // Inicia o transporte da BGM
+                            Tone.Transport.start();
                         } catch (e) {
                             if (DEBUG_MODE) console.error("Falha ao iniciar/resumir o contexto de áudio:", e);
-                            // Se falhar, não há muito o que fazer além de registrar o erro.
                         }
                     }
                 },
 
-                play(effectName, noteOrDuration = null) { // Renamed parameter for clarity
-                    this.startAudioContext(); // Ensures audio context is running
+                play(effectName, noteOrDuration = null) {
+                    this.startAudioContext();
                     const sfx = this.sfx[effectName];
                     if (sfx) {
                         try {
-                            // Check if the instrument is a NoiseSynth or similar that expects duration as first arg
                             if (sfx instanceof Tone.NoiseSynth) {
-                                // For NoiseSynth, the first argument is duration, second is time (optional)
-                                sfx.triggerAttackRelease(noteOrDuration || "8n"); // Use '8n' as default duration if none provided
+                                sfx.triggerAttackRelease(noteOrDuration || "8n");
                             } else if (sfx instanceof Tone.MembraneSynth) {
-                                // MembraneSynth can take note, duration, time
-                                sfx.triggerAttackRelease(noteOrDuration || "C4", "8n"); // Default note C4, duration 8n
-                            }
-                            else {
-                                // For pitched synths (Synth, PolySynth), first arg is note, second is duration
-                                sfx.triggerAttackRelease(noteOrDuration || "C5", "8n"); // Default note C5, duration 8n
+                                sfx.triggerAttackRelease(noteOrDuration || "C4", "8n");
+                            } else {
+                                sfx.triggerAttackRelease(noteOrDuration || "C5", "8n");
                             }
                         } catch (e) {
                             if (DEBUG_MODE) console.error(`Erro ao reproduzir o efeito sonoro '${effectName}':`, e);
@@ -2830,12 +2844,17 @@
 
                 // A CADA 5 ONDAS, UMA ONDA DE BOSS
                 if (waveNumber > 0 && waveNumber % 5 === 0) {
+                    SoundManager.playBossBGM();
                     showTemporaryMessage(`BOSS - ONDA ${waveNumber}`, "red");
                     enemies.push(new BossEnemy(player.x + canvas.width / 2 + 100, player.y - 100));
                     waveEnemiesRemaining = 1;
                     currentWaveConfig = { enemies: [], eliteChance: 0 };
                     return;
                 }
+
+                // Para ondas normais, toca a BGM principal e a evolui
+                SoundManager.playMainBGM();
+                SoundManager.updateBGM(waveNumber);
 
                 // Ondas pré-definidas
                 if (waveNumber <= WAVE_CONFIGS.length) {
