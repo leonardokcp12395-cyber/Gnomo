@@ -483,29 +483,6 @@
             animation-delay: 0.2s;
         }
 
-        /* Efeito de Glitch no Título */
-        .title-container h1::before,
-        .title-container h1::after {
-            content: attr(data-text);
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000; /* Cor de fundo principal */
-            overflow: hidden;
-        }
-        .title-container h1::before {
-            left: 2px;
-            text-shadow: -2px 0 #FF00FF;
-            animation: glitch-anim-1 2s infinite linear alternate-reverse;
-        }
-        .title-container h1::after {
-            left: -2px;
-            text-shadow: -2px 0 #00FFFF, 2px 2px #FF00FF;
-            animation: glitch-anim-2 2s infinite linear alternate-reverse;
-        }
-
         @keyframes glow {
             from { text-shadow: 0 0 10px #FFF, 0 0 20px #FFF, 0 0 30px #00FFFF; }
             to { text-shadow: 0 0 20px #FFF, 0 0 30px #00FFFF, 0 0 40px #00FFFF; }
@@ -862,6 +839,22 @@
                     description: "Sobreviva por 15 minutos em uma única partida.",
                     condition: { type: 'survivalTime', value: 15 * 60 }, // em segundos
                     reward: { type: 'gems', amount: 150 }
+                }
+            };
+
+            // --- BASE DE DADOS DE EVOLUÇÕES DE HABILIDADES ---
+            const EVOLUTION_DATABASE = {
+                'firmament_lances': {
+                    name: "Lanças do Firmamento",
+                    baseSkill: 'divine_lance',
+                    passiveReq: 'health_regen',
+                    description: "As lanças agora curam o jogador numa pequena percentagem do dano causado."
+                },
+                'stasis_aura': {
+                    name: "Aura da Stasis",
+                    baseSkill: 'orbital_shield',
+                    passiveReq: 'static_field',
+                    description: "Os orbes agora abrandam inimigos que tocam."
                 }
             };
 
@@ -1794,6 +1787,12 @@
                                     if(frameCount - orb.lastHitFrame > CONFIG.ORB_HIT_COOLDOWN_FRAMES && enemy.orbHitCooldown <= 0) {
                                         enemy.takeDamage(levelData.damage * this.damageModifier); // Aplica modificador de dano
                                         enemy.applyKnockback(orbX, orbY, CONFIG.ENEMY_KNOCKBACK_FORCE * 0.5); // Pequeno knockback
+                                        
+                                        // Lógica da evolução "Aura da Stasis"
+                                        if (skillState.evolved) {
+                                            enemy.applySlow(120); // Aplica lentidão por 2 segundos
+                                        }
+
                                         orb.lastHitFrame = frameCount; // Atualiza o último frame de acerto do orbe
                                         enemy.orbHitCooldown = CONFIG.ORB_HIT_COOLDOWN_FRAMES; // Define cooldown no inimigo
                                     }
@@ -1845,6 +1844,7 @@
                     this.attackTimer = 0; // Para inimigos atiradores
                     this.knockbackVelocity = { x: 0, y: 0 }; // Para efeito de recuo
                     this.orbHitCooldown = 0; // Cooldown para ser atingido por orbes
+                    this.slowedTimer = 0; // Para efeito de lentidão
                     this.explodesOnDeath = false; // Propriedade para Ceifador/Bomber
 
                     switch(type) {
@@ -2001,6 +2001,8 @@
                 }
 
                 update() {
+                    if (this.slowedTimer > 0) this.slowedTimer--;
+
                     // Aplica knockback primeiro
                     this.x += this.knockbackVelocity.x;
                     this.y += this.knockbackVelocity.y;
@@ -2028,13 +2030,19 @@
                         const angle = Math.atan2(player.y - this.y, player.x - this.x);
                         let currentSpeed = this.speed;
 
-                        // Aplica lentidão se estiver num campo estático
+                        // Aplica lentidão de várias fontes
+                        let slowFactor = 1;
+                        if (this.slowedTimer > 0) {
+                            slowFactor *= 0.5; // Lentidão da Aura da Stasis
+                        }
                         for (const field of activeStaticFields) {
                             if (Math.hypot(field.x - this.x, field.y - this.y) < field.radius) {
-                                currentSpeed *= (1 - field.slowFactor);
-                                break; // Apenas um campo por vez
+                                slowFactor *= (1 - field.slowFactor); // Lentidão do Campo Estático
+                                break;
                             }
                         }
+                        currentSpeed *= slowFactor;
+
 
                         this.x += Math.cos(angle) * currentSpeed;
                         this.y += Math.sin(angle) * currentSpeed;
@@ -2150,6 +2158,10 @@
                     const angle = Math.atan2(this.y - sourceY, this.x - sourceX);
                     this.knockbackVelocity.x = Math.cos(angle) * force;
                     this.knockbackVelocity.y = Math.sin(angle) * force;
+                }
+
+                applySlow(duration) {
+                    this.slowedTimer = Math.max(this.slowedTimer, duration);
                 }
             }
 
@@ -3215,6 +3227,13 @@
                                 hitStopTimer = 4;
                             }
 
+                            // Lógica da evolução "Lanças do Firmamento" (Lifesteal)
+                            const skillState = player.skills[proj.skillId];
+                            if (skillState && skillState.evolved) {
+                                const lifestealAmount = proj.damage * 0.05; // 5% de roubo de vida
+                                player.health = Math.min(player.maxHealth, player.health + lifestealAmount);
+                            }
+
                             proj.piercedEnemies.add(enemy);
                             if (proj.piercedEnemies.size >= proj.pierce + 1) {
                                 proj.isDead = true;
@@ -3451,6 +3470,12 @@
                         demoPlayer = new DemoPlayer(canvas.width / 2, canvas.height / 2);
                     }
                     demoPlayer.update();
+                    
+                    // Animação de fundo para o menu
+                    const parallaxX = Math.cos(frameCount * 0.002) * 20;
+                    const parallaxY = Math.sin(frameCount * 0.002) * 10;
+                     gameContainer.style.backgroundPosition = `${parallaxX}px ${parallaxY}px, ${parallaxX*2}px ${parallaxY*2}px, ${parallaxX*3}px ${parallaxY*3}px, ${parallaxX*4}px ${parallaxY*4}px`;
+
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     demoPlayer.draw(ctx);
                 }
@@ -3650,39 +3675,80 @@
             function populateLevelUpOptions() {
                 const container = document.getElementById('skill-options');
                 container.innerHTML = '';
-
                 let options = [];
-                for(const skillId in player.skills){
-                    const skillData = SKILL_DATABASE[skillId];
-                    if(player.skills[skillId].level < skillData.levels.length) options.push(skillId);
-                }
-                for(const skillId in SKILL_DATABASE){
-                    if(!player.skills[skillId] && SKILL_DATABASE[skillId].type !== 'utility' && !options.includes(skillId)) {
-                        options.push(skillId);
+                let evolutionOptions = [];
+
+                // 1. Verifica por evoluções disponíveis
+                for (const evoId in EVOLUTION_DATABASE) {
+                    const evo = EVOLUTION_DATABASE[evoId];
+                    const baseSkillState = player.skills[evo.baseSkill];
+                    const passiveSkillState = player.skills[evo.passiveReq];
+
+                    if (baseSkillState && baseSkillState.level === SKILL_DATABASE[evo.baseSkill].levels.length && passiveSkillState && !baseSkillState.evolved) {
+                        evolutionOptions.push({ ...evo, id: evoId, type: 'evolution' });
                     }
                 }
-                options.sort(() => 0.5 - Math.random());
-                if (options.length > 0 && options.length < 3 && !options.includes('heal')) {
-                    options.push('heal');
-                }
 
-                options.slice(0, 3).forEach(skillId => {
-                    const skill = SKILL_DATABASE[skillId];
+                // 2. Adiciona evoluções como a primeira opção, se disponíveis
+                evolutionOptions.forEach(evo => {
                     const card = document.createElement('div');
                     card.className = 'skill-card';
-                    const currentLevel = player.skills[skillId]?.level || 0;
-                    let levelText = skill.type !== 'utility' || (skill.levels && skill.levels.length > 1) ? ` (Nível ${currentLevel + 1})` : '';
-                    let descText = skill.desc || (skill.levels && skill.levels[currentLevel] ? skill.levels[currentLevel].desc : '');
-
-                    card.innerHTML = `<h3>${skill.name}${levelText}</h3><p>${descText}</p>`;
+                    card.style.borderColor = 'gold'; // Destaque especial
+                    card.innerHTML = `<h3>EVOLUÇÃO: ${evo.name}</h3><p>${evo.description}</p>`;
                     card.onclick = (event) => {
                         event.stopPropagation();
-                        player.addSkill(skillId);
+                        const baseSkill = player.skills[evo.baseSkill];
+                        baseSkill.evolved = true;
+                        if (baseSkill.hudElement) {
+                            baseSkill.hudElement.style.borderColor = 'gold';
+                            baseSkill.hudElement.style.boxShadow = '0 0 15px gold';
+                        }
+                        showTemporaryMessage(`Evoluiu: ${evo.name}!`, 'gold');
                         setGameState('playing');
                         lastFrameTime = 0;
                     };
                     container.appendChild(card);
                 });
+
+                // 3. Preenche com opções normais se houver espaço
+                const optionsToDisplay = 3 - evolutionOptions.length;
+                if (optionsToDisplay > 0) {
+                    for(const skillId in player.skills){
+                        const skillData = SKILL_DATABASE[skillId];
+                        // Não oferece upgrade para habilidades que podem evoluir
+                        const canEvolve = Object.values(EVOLUTION_DATABASE).some(e => e.baseSkill === skillId);
+                        if(player.skills[skillId].level < skillData.levels.length && !canEvolve) {
+                            options.push(skillId);
+                        }
+                    }
+                    for(const skillId in SKILL_DATABASE){
+                        if(!player.skills[skillId] && SKILL_DATABASE[skillId].type !== 'utility' && !options.includes(skillId)) {
+                            options.push(skillId);
+                        }
+                    }
+                    options.sort(() => 0.5 - Math.random());
+                    if (options.length > 0 && options.length < optionsToDisplay && !options.includes('heal')) {
+                        options.push('heal');
+                    }
+
+                    options.slice(0, optionsToDisplay).forEach(skillId => {
+                        const skill = SKILL_DATABASE[skillId];
+                        const card = document.createElement('div');
+                        card.className = 'skill-card';
+                        const currentLevel = player.skills[skillId]?.level || 0;
+                        let levelText = skill.type !== 'utility' || (skill.levels && skill.levels.length > 1) ? ` (Nível ${currentLevel + 1})` : '';
+                        let descText = skill.desc || (skill.levels && skill.levels[currentLevel] ? skill.levels[currentLevel].desc : '');
+
+                        card.innerHTML = `<h3>${skill.name}${levelText}</h3><p>${descText}</p>`;
+                        card.onclick = (event) => {
+                            event.stopPropagation();
+                            player.addSkill(skillId);
+                            setGameState('playing');
+                            lastFrameTime = 0;
+                        };
+                        container.appendChild(card);
+                    });
+                }
             }
 
             function updateSkillsHUD() {
