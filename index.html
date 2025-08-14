@@ -1353,7 +1353,8 @@
                     }
                     ctx.scale(this.facingRight ? scaleX : -scaleX, scaleY);
 
-                    // --- LÓGICA DO CONTORNO ---
+                    /*
+                    // --- LÓGICA DO CONTORNO (Desativada para teste de performance) ---
                     const contourColor = this.invincibilityTimer > 0 ? 'gold' : 'white';
                     ctx.strokeStyle = contourColor;
                     ctx.lineWidth = 3; // Reduzido para melhor performance
@@ -1376,7 +1377,7 @@
                     ctx.lineTo(-this.radius * 0.8, this.radius * 0.8);
                     ctx.closePath();
                     ctx.stroke();
-
+                    */
 
                     // --- LÓGICA DE DESENHO ORIGINAL ---
                     if (this.hitTimer > 0) {
@@ -1874,30 +1875,30 @@
                     switch(type) {
                         // ALTERAÇÃO 3: Novo Inimigo - Ceifador
                         case 'reaper':
-                            this.radius = 10; this.speed = 3.2 + (gameTime / 150) + (waveNumber * 0.02);
+                            this.radius = 10; this.speed = 2.5 + (gameTime / 180) + (waveNumber * 0.02);
                             this.health = 15 + Math.floor(gameTime / 20) * 2 + waveNumber; this.color = '#7DF9FF'; // Ciano pálido
                             this.shape = 'diamond'; this.damage = 30; // Dano alto da explosão
                             this.xpValue = 15;
                             this.explodesOnDeath = true;
                             break;
                         case 'tank':
-                            this.radius = 18; this.speed = 0.9 + (gameTime / 180) + (waveNumber * 0.005);
+                            this.radius = 18; this.speed = 0.7 + (gameTime / 200) + (waveNumber * 0.005);
                             this.health = 70 + Math.floor(gameTime / 10) * 7 + (waveNumber * 3); this.color = '#FFA500';
                             this.shape = 'square'; this.damage = 12; this.xpValue = 40;
                             break;
                         case 'speeder':
-                            this.radius = 8; this.speed = 2.8 + (gameTime / 80) + (waveNumber * 0.015);
+                            this.radius = 8; this.speed = 2.2 + (gameTime / 100) + (waveNumber * 0.015);
                             this.health = 12 + Math.floor(gameTime / 15) * 2 + waveNumber; this.color = '#FFFF00';
                             this.shape = 'triangle'; this.damage = 7; this.xpValue = 12;
                             break;
                         case 'bomber':
-                            this.radius = 12; this.speed = 1.2 + (gameTime / 200) + (waveNumber * 0.008);
+                            this.radius = 12; this.speed = 0.9 + (gameTime / 220) + (waveNumber * 0.008);
                             this.health = 45 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#9400D3'; // Roxo
                             this.shape = 'pentagon'; this.damage = 9; this.xpValue = 25;
                             this.explodesOnDeath = true; // Bomber também explode
                             break;
                         case 'shooter':
-                            this.radius = 15; this.speed = 0.6 + (gameTime / 250) + (waveNumber * 0.004);
+                            this.radius = 15; this.speed = 0.4 + (gameTime / 280) + (waveNumber * 0.004);
                             this.health = 35 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#FF00FF'; // Magenta
                             this.shape = 'star'; this.damage = 4; this.xpValue = 35;
                             this.attackCooldown = 150; // Ataca a cada 2.5 segundos
@@ -1906,7 +1907,7 @@
                             this.projectileDamage = 8;
                             break;
                         case 'healer':
-                            this.radius = 14; this.speed = 0.5 + (gameTime / 280) + (waveNumber * 0.003);
+                            this.radius = 14; this.speed = 0.3 + (gameTime / 300) + (waveNumber * 0.003);
                             this.health = 60 + Math.floor(gameTime / 10) * 6 + (waveNumber * 3); this.color = '#00FF00'; // Verde
                             this.shape = 'cross'; this.damage = 0; this.xpValue = 50;
                             this.healCooldown = 180; // Cura a cada 3 segundos
@@ -1915,14 +1916,14 @@
                             this.healRadius = 100;
                             break;
                         case 'summoner':
-                            this.radius = 20; this.speed = 0.4 + (gameTime / 320) + (waveNumber * 0.002);
+                            this.radius = 20; this.speed = 0.2 + (gameTime / 350) + (waveNumber * 0.002);
                             this.health = 80 + Math.floor(gameTime / 10) * 8 + (waveNumber * 4); this.color = '#8B4513'; // Marrom
                             this.shape = 'pyramid'; this.damage = 0; this.xpValue = 70;
                             this.summonCooldown = 240; // Invoca a cada 4 segundos
                             this.summonTimer = this.summonCooldown;
                             break;
                         default: // chaser
-                            this.radius = 12; this.speed = 1.7 + (gameTime / 120) + (waveNumber * 0.01);
+                            this.radius = 12; this.speed = 1.3 + (gameTime / 150) + (waveNumber * 0.01);
                             this.health = 25 + Math.floor(gameTime / 10) * 3 + (waveNumber * 1.5); this.color = '#FF4D4D';
                             this.shape = 'circle'; this.damage = 8; this.xpValue = 20;
                             break;
@@ -3213,13 +3214,13 @@
                 const dx = endPos.x - startPos.x;
                 const dy = endPos.y - startPos.y;
                 const dist = Math.hypot(dx, dy);
-                const segments = Math.floor(dist / 8); // Mais segmentos para mais partículas
+                const segments = Math.floor(dist / 12); // Menos segmentos para melhor performance
                 for (let i = 0; i < segments; i++) {
                     const t = i / segments;
-                    const x = startPos.x + dx * t + (Math.random() - 0.5) * 15; // Mais dispersão
-                    const y = startPos.y + dy * t + (Math.random() - 0.5) * 15;
-                    // Partículas maiores e mais brilhantes
-                    particleManager.createParticle(x, y, '#E0FFFF', 2.5);
+                    const x = startPos.x + dx * t + (Math.random() - 0.5) * 10; // Menos dispersão
+                    const y = startPos.y + dy * t + (Math.random() - 0.5) * 10;
+                    // Partículas ainda visíveis, mas um pouco menores
+                    particleManager.createParticle(x, y, '#E0FFFF', 2.0);
                 }
             }
 
@@ -3643,18 +3644,29 @@
                 }
             }
 
+            let lastEventName = '';
+            let lastEventTime = -1;
+
             function updateEventHUD() {
                 const eventDisplay = document.getElementById('event-display');
-                if (eventManager.currentEvent) {
-                    const eventNameEl = document.getElementById('event-name');
-                    const eventTimerEl = document.getElementById('event-timer');
-                    const remainingSeconds = Math.ceil(eventManager.eventTimer / 60);
+                const currentEventName = eventManager.currentEvent ? EVENTS[eventManager.currentEvent].name : '';
 
-                    eventDisplay.classList.remove('hidden');
-                    eventNameEl.textContent = EVENTS[eventManager.currentEvent].name;
-                    eventTimerEl.textContent = `${remainingSeconds}s`;
-                } else {
-                    eventDisplay.classList.add('hidden');
+                if (currentEventName !== lastEventName) {
+                    if (currentEventName) {
+                        document.getElementById('event-name').textContent = currentEventName;
+                        eventDisplay.classList.remove('hidden');
+                    } else {
+                        eventDisplay.classList.add('hidden');
+                    }
+                    lastEventName = currentEventName;
+                }
+
+                if (eventManager.currentEvent) {
+                    const remainingSeconds = Math.ceil(eventManager.eventTimer / 60);
+                    if (remainingSeconds !== lastEventTime) {
+                        document.getElementById('event-timer').textContent = `${remainingSeconds}s`;
+                        lastEventTime = remainingSeconds;
+                    }
                 }
             }
 
