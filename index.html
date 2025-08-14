@@ -668,7 +668,7 @@
 
             // --- BASE DE DADOS DE HABILIDADES ---
             const SKILL_DATABASE = {
-                'chain_lightning': { name: "Relâmpago em Cadeia", icon: "↯", type: 'projectile', cooldown: 120, levels: [
+                'chain_lightning': { name: "Relâmpago em Cadeia", icon: "↯", type: 'projectile', cooldown: 120, causesHitStop: true, levels: [
                     { desc: "Lança um raio que salta para 2 inimigos.", damage: 25, chains: 2, chainRadius: 150 },
                     { desc: "O raio salta para 3 inimigos.", damage: 30, chains: 3, chainRadius: 160 },
                     { desc: "Aumenta o dano e o número de saltos.", damage: 35, chains: 4, chainRadius: 170 },
@@ -719,7 +719,7 @@
                     { desc: "Permite um segundo salto no ar.", jumps: 2 }
                 ]},
                 // ALTERAÇÃO 2: Nova Habilidade - Raio Celestial
-                'celestial_ray': { name: "Raio Celestial", icon: "→", type: 'projectile', cooldown: 90, levels: [
+                'celestial_ray': { name: "Raio Celestial", icon: "→", type: 'projectile', cooldown: 90, causesHitStop: true, levels: [
                     { desc: "Dispara um raio poderoso na última direção de movimento.", damage: 30, speed: 10, width: 10, length: 150, pierce: 5 }
                 ]},
                 'static_field': { name: "Campo Estático", icon: "⚡", type: 'aura', cooldown: 300, levels: [
@@ -764,6 +764,7 @@
                 time: 0 // Tempo em segundos
             };
             let screenShake = { intensity: 0, duration: 0 };
+            let hitStopTimer = 0; // Para o efeito de "hit stop"
             const isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
             // --- CONTROLO MÓVEL DINÂMICO ---
@@ -1424,24 +1425,20 @@
                                     let angle = Math.atan2(targetEnemy.y - this.y, targetEnemy.x - this.x);
                                     for (let i = 0; i < levelData.count; i++) {
                                         const spreadAngle = (i - (levelData.count - 1) / 2) * 0.1;
-                                        // Aplica o modificador de dano do jogador
                                         const projectileDamage = levelData.damage * this.damageModifier;
-                                        const newProjectile = getFromPool(projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage });
-                                        if (!newProjectile) {
-                                            if (DEBUG_MODE) console.warn("Falha ao obter projétil do pool!");
-                                        }
+                                        // Passa o skillId para o projétil
+                                        getFromPool(projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage }, skillId);
                                     }
                                     SoundManager.play('lance', 'C4'); // Som de lança
                                     skillState.timer = skillData.cooldown;
                                 } else {
                                     skillState.timer = 10; // Tenta a cada 10 frames
                                 }
-                            // ALTERAÇÃO 2: Lógica de ativação do Raio Celestial
                             } else if (skillId === 'celestial_ray') {
                                 const rayAngle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
-                                // Aplica o modificador de dano do jogador
                                 const rayDamage = levelData.damage * this.damageModifier;
-                                getFromPool(projectilePool, this.x, this.y, rayAngle, { ...levelData, damage: rayDamage }, 'celestial_ray');
+                                // Passa o skillId para o projétil
+                                getFromPool(projectilePool, this.x, this.y, rayAngle, { ...levelData, damage: rayDamage }, skillId);
                                 SoundManager.play('lance', 'E5'); // Som diferente para o raio
                                 skillState.timer = skillData.cooldown;
                             } else if (skillId === 'chain_lightning') { // NOVA HABILIDADE
@@ -2013,33 +2010,32 @@
                 constructor() {
                     super();
                     this.piercedEnemies = new Set();
-                    // <<<<<<< MUDANÇA 1: RASTRO DE PARTÍCULAS REMOVIDO DAQUI
-                    this.type = 'normal'; // 'normal' ou 'celestial_ray'
+                    this.skillId = null; // ID da habilidade que o criou
                 }
 
                 // método init para agrupamento
-                init(x, y, angle, levelData, type = 'normal') {
+                init(x, y, angle, levelData, skillId = null) {
                     super.reset();
                     this.x = x;
                     this.y = y;
-                    this.type = type;
+                    this.skillId = skillId;
 
-                    if (this.type === 'celestial_ray') {
+                    this.velocity = { x: Math.cos(angle) * levelData.speed, y: Math.sin(angle) * levelData.speed };
+                    this.damage = levelData.damage;
+                    this.pierce = levelData.pierce;
+
+                    // Propriedades específicas da habilidade
+                    if (this.skillId === 'celestial_ray') {
                         this.radius = levelData.width / 2;
                         this.length = levelData.length;
-                        this.velocity = { x: Math.cos(angle) * levelData.speed, y: Math.sin(angle) * levelData.speed };
-                        this.damage = levelData.damage; // Já vem com o modificador
-                        this.pierce = levelData.pierce;
-                        this.angle = angle; // Para desenhar o raio
-                    } else { // Normal projectile (Divine Lance)
-                        this.radius = 5; // Raio fixo para projétil
-                        this.velocity = { x: Math.cos(angle) * levelData.speed, y: Math.sin(angle) * levelData.speed };
-                        this.damage = levelData.damage; // Já vem com o modificador
-                        this.pierce = levelData.pierce;
+                        this.angle = angle;
+                    } else { // Projétil padrão (ex: Lança Divina)
+                        this.radius = 5;
                     }
-                    this.piercedEnemies.clear(); // Limpar conjunto para reutilização
-                    this.active = true; // Garante que o projétil está ativo ao ser inicializado
-                    this.isDead = false; // Garante que não está morto
+
+                    this.piercedEnemies.clear();
+                    this.active = true;
+                    this.isDead = false;
                 }
 
                 draw(ctx) {
@@ -2048,7 +2044,7 @@
                     const screenRight = camera.x + canvas.width;
                     const screenTop = camera.y;
                     const screenBottom = camera.y + canvas.height;
-                    const largerDimension = this.type === 'celestial_ray' ? this.length : this.radius;
+                    const largerDimension = this.skillId === 'celestial_ray' ? this.length : this.radius;
                     if (this.x + largerDimension < screenLeft || this.x - largerDimension > screenRight ||
                         this.y + largerDimension < screenTop || this.y - largerDimension > screenBottom) {
                         return;
@@ -2057,10 +2053,8 @@
                     ctx.save();
                     ctx.translate(this.x - camera.x, this.y - camera.y);
 
-                    // <<<<<<< MUDANÇA 1: LÓGICA DE DESENHAR RASTRO REMOVIDA
-
                     // Desenha o projétil principal
-                    if (this.type === 'celestial_ray') {
+                    if (this.skillId === 'celestial_ray') {
                         ctx.save();
                         ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
                         ctx.rotate(this.angle);
@@ -2797,6 +2791,10 @@
             }
 
             function chainLightningEffect(source, initialTarget, levelData) {
+                if (SKILL_DATABASE['chain_lightning'].causesHitStop) {
+                    hitStopTimer = 4; // Ativa o Hit Stop
+                }
+
                 let currentTarget = initialTarget;
                 let targetsHit = new Set([currentTarget]);
                 let lastPosition = { x: source.x, y: source.y };
@@ -2864,6 +2862,12 @@
                         if (Math.hypot(proj.x - enemy.x, proj.y - enemy.y) < proj.radius + enemy.radius) {
                             enemy.takeDamage(proj.damage);
                             enemy.applyKnockback(proj.x, proj.y, CONFIG.ENEMY_KNOCKBACK_FORCE);
+
+                            // Ativa o Hit Stop se a habilidade do projétil o causar
+                            if (proj.skillId && SKILL_DATABASE[proj.skillId]?.causesHitStop) {
+                                hitStopTimer = 4;
+                            }
+
                             proj.piercedEnemies.add(enemy);
                             if (proj.piercedEnemies.size >= proj.pierce + 1) {
                                 proj.isDead = true;
@@ -2922,6 +2926,12 @@
             }
 
             function updateGame(deltaTime) {
+                // Lógica de Hit Stop: se o temporizador estiver ativo, pausa a lógica do jogo.
+                if (hitStopTimer > 0) {
+                    hitStopTimer--;
+                    return; // Pula o resto da função de atualização
+                }
+
                 gameTime += deltaTime;
                 frameCount++;
 
