@@ -483,6 +483,23 @@
             animation-delay: 0.2s;
         }
 
+        .menu-button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            width: 100%;
+            margin-top: 25px;
+        }
+
+        .menu-button-grid .ui-button {
+            width: 100%;
+            margin: 0;
+        }
+
+        .menu-button-grid #play-button {
+            grid-column: 1 / -1; /* Ocupa as duas colunas */
+        }
+
         @keyframes glow {
             from { text-shadow: 0 0 10px #FFF, 0 0 20px #FFF, 0 0 30px #00FFFF; }
             to { text-shadow: 0 0 20px #FFF, 0 0 30px #00FFFF, 0 0 40px #00FFFF; }
@@ -516,12 +533,14 @@
                     <h1 data-text="Celestial" class="celestial-title">Celestial</h1>
                 </div>
                 <p>Gemas: <strong id="gem-counter">0</strong></p>
-                <button id="play-button" class="ui-button">Iniciar Jogo</button>
-                <button id="upgrades-button" class="ui-button">Melhorias</button>
-                <button id="guide-button" class="ui-button">Como Jogar</button>
-                <button id="achievements-button" class="ui-button">Conquistas</button>
-                <button id="rank-button" class="ui-button">Rank Global</button>
-                <button id="fullscreen-button" class="ui-button">Ecrã Inteiro</button>
+                <div class="menu-button-grid">
+                    <button id="play-button" class="ui-button">Iniciar Jogo</button>
+                    <button id="upgrades-button" class="ui-button">Melhorias</button>
+                    <button id="achievements-button" class="ui-button">Conquistas</button>
+                    <button id="guide-button" class="ui-button">Como Jogar</button>
+                    <button id="rank-button" class="ui-button">Rank Global</button>
+                    <button id="fullscreen-button" class="ui-button">Ecrã Inteiro</button>
+                </div>
             </div>
 
             <div id="character-select-screen" class="ui-panel hidden">
@@ -1337,7 +1356,7 @@
                     // --- LÓGICA DO CONTORNO ---
                     const contourColor = this.invincibilityTimer > 0 ? 'gold' : 'white';
                     ctx.strokeStyle = contourColor;
-                    ctx.lineWidth = 5;
+                    ctx.lineWidth = 3; // Reduzido para melhor performance
                     ctx.lineJoin = 'round'; // Para cantos mais suaves
 
                     ctx.beginPath();
@@ -1507,6 +1526,11 @@
                     // A direção já foi guardada em handleMovement, por isso basta usá-la
                     this.dashDirection = { x: this.lastMoveDirection.x, y: this.lastMoveDirection.y };
 
+                    // CORREÇÃO: Impede o dash para baixo se estiver no chão
+                    if (this.onGround && this.dashDirection.y > 0) {
+                        this.dashDirection.y = 0;
+                    }
+
                     // Fallback: se por alguma razão não houver direção, usa a que está virado
                     if (this.dashDirection.x === 0 && this.dashDirection.y === 0) {
                         this.dashDirection.x = this.facingRight ? 1 : -1;
@@ -1590,7 +1614,7 @@
                     screenShake = { intensity: 5, duration: 15 };
 
                     // Ativa I-Frames
-                    this.invincibilityTimer = 60; // 1 segundo de invencibilidade
+                    this.invincibilityTimer = 36; // 0.6 segundos de invencibilidade
 
                     // Aplica knockback se uma fonte for fornecida
                     if (source) {
@@ -3189,12 +3213,13 @@
                 const dx = endPos.x - startPos.x;
                 const dy = endPos.y - startPos.y;
                 const dist = Math.hypot(dx, dy);
-                const segments = Math.floor(dist / 10);
+                const segments = Math.floor(dist / 8); // Mais segmentos para mais partículas
                 for (let i = 0; i < segments; i++) {
                     const t = i / segments;
-                    const x = startPos.x + dx * t + (Math.random() - 0.5) * 10;
-                    const y = startPos.y + dy * t + (Math.random() - 0.5) * 10;
-                    particleManager.createParticle(x, y, '#ADD8E6', 1.5); // <<<<<<< MUDANÇA 1
+                    const x = startPos.x + dx * t + (Math.random() - 0.5) * 15; // Mais dispersão
+                    const y = startPos.y + dy * t + (Math.random() - 0.5) * 15;
+                    // Partículas maiores e mais brilhantes
+                    particleManager.createParticle(x, y, '#E0FFFF', 2.5);
                 }
             }
 
