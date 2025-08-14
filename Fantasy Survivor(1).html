@@ -37,14 +37,14 @@
                               radial-gradient(circle at 90% 80%, rgba(255,255,255,0.1) 1px, transparent 1%),
             /* Camada 3: Estrelas próximas (rápidas) */
                               radial-gradient(circle at 50% 50%, rgba(255,255,255,0.3) 1px, transparent 1%);
-            
+
             background-size: 100% 100%, /* Tamanho da nebulosa */
                              200px 200px, /* Tamanho das estrelas médias */
                              300px 300px,
                              80px 80px;  /* Tamanho das estrelas próximas */
 
             /* A posição será controlada via JavaScript */
-            background-position: 0 0; 
+            background-position: 0 0;
             transition: background-position 0.1s linear; /* Para suavizar o movimento */
         }
 
@@ -561,11 +561,11 @@
     let activeStaticFields = []; // Novo array para campos estáticos
     let activeDamageNumbers = [];
     // ALTERAÇÃO 4b: Partículas de Ambiente
-    let ambientParticles = []; 
+    let ambientParticles = [];
 
     // Pools de objetos declarados aqui para que possam ser acessados globalmente,
     // mas inicializados dentro de initGame() para garantir que as classes já foram definidas.
-    let particlePool;
+    let particleManager; // <<<<<<< MUDANÇA 1: SUBSTITUÍDO O particlePool
     let projectilePool;
     let enemyProjectilePool;
     let xpOrbPool;
@@ -585,7 +585,7 @@
     let waveEnemiesRemaining = 0;
     let waveCooldownTimer = 0; // Tempo entre ondas
     let currentWaveConfig = {};
-    let enemySpawnTimer = 0; // Mover para escopo global
+    // let enemySpawnTimer = 0; // <<<<<<< MUDANÇA 3: REMOVIDO o timer de spawn global
 
     // --- MELHORIAS PERMANENTES ---
     const PERMANENT_UPGRADES = {
@@ -765,7 +765,7 @@
             };
             let screenShake = { intensity: 0, duration: 0 };
             const isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            
+
             // --- CONTROLO MÓVEL DINÂMICO ---
             let activeTouches = new Map(); // Armazena touch.identifier -> { joystickType: 'move', startX: ..., ... }
             let movementVector = { x: 0, y: 0 }; // Vetor de movimento do jogador (apenas para o joystick de movimento)
@@ -802,7 +802,7 @@
 
                     // SFX de XP (mais melódico)
                     this.sfx.xp = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 }, volume: -12 }).connect(sfxVolume);
-                    
+
                     // SFX de Subir de Nível (acorde ascendente)
                     this.sfx.levelUp = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "triangle" }, envelope: { attack: 0.02, decay: 0.2, sustain: 0.1, release: 0.3 }, volume: -8 }).connect(sfxVolume);
 
@@ -833,7 +833,7 @@
                         const synth = new Tone.Synth().connect(bgmVolumeNode);
                         synth.triggerAttackRelease(notes[Math.floor(Math.random() * notes.length)], "2n", time);
                     }, "2n").start(0);
-                    
+
                     // Inicialmente, a BGM está em mute até o contexto de áudio começar
                     Tone.Transport.pause();
                 },
@@ -849,7 +849,7 @@
                         }
                     }
                 },
-                
+
                 play(effectName, noteOrDuration = null) { // Renamed parameter for clarity
                     this.startAudioContext(); // Ensures audio context is running
                     const sfx = this.sfx[effectName];
@@ -873,7 +873,7 @@
                     }
                 }
             };
-            
+
             // Inicializa os instrumentos assim que o script corre
             SoundManager.init();
 
@@ -1010,11 +1010,11 @@
                     ctx.moveTo(this.x, this.y);
                     ctx.lineTo(this.x + this.width, this.y);
                     ctx.stroke();
-                    
+
                     ctx.restore();
                 }
             }
-            
+
             class Player extends Entity {
                 constructor() {
                     super(0, 0, 15);
@@ -1026,7 +1026,7 @@
                     this.baseHealth = CONFIG.PLAYER_HEALTH + (healthUpgradeLevel > 0 ? PERMANENT_UPGRADES.max_health.levels[healthUpgradeLevel - 1].effect : 0);
                     this.damageModifier = 1 + (damageUpgradeLevel > 0 ? PERMANENT_UPGRADES.damage_boost.levels[damageUpgradeLevel - 1].effect : 0);
                     this.xpModifier = 1 + (xpUpgradeLevel > 0 ? PERMANENT_UPGRADES.xp_gain.levels[xpUpgradeLevel - 1].effect : 0);
-                    
+
                     this.maxHealth = this.baseHealth;
                     this.health = this.maxHealth;
                     this.speed = CONFIG.PLAYER_SPEED;
@@ -1151,10 +1151,10 @@
                         }
                         return; // Pára outros movimentos durante o dash
                     }
-                
+
                     let dx = 0;
                     let dy_input = 0; // Input vertical separado
-                
+
                     if (isMobile) {
                         dx = movementVector.x;
                         dy_input = movementVector.y;
@@ -1162,7 +1162,7 @@
                         dx = (keys['d'] || keys['ArrowRight']) ? 1 : ((keys['a'] || keys['ArrowLeft']) ? -1 : 0);
                         dy_input = (keys['s'] || keys['ArrowDown']) ? 1 : ((keys['w'] || keys['ArrowUp']) ? -1 : 0); // Para direção do dash
                     }
-                
+
                     // Guarda a última direção de movimento se houver input
                     if (dx !== 0 || dy_input !== 0) {
                         const magnitude = Math.hypot(dx, dy_input);
@@ -1171,10 +1171,10 @@
                     if (dx !== 0) {
                         this.facingRight = dx > 0;
                     }
-                
+
                     // Aplica o movimento horizontal
                     this.x += dx * this.speed;
-                
+
                     // Lógica de Salto unificada
                     const jumpPressed = isMobile ? (movementVector.y < -0.5) : (keys['w'] || keys['ArrowUp'] || keys[' ']);
                     if (jumpPressed && this.jumpsAvailable > 0) {
@@ -1184,39 +1184,36 @@
                         this.onGround = false;
                         if (!isMobile) keys['w'] = keys['ArrowUp'] = keys[' '] = false;
                     }
-                    
+
                     // Ativar Dash no PC
                     if (!isMobile && keys['shift']) {
                         this.dash();
                         keys['shift'] = false; // Previne múltiplos dashes com uma tecla premida
                     }
-                
+
                     // Gestão do Cooldown do Dash
                     if (this.dashCooldown > 0) {
                         this.dashCooldown--;
-                        if (isMobile) ui.dashButtonMobile.classList.add('on-cooldown');
-                    } else {
-                        if (isMobile) ui.dashButtonMobile.classList.remove('on-cooldown');
                     }
                 }
 
                 dash() {
                     if (this.dashCooldown > 0 || this.isDashing) return;
-                
+
                     this.isDashing = true;
                     this.dashTimer = CONFIG.PLAYER_DASH_DURATION;
                     this.dashCooldown = CONFIG.PLAYER_DASH_COOLDOWN;
-                    
+
                     // A direção já foi guardada em handleMovement, por isso basta usá-la
                     this.dashDirection = { x: this.lastMoveDirection.x, y: this.lastMoveDirection.y };
-                
+
                     // Fallback: se por alguma razão não houver direção, usa a que está virado
                     if (this.dashDirection.x === 0 && this.dashDirection.y === 0) {
                         this.dashDirection.x = this.facingRight ? 1 : -1;
                     }
-                
+
                     SoundManager.play('uiClick', 'F5');
-                
+
                     // Lógica para Rastro Ardente
                     if (this.skills['scorched_earth']) {
                         const damage = SKILL_DATABASE['scorched_earth'].levels[0].damagePerFrame;
@@ -1224,29 +1221,34 @@
                         activeVortexes.push(new Vortex(this.x, this.y, { radius: 20, duration: 60, damage: damage, isExplosion: true, force: 0 }));
                         // ADICIONE: Cria partículas visuais de fogo
                         for (let i = 0; i < 5; i++) {
-                            getFromPool(particlePool, this.x, this.y, 'orange', 2.5);
+                            particleManager.createParticle(this.x, this.y, 'orange', 2.5); // <<<<<<< MUDANÇA 1
                         }
                     }
                 }
 
-                // ALTERAÇÃO 2: Evitar que o jogador caia pelo chão (MÉTODO REATORIZADO)
+                // <<<<<<< MUDANÇA DE FÍSICA: Lógica de gravidade e colisão com plataformas refeita
                 applyGravity() {
                     const wasOnGround = this.onGround;
                     this.velocityY += CONFIG.GRAVITY;
-                    this.y += this.velocityY;
+
+                    const oldY = this.y;
+                    let newY = this.y + this.velocityY;
 
                     this.onGround = false; // Assume que está no ar por padrão
+                    let collided = false;
 
-                    // Verifica a colisão com todas as plataformas
+                    // Itera sobre todas as plataformas para verificar colisão
                     for (const p of platforms) {
-                        // A verificação de colisão verifica se o jogador estava acima no frame anterior e está abaixo (ou dentro) agora
-                        if (this.x > p.x && this.x < p.x + p.width &&
-                            (this.y - this.velocityY) <= p.y - this.radius && // Posição Y anterior
-                            this.y >= p.y - this.radius) {                  // Posição Y atual
-                            
-                            this.y = p.y - this.radius;
+                        // Verifica se a trajetória do jogador intercepta a plataforma (varredura vertical)
+                        if (this.x + this.radius > p.x && this.x - this.radius < p.x + p.width && // Dentro dos limites X da plataforma
+                            oldY + this.radius <= p.y && // No frame anterior, a base do jogador estava ACIMA do topo da plataforma
+                            newY + this.radius >= p.y) { // Neste frame, a base do jogador está ABAIXO do topo da plataforma
+
+                            // Colisão detectada!
+                            newY = p.y - this.radius; // Corrige a posição para ficar exatamente sobre a plataforma
                             this.velocityY = 0;
                             this.onGround = true;
+                            collided = true;
 
                             if (!wasOnGround) { // Acabou de aterrar
                                 this.jumpsAvailable = (this.skills['double_jump'] ? SKILL_DATABASE['double_jump'].levels[0].jumps : 1);
@@ -1257,36 +1259,24 @@
                         }
                     }
 
+                    this.y = newY; // Aplica a posição final (corrigida ou não)
+
                     // --- SEÇÃO DE SEGURANÇA (Safety Net) ---
-                    // Garante que o jogador não caia através da plataforma principal (chão).
+                    // Garante que o jogador morre se cair muito para fora do mundo
                     if (platforms.length > 0) {
                         const groundPlatform = platforms[0]; // Assume que a primeira plataforma é sempre o chão principal.
                         const groundTopY = groundPlatform.y;
-
-                        if (this.y > groundTopY - this.radius) {
-                            // Se o jogador estiver abaixo do topo do chão por qualquer motivo, força-o de volta para cima.
-                            this.y = groundTopY - this.radius;
-                            if (this.velocityY > 0) this.velocityY = 0;
-                            if (!this.onGround) { // Se ele não estava no chão, agora está.
-                               this.onGround = true;
-                               this.jumpsAvailable = (this.skills['double_jump'] ? SKILL_DATABASE['double_jump'].levels[0].jumps : 1);
-                            }
-                        }
-                        
-                        // O jogador morre se cair muito para fora do mundo
-                        if (this.y > groundTopY + 200) { 
+                        if (this.y > groundTopY + 200) {
                             this.takeDamage(9999);
                         }
                     }
-                    // --- FIM DA SEÇÃO DE SEGURANÇA ---
                 }
-
 
                 takeDamage(amount) {
                     if (this.shielded) {
                         this.shielded = false;
                         // Efeito visual de quebra de escudo
-                        for(let i=0; i<20; i++) getFromPool(particlePool, this.x, this.y, 'cyan', 3);
+                        for(let i=0; i<20; i++) particleManager.createParticle(this.x, this.y, 'cyan', 3); // <<<<<<< MUDANÇA 1
                         return; // Bloqueia o dano
                     }
                     this.health -= amount;
@@ -1303,9 +1293,9 @@
                 addXp(amount) {
                     this.xp += amount * this.xpModifier; // Aplica o bónus de XP
                     SoundManager.play('xp', 'C5'); // Som de XP
-                    // Partículas de XP ao recolher - REDUZIDO PARA OTIMIZAÇÃO
-                    for (let i = 0; i < 4; i++) { 
-                        getFromPool(particlePool, this.x, this.y, 'cyan', 2); // Usa o agrupamento
+                    // Partículas de XP ao recolher
+                    for (let i = 0; i < 4; i++) {
+                        particleManager.createParticle(this.x, this.y, 'cyan', 2); // <<<<<<< MUDANÇA 1
                     }
 
                     while (this.xp >= this.xpToNextLevel) {
@@ -1316,7 +1306,7 @@
                         setGameState('levelUp');
                     }
                 }
-                
+
                 addSkill(skillId) {
                     const skillData = SKILL_DATABASE[skillId];
                     if (skillData.type === 'utility' && skillData.instant) {
@@ -1332,13 +1322,13 @@
                         }
                         return;
                     }
-                
+
                     if (!this.skills[skillId]) { // Adquirindo pela primeira vez
                         this.skills[skillId] = { level: 1, timer: 0, hudElement: null }; // OTIMIZAÇÃO HUD: Adicionado hudElement
                         if (skillData.type === 'orbital') {
                             this.skills[skillId].orbs = Array.from({ length: skillData.levels[0].count }, (_, i) => ({ angle: (Math.PI * 2 / skillData.levels[0].count) * i, lastHitFrame: 0 }));
                         }
-                
+
                         // OTIMIZAÇÃO HUD: Criar o ícone no HUD
                         if (skillData.type !== 'passive') {
                             const container = document.getElementById('skills-hud');
@@ -1349,7 +1339,7 @@
                             container.appendChild(div);
                             this.skills[skillId].hudElement = div; // Guarda a referência
                         }
-                
+
                     } else { // Subindo de nível
                         this.skills[skillId].level++;
                         // OTIMIZAÇÃO HUD: Apenas atualizar o texto do nível
@@ -1357,7 +1347,7 @@
                             this.skills[skillId].hudElement.querySelector('sub').textContent = this.skills[skillId].level;
                         }
                     }
-                    
+
                     // Aplicar passivas
                     if (skillData.type === 'passive') {
                         if(skillId === 'magnet') {
@@ -1385,7 +1375,7 @@
                         if (skillData.type === 'projectile') {
                             if (skillId === 'divine_lance') {
                                 const targetEnemy = this.findNearestEnemy(); // Sempre procura o inimigo mais próximo
-                                
+
                                 if(targetEnemy) {
                                     let angle = Math.atan2(targetEnemy.y - this.y, targetEnemy.x - this.x);
                                     for (let i = 0; i < levelData.count; i++) {
@@ -1394,7 +1384,7 @@
                                         const projectileDamage = levelData.damage * this.damageModifier;
                                         const newProjectile = getFromPool(projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage });
                                         if (!newProjectile) {
-                                            if (DEBUG_MODE) console.warn("Falha ao obter projétil do pool!"); 
+                                            if (DEBUG_MODE) console.warn("Falha ao obter projétil do pool!");
                                         }
                                     }
                                     SoundManager.play('lance', 'C4'); // Som de lança
@@ -1403,7 +1393,7 @@
                                     skillState.timer = 10; // Tenta a cada 10 frames
                                 }
                             // ALTERAÇÃO 2: Lógica de ativação do Raio Celestial
-                            } else if (skillId === 'celestial_ray') { 
+                            } else if (skillId === 'celestial_ray') {
                                 const rayAngle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
                                 // Aplica o modificador de dano do jogador
                                 const rayDamage = levelData.damage * this.damageModifier;
@@ -1433,9 +1423,9 @@
                                     enemy.applyKnockback(this.x, this.y, CONFIG.ENEMY_KNOCKBACK_FORCE * 1.5); // Mais knockback
                                 }
                             });
-                            // Partículas da explosão - REDUZIDO PARA OTIMIZAÇÃO
+                            // Partículas da explosão
                             for (let i = 0; i < Math.floor(levelData.particleCount / 2); i++) {
-                                getFromPool(particlePool, this.x, this.y, 'magenta', 3); 
+                                particleManager.createParticle(this.x, this.y, 'magenta', 3); // <<<<<<< MUDANÇA 1
                             }
                             skillState.timer = skillData.cooldown;
                         } else if (skillData.type === 'aura' && skillId === 'static_field') { // Campo Estático
@@ -1467,13 +1457,13 @@
                             orb.angle += levelData.speed;
                             const orbX = this.x + Math.cos(orb.angle) * levelData.radius;
                             const orbY = this.y + Math.sin(orb.angle) * levelData.radius;
-                            
+
                             // Otimização: Usar Quadtree para verificar inimigos próximos ao orbe
                             const orbSearchRadius = 10 + 20; // Raio do orbe + margem
                             const orbSearchArea = new Rectangle(
-                                orbX - orbSearchRadius, 
-                                orbY - orbSearchRadius, 
-                                orbSearchRadius * 2, 
+                                orbX - orbSearchRadius,
+                                orbY - orbSearchRadius,
+                                orbSearchRadius * 2,
                                 orbSearchRadius * 2
                             );
                             const nearbyEnemiesForOrb = qtree.query(orbSearchArea);
@@ -1481,7 +1471,7 @@
                             nearbyEnemiesForOrb.forEach(enemy => {
                                 if (Math.hypot(orbX - enemy.x, orbY - enemy.y) < 10 + enemy.radius) { // 10 é o raio do orbe
                                     // CORREÇÃO: Usar orbHitCooldown no inimigo em vez de setTimeout
-                                    if(frameCount - orb.lastHitFrame > CONFIG.ORB_HIT_COOLDOWN_FRAMES && enemy.orbHitCooldown <= 0) { 
+                                    if(frameCount - orb.lastHitFrame > CONFIG.ORB_HIT_COOLDOWN_FRAMES && enemy.orbHitCooldown <= 0) {
                                         enemy.takeDamage(levelData.damage * this.damageModifier); // Aplica modificador de dano
                                         enemy.applyKnockback(orbX, orbY, CONFIG.ENEMY_KNOCKBACK_FORCE * 0.5); // Pequeno knockback
                                         orb.lastHitFrame = frameCount; // Atualiza o último frame de acerto do orbe
@@ -1500,12 +1490,12 @@
                     // Define uma área de busca grande e fixa em volta do jogador
                     const searchRadius = 2000; // Raio de busca aumentado para um mundo maior
                     const searchArea = new Rectangle(
-                        this.x - searchRadius, 
-                        this.y - searchRadius, 
-                        searchRadius * 2, 
+                        this.x - searchRadius,
+                        this.y - searchRadius,
+                        searchRadius * 2,
                         searchRadius * 2
                     );
-                    
+
                     // Pede ao Quadtree GLOBAL apenas os inimigos que estão nesta área
                     const candidates = qtree.query(searchArea);
 
@@ -1523,7 +1513,7 @@
                     return nearest;
                 }
             }
-            
+
             class Enemy extends Entity {
                 constructor(x, y, type = 'chaser', isElite = false) { // Adicionado isElite
                     super(x, y, 10);
@@ -1539,12 +1529,12 @@
 
                     switch(type) {
                         // ALTERAÇÃO 3: Novo Inimigo - Ceifador
-                        case 'reaper': 
+                        case 'reaper':
                             this.radius = 10; this.speed = 2.5 + (gameTime / 180) + (waveNumber * 0.02);
                             this.health = 15 + Math.floor(gameTime / 20) * 2 + waveNumber; this.color = '#7DF9FF'; // Ciano pálido
                             this.shape = 'diamond'; this.damage = 30; // Dano alto da explosão
                             this.xpValue = 15;
-                            this.explodesOnDeath = true; 
+                            this.explodesOnDeath = true;
                             break;
                         case 'tank':
                             this.radius = 18; this.speed = 0.7 + (gameTime / 200) + (waveNumber * 0.005);
@@ -1562,7 +1552,7 @@
                             this.shape = 'pentagon'; this.damage = 9; this.xpValue = 25;
                             this.explodesOnDeath = true; // Bomber também explode
                             break;
-                        case 'shooter': 
+                        case 'shooter':
                             this.radius = 15; this.speed = 0.4 + (gameTime / 280) + (waveNumber * 0.004);
                             this.health = 35 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#FF00FF'; // Magenta
                             this.shape = 'star'; this.damage = 4; this.xpValue = 35;
@@ -1571,7 +1561,7 @@
                             this.projectileSpeed = 3.5;
                             this.projectileDamage = 8;
                             break;
-                        case 'healer': 
+                        case 'healer':
                             this.radius = 14; this.speed = 0.3 + (gameTime / 300) + (waveNumber * 0.003);
                             this.health = 60 + Math.floor(gameTime / 10) * 6 + (waveNumber * 3); this.color = '#00FF00'; // Verde
                             this.shape = 'cross'; this.damage = 0; this.xpValue = 50;
@@ -1619,7 +1609,7 @@
 
                     const color = this.hitTimer > 0 ? 'white' : this.color;
                     ctx.fillStyle = color;
-                    
+
                     // OTIMIZAÇÃO: Animação de pulso com shadowBlur removida
                     // ctx.shadowColor = color;
                     // const pulse = Math.sin(this.animationFrame * 0.1) * 3 + 7;
@@ -1629,7 +1619,7 @@
                     if (this.shape === 'square') {
                         ctx.rect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
                     // ALTERAÇÃO 3: Desenho do Ceifador
-                    } else if (this.shape === 'diamond') { 
+                    } else if (this.shape === 'diamond') {
                         ctx.moveTo(0, -this.radius);
                         ctx.lineTo(this.radius * 0.7, 0);
                         ctx.lineTo(0, this.radius);
@@ -1666,7 +1656,7 @@
                     }
                     ctx.closePath();
                     ctx.fill();
-                    
+
                     if (this.hitTimer > 0) this.hitTimer--;
                     this.animationFrame++;
 
@@ -1700,7 +1690,7 @@
                         this.knockbackVelocity.x = 0;
                         this.knockbackVelocity.y = 0;
                     }
-                    
+
                     // Decrementa o cooldown de acerto por orbe
                     if (this.orbHitCooldown > 0) {
                         this.orbHitCooldown--;
@@ -1748,7 +1738,7 @@
                                 if (otherEnemy !== this && Math.hypot(this.x - otherEnemy.x, this.y - otherEnemy.y) < this.healRadius) {
                                     otherEnemy.health = Math.min(otherEnemy.maxHealth, otherEnemy.health + this.healAmount);
                                     // Partículas de cura
-                                    for (let i = 0; i < 3; i++) { getFromPool(particlePool, otherEnemy.x, otherEnemy.y, 'lime', 1); }
+                                    for (let i = 0; i < 3; i++) { particleManager.createParticle(otherEnemy.x, otherEnemy.y, 'lime', 1); } // <<<<<<< MUDANÇA 1
                                 }
                             });
                             this.healTimer = this.healCooldown;
@@ -1761,7 +1751,7 @@
                             // Invoca um chaser ou speeder pequeno
                             const summonedType = Math.random() < 0.5 ? 'chaser' : 'speeder';
                             enemies.push(new Enemy(this.x + (Math.random()-0.5)*50, this.y + (Math.random()-0.5)*50, summonedType));
-                            for (let i = 0; i < 5; i++) { getFromPool(particlePool, this.x, this.y, 'brown', 2); }
+                            for (let i = 0; i < 5; i++) { particleManager.createParticle(this.x, this.y, 'brown', 2); } // <<<<<<< MUDANÇA 1
                             this.summonTimer = this.summonCooldown;
                         }
                     }
@@ -1782,28 +1772,28 @@
                     // Gera o número de dano
                     activeDamageNumbers.push(getFromPool(damageNumberPool, this.x, this.y, amount));
 
-                    // Partículas de dano - REDUZIDO PARA OTIMIZAÇÃO
-                    for (let i = 0; i < 5; i++) { 
-                        getFromPool(particlePool, this.x, this.y, this.color, 1.8); // Usa o agrupamento
+                    // Partículas de dano
+                    for (let i = 0; i < 5; i++) {
+                        particleManager.createParticle(this.x, this.y, this.color, 1.8); // <<<<<<< MUDANÇA 1
                     }
                     if (this.health <= 0) {
                         this.isDead = true;
                         // Garante que o XP Orb é criado e adicionado ao pool
-                        getFromPool(xpOrbPool, this.x, this.y, this.xpValue); 
+                        getFromPool(xpOrbPool, this.x, this.y, this.xpValue);
                         score.kills++; // Contabiliza a morte
                         // Partículas de morte do inimigo
                         for (let i = 0; i < 10; i++) {
-                            getFromPool(particlePool, this.x, this.y, this.color, 3); 
+                            particleManager.createParticle(this.x, this.y, this.color, 3); // <<<<<<< MUDANÇA 1
                         }
-                        
+
                         // ALTERAÇÃO 3: Efeito de explosão para inimigos explosivos
                         if(this.explodesOnDeath) {
                             const explosionRadius = this.type === 'reaper' ? 70 : 90;
                             activeVortexes.push(new Vortex(this.x, this.y, {radius: explosionRadius, duration: 30, damage: this.damage, isExplosion:true, force: 0}));
                             // Efeito visual maior para a explosão
-                            for (let i = 0; i < 20; i++) { getFromPool(particlePool, this.x, this.y, this.color, 4); }
+                            for (let i = 0; i < 20; i++) { particleManager.createParticle(this.x, this.y, this.color, 4); } // <<<<<<< MUDANÇA 1
                         }
-                        
+
                         if(Math.random() < CONFIG.POWERUP_DROP_CHANCE){
                             powerUps.push(new PowerUp(this.x, this.y, 'nuke'));
                             showTemporaryMessage("NUKE!", "yellow"); // Feedback para power-up
@@ -1846,7 +1836,7 @@
                 draw(ctx) {
                     ctx.save();
                     ctx.translate(this.x - camera.x, this.y - camera.y);
-                    
+
                     const color = this.hitTimer > 0 ? 'white' : this.color;
                     ctx.fillStyle = color;
                     // OTIMIZAÇÃO: shadowBlur removido
@@ -1862,14 +1852,14 @@
                     }
                     ctx.closePath();
                     ctx.fill();
-                    
+
                     // Núcleo pulsante
                     const pulse = Math.sin(this.animationFrame * 0.05) * 5 + (this.radius / 2);
                     ctx.fillStyle = 'white';
                     ctx.beginPath();
                     ctx.arc(0, 0, pulse, 0, Math.PI * 2);
                     ctx.fill();
-                    
+
                     // Adiciona a barra de vida para o Boss
                     const healthBarWidth = this.radius * 3;
                     const healthPercentage = this.health / this.maxHealth;
@@ -1877,7 +1867,7 @@
                     ctx.fillRect(-healthBarWidth / 2, this.radius + 15, healthBarWidth, 10);
                     ctx.fillStyle = '#FF00FF'; // Cor magenta para a vida do boss
                     ctx.fillRect(-healthBarWidth / 2, this.radius + 15, healthBarWidth * healthPercentage, 10);
-                    
+
                     ctx.restore();
                     if (this.hitTimer > 0) this.hitTimer--;
                 }
@@ -1885,11 +1875,11 @@
                 update() {
                     this.animationFrame++;
                     this.attackPatternTimer--;
-                    
+
                     // Aplica knockback
                     this.x += this.knockbackVelocity.x;
                     this.y += this.knockbackVelocity.y;
-                    this.knockbackVelocity.x *= 0.95; 
+                    this.knockbackVelocity.x *= 0.95;
                     this.knockbackVelocity.y *= 0.95;
 
                     if (this.health < this.maxHealth / 2 && this.phase === 1) {
@@ -1899,7 +1889,7 @@
                         this.attackPatternTimer = 0;
                         showTemporaryMessage("FÚRIA DO BOSS!", "red");
                     }
-                    
+
                     if (this.attackPatternTimer <= 0) {
                         this.chooseNextAttack();
                     }
@@ -1919,7 +1909,7 @@
 
                 executeAttack() {
                     const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
-                    
+
                     if (this.currentAttack === 'chase') {
                         this.x += Math.cos(angleToPlayer) * this.speed;
                         this.y += Math.sin(angleToPlayer) * this.speed;
@@ -1945,8 +1935,8 @@
                     activeDamageNumbers.push(getFromPool(damageNumberPool, this.x, this.y, amount));
 
                     // Partículas de dano
-                    for (let i = 0; i < 10; i++) { 
-                        getFromPool(particlePool, this.x, this.y, this.color, 2.5); 
+                    for (let i = 0; i < 10; i++) {
+                        particleManager.createParticle(this.x, this.y, this.color, 2.5); // <<<<<<< MUDANÇA 1
                     }
                     if (this.health <= 0) {
                         this.isDead = true;
@@ -1957,7 +1947,7 @@
                         screenShake = { intensity: 20, duration: 60 };
                         // Partículas de morte do boss
                         for (let i = 0; i < 50; i++) {
-                            getFromPool(particlePool, this.x, this.y, this.color, 5); 
+                            particleManager.createParticle(this.x, this.y, this.color, 5); // <<<<<<< MUDANÇA 1
                         }
                         // Bosses largam mais gemas
                         const gemsDropped = Math.floor(Math.random() * 10) + 5; // 5 a 14 gemas
@@ -1973,20 +1963,20 @@
                     this.knockbackVelocity.y = Math.sin(angle) * force;
                 }
             }
-            
+
             // ALTERAÇÃO 2: Classe de Projétil modificada para lidar com o Raio Celestial
             class Projectile extends Entity {
                 constructor() {
                     super();
                     this.piercedEnemies = new Set();
-                    this.trailParticles = []; // Para efeito de rasto
+                    // <<<<<<< MUDANÇA 1: RASTRO DE PARTÍCULAS REMOVIDO DAQUI
                     this.type = 'normal'; // 'normal' ou 'celestial_ray'
                 }
 
                 // método init para agrupamento
                 init(x, y, angle, levelData, type = 'normal') {
-                    super.reset(); 
-                    this.x = x; 
+                    super.reset();
+                    this.x = x;
                     this.y = y;
                     this.type = type;
 
@@ -2004,7 +1994,6 @@
                         this.pierce = levelData.pierce;
                     }
                     this.piercedEnemies.clear(); // Limpar conjunto para reutilização
-                    this.trailParticles = []; // Reiniciar partículas de rasto
                     this.active = true; // Garante que o projétil está ativo ao ser inicializado
                     this.isDead = false; // Garante que não está morto
                 }
@@ -2021,25 +2010,16 @@
                         return;
                     }
 
-                    ctx.save(); 
-                    ctx.translate(this.x - camera.x, this.y - camera.y); 
+                    ctx.save();
+                    ctx.translate(this.x - camera.x, this.y - camera.y);
 
-                    // Desenha o rasto
-                    this.trailParticles.forEach(p => {
-                        ctx.save();
-                        ctx.globalAlpha = p.alpha;
-                        ctx.beginPath();
-                        ctx.arc(p.x - this.x, p.y - this.y, p.radius, 0, Math.PI * 2);
-                        ctx.fillStyle = p.color;
-                        ctx.fill();
-                        ctx.restore();
-                    });
+                    // <<<<<<< MUDANÇA 1: LÓGICA DE DESENHAR RASTRO REMOVIDA
 
                     // Desenha o projétil principal
                     if (this.type === 'celestial_ray') {
                         ctx.save();
                         ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
-                        ctx.rotate(this.angle); 
+                        ctx.rotate(this.angle);
                         ctx.fillRect(-this.length / 2, -this.radius, this.length, this.radius * 2);
                         ctx.restore();
                     } else { // Projétil normal (Lança Divina)
@@ -2048,37 +2028,24 @@
                         ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                         ctx.fill();
                     }
-                    
+
                     ctx.restore();
                 }
-                
+
                 update() {
-                    if (!this.active) { 
+                    if (!this.active) {
                         return;
                     }
                     this.x += this.velocity.x;
                     this.y += this.velocity.y;
 
-                    // Adiciona partículas ao rasto
-                    if (frameCount % 3 === 0) { 
-                        this.trailParticles.push({
-                            x: this.x,
-                            y: this.y,
-                            radius: this.radius * (Math.random() * 0.3 + 0.2),
-                            color: `rgba(255, 255, ${Math.floor(Math.random() * 255)}, 0.5)`,
-                            alpha: 1
-                        });
+                    // <<<<<<< MUDANÇA 1: SOLICITA A CRIAÇÃO DE PARTÍCULAS AO GESTOR CENTRAL
+                    if (frameCount % 3 === 0) {
+                        const trailColor = `rgba(255, 255, ${Math.floor(Math.random() * 255)}, 0.5)`;
+                        const trailRadius = this.radius * (Math.random() * 0.3 + 0.2);
+                        particleManager.createTrailParticle(this.x, this.y, trailColor, trailRadius);
                     }
-                    
-                    // Otimização: Atualiza e remove partículas do rasto sem usar .filter()
-                    for (let i = this.trailParticles.length - 1; i >= 0; i--) {
-                        const p = this.trailParticles[i];
-                        p.alpha -= 0.08;
-                        p.radius *= 0.9;
-                        if (p.alpha <= 0.05) {
-                            this.trailParticles.splice(i, 1); // Remove a partícula
-                        }
-                    }
+
 
                     // Verifica se o projétil saiu dos limites do mundo
                     const worldEdge = CONFIG.WORLD_BOUNDS.width / 2 + 200;
@@ -2094,10 +2061,9 @@
                     this.damage = 0;
                     this.pierce = 0;
                     this.piercedEnemies.clear();
-                    this.trailParticles = [];
                     this.type = 'normal';
-                    this.length = 0; 
-                    this.angle = 0; 
+                    this.length = 0;
+                    this.angle = 0;
                 }
             }
 
@@ -2105,18 +2071,17 @@
                 constructor() {
                     super();
                     this.color = 'red';
-                    this.trailParticles = [];
+                    // <<<<<<< MUDANÇA 1: RASTRO DE PARTÍCULAS REMOVIDO DAQUI
                 }
 
                 init(x, y, angle, speed, damage) {
-                    super.reset(); 
-                    this.x = x; 
+                    super.reset();
+                    this.x = x;
                     this.y = y;
                     this.radius = 7; // Raio do projétil inimigo
                     this.velocity = { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed };
                     this.damage = damage;
                     this.color = 'red';
-                    this.trailParticles = [];
                 }
 
                 draw(ctx) {
@@ -2130,16 +2095,7 @@
                     ctx.save();
                     ctx.translate(-camera.x, -camera.y);
 
-                    // Desenha o rasto
-                    this.trailParticles.forEach(p => {
-                        ctx.save();
-                        ctx.globalAlpha = p.alpha;
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                        ctx.fillStyle = p.color;
-                        ctx.fill();
-                        ctx.restore();
-                    });
+                    // <<<<<<< MUDANÇA 1: LÓGICA DE DESENHAR RASTRO REMOVIDA
 
                     ctx.fillStyle = this.color;
                     ctx.beginPath();
@@ -2147,30 +2103,16 @@
                     ctx.fill();
                     ctx.restore();
                 }
-                
+
                 update() {
                     this.x += this.velocity.x;
                     this.y += this.velocity.y;
 
-                    // Adiciona partículas ao rasto
+                    // <<<<<<< MUDANÇA 1: SOLICITA A CRIAÇÃO DE PARTÍCULAS AO GESTOR CENTRAL
                     if (frameCount % 3 === 0) {
-                        this.trailParticles.push({
-                            x: this.x,
-                            y: this.y,
-                            radius: this.radius * (Math.random() * 0.3 + 0.2),
-                            color: `rgba(255, 0, 0, 0.5)`, // Rasto vermelho
-                            alpha: 1
-                        });
-                    }
-                    
-                    // Otimização: Atualiza e remove partículas do rasto
-                    for (let i = this.trailParticles.length - 1; i >= 0; i--) {
-                        const p = this.trailParticles[i];
-                        p.alpha -= 0.08;
-                        p.radius *= 0.9;
-                        if (p.alpha <= 0.05) {
-                            this.trailParticles.splice(i, 1);
-                        }
+                        const trailColor = `rgba(255, 0, 0, 0.5)`;
+                        const trailRadius = this.radius * (Math.random() * 0.3 + 0.2);
+                        particleManager.createTrailParticle(this.x, this.y, trailColor, trailRadius);
                     }
 
                     // Verifica se o projétil saiu da tela
@@ -2185,17 +2127,16 @@
                     this.velocity = { x: 0, y: 0 };
                     this.damage = 0;
                     this.color = 'red'; // Cor predefinida
-                    this.trailParticles = [];
                 }
             }
-            
+
             class XPOrb extends Entity {
                 constructor() {
                     super();
                 }
                 init(x, y, value) {
                     super.reset();
-                    this.x = x; 
+                    this.x = x;
                     this.y = y;
                     this.radius = 5; // Raio fixo para XPOrb
                     this.value = value;
@@ -2237,14 +2178,59 @@
                     this.value = 0;
                 }
             }
-            
+
+            // <<<<<<< MUDANÇA 1: PARTICLE MANAGER IMPLEMENTADO
+            class ParticleManager {
+                constructor(maxParticles = 500) {
+                    this.maxParticles = maxParticles;
+                    this.pool = createPool(Particle, maxParticles);
+                    this.activeParticles = [];
+                }
+
+                createParticle(x, y, color = 'white', scale = 1) {
+                    // Se a lista de partículas ativas estiver cheia, recicla a mais antiga
+                    if (this.activeParticles.length >= this.maxParticles) {
+                        const oldestParticle = this.activeParticles.shift(); // Remove a mais antiga
+                        releaseToPool(oldestParticle);
+                    }
+                    const p = getFromPool(this.pool, x, y, color, scale);
+                    this.activeParticles.push(p);
+                }
+
+                // Cria uma partícula de rastro (que não tem velocidade inicial)
+                createTrailParticle(x, y, color, radius) {
+                    if (this.activeParticles.length >= this.maxParticles) {
+                        const oldestParticle = this.activeParticles.shift();
+                        releaseToPool(oldestParticle);
+                    }
+                    const p = getFromPool(this.pool, x, y, color, 1); // scale 1
+                    p.velocity = { x: 0, y: 0 }; // Rastro não tem velocidade própria
+                    p.radius = radius;
+                    this.activeParticles.push(p);
+                }
+
+                update() {
+                    for (let i = this.activeParticles.length - 1; i >= 0; i--) {
+                        const p = this.activeParticles[i];
+                        p.update();
+                        if (p.isDead) {
+                            this.activeParticles.splice(i, 1);
+                        }
+                    }
+                }
+
+                draw(ctx) {
+                    this.activeParticles.forEach(p => p.draw(ctx));
+                }
+            }
+
             class Particle extends Entity {
                 constructor() {
                     super();
                 }
                 init(x, y, color = 'white', scale = 1) { // Adicionado um fator de escala
                     super.reset();
-                    this.x = x; 
+                    this.x = x;
                     this.y = y;
                     this.radius = (Math.random() * 3 + 1) * scale;
                     this.velocity = { x: (Math.random() - 0.5) * 6, y: (Math.random() - 0.5) * 6 }; // Velocidade inicial maior
@@ -2271,7 +2257,7 @@
                     this.y += this.velocity.y;
                     this.alpha -= 0.05; // Desaparece mais rapidamente para otimização
                     if (this.alpha <= 0) {
-                        this.isDead = true; // Marcar para remoção
+                        this.isDead = true;
                         releaseToPool(this); // Libertar para o agrupamento
                     }
                 }
@@ -2328,7 +2314,7 @@
                     }
                 }
             }
-            
+
             class Vortex extends Entity {
                 constructor(x, y, levelData) {
                     super(x, y, 10);
@@ -2358,13 +2344,13 @@
                         const dist = Math.hypot(this.x - enemy.x, this.y - enemy.y);
                         if(dist < this.maxRadius){
                             if(this.isExplosion){
-                                if(!enemy.hitBy.has(this)){ 
+                                if(!enemy.hitBy.has(this)){
                                     enemy.takeDamage(this.damage * player.damageModifier); // Explosões também escalam com dano do jogador
                                     enemy.applyKnockback(this.x, this.y, CONFIG.ENEMY_KNOCKBACK_FORCE * 2);
                                     enemy.hitBy.add(this); // Adiciona este vórtice ao conjunto do inimigo
                                     this.enemiesHitByExplosion.add(enemy); // Lembra quem foi atingido
                                 }
-                            } else { 
+                            } else {
                                 const angle = Math.atan2(this.y - enemy.y, this.x - enemy.x);
                                 enemy.x += Math.cos(angle) * this.force;
                                 enemy.y += Math.sin(angle) * this.force;
@@ -2502,15 +2488,15 @@
                         this.points.push(point);
                         return true;
                     }
-                    
+
                     if (!this.divided) {
                         this.subdivide();
                     }
-                    
+
                     // Tenta inserir nos filhos e retorna true se bem-sucedido em qualquer um deles
-                    if (this.northeast.insert(point) || 
-                        this.northwest.insert(point) || 
-                        this.southeast.insert(point) || 
+                    if (this.northeast.insert(point) ||
+                        this.northwest.insert(point) ||
+                        this.southeast.insert(point) ||
                         this.southwest.insert(point)) {
                         return true;
                     }
@@ -2524,20 +2510,20 @@
                     if (!this.bounds.intersects(range)) {
                         return found;
                     }
-                    
+
                     for (let p of this.points) {
-                        if (range.contains(p)) { 
+                        if (range.contains(p)) {
                             found.push(p);
                         }
                     }
-                    
+
                     if (this.divided) {
                         this.northwest.query(range, found);
                         this.northeast.query(range, found);
                         this.southwest.query(range, found);
                         this.southeast.query(range, found);
                     }
-                    
+
                     return found;
                 }
             }
@@ -2574,7 +2560,7 @@
 
                 // O chão principal, estendido para o novo tamanho do mundo
                 platforms.push(new Platform(
-                    -CONFIG.WORLD_BOUNDS.width, 
+                    -CONFIG.WORLD_BOUNDS.width,
                     groundLevel,
                     CONFIG.WORLD_BOUNDS.width * 2,
                     CONFIG.WORLD_BOUNDS.height
@@ -2582,15 +2568,15 @@
 
                 // Geração de plataformas flutuantes
                 const platformCount = 35; // Aumentado para preencher o mundo maior
-                const minGapX = 50;  
-                const minGapY = 40;  
+                const minGapX = 50;
+                const minGapY = 40;
                 let attempts = 0;
 
                 for (let i = 0; i < platformCount && attempts < 1000; i++) {
                     const pWidth = Math.random() * 150 + 100;
                     const pHeight = 20;
                     const pX = (Math.random() - 0.5) * (CONFIG.WORLD_BOUNDS.width - pWidth);
-                    const pY = groundLevel - (Math.random() * 400 + 80); 
+                    const pY = groundLevel - (Math.random() * 400 + 80);
 
                     let overlaps = false;
                     for (const existingPlatform of platforms) {
@@ -2606,7 +2592,7 @@
                     if (!overlaps) {
                         platforms.push(new Platform(pX, pY, pWidth, pHeight));
                     } else {
-                        i--; 
+                        i--;
                     }
                     attempts++;
                 }
@@ -2626,18 +2612,18 @@
 
 
                 player = new Player();
-                
+
                 // Inicializa os agrupamentos de objetos
-                particlePool = createPool(Particle, 200);
+                particleManager = new ParticleManager(500); // <<<<<<< MUDANÇA 1: Inicializa o gestor de partículas
                 projectilePool = createPool(Projectile, 50);
                 enemyProjectilePool = createPool(EnemyProjectile, 50);
                 xpOrbPool = createPool(XPOrb, 100);
                 damageNumberPool = createPool(DamageNumber, 50);
 
-                player.addSkill('divine_lance'); 
+                player.addSkill('divine_lance');
 
                 // Limpa todas as entidades ativas
-                enemies = []; 
+                enemies = [];
                 activeVortexes = [];
                 powerUps = [];
                 activeStaticFields = [];
@@ -2647,7 +2633,7 @@
                 document.getElementById('skills-hud').innerHTML = '';
 
                 // Liberta todos os objetos de volta para os seus agrupamentos
-                particlePool.forEach(p => releaseToPool(p));
+                // particlePool.forEach(p => releaseToPool(p)); // <<<<<<< MUDANÇA 1: Removido
                 projectilePool.forEach(p => releaseToPool(p));
                 enemyProjectilePool.forEach(p => releaseToPool(p));
                 xpOrbPool.forEach(o => releaseToPool(o));
@@ -2656,7 +2642,7 @@
                 gameTime = 0; frameCount = 0;
                 score = { kills: 0, time: 0 };
                 screenShake = { intensity: 0, duration: 0 };
-                
+
                 waveNumber = 0;
                 waveEnemiesRemaining = 0;
                 waveCooldownTimer = 0;
@@ -2684,9 +2670,9 @@
                 } else { // Geração de Ondas Infinitas
                     showTemporaryMessage(`ONDA ${waveNumber}! (Infinita)`, "cyan");
                     // ALTERAÇÃO 3: Adicionado 'reaper' ao pool de inimigos infinitos
-                    const enemyTypes = ['chaser', 'speeder', 'tank', 'shooter', 'bomber', 'healer', 'summoner', 'reaper']; 
+                    const enemyTypes = ['chaser', 'speeder', 'tank', 'shooter', 'bomber', 'healer', 'summoner', 'reaper'];
                     const typesInThisWave = Math.min(2 + Math.floor(waveNumber / 7), 5);
-                    
+
                     currentWaveConfig = { enemies: [], eliteChance: Math.min(0.05 + (waveNumber - WAVE_CONFIGS.length) * 0.01, 0.25) };
 
                     let typesAdded = new Set();
@@ -2698,8 +2684,8 @@
                         typesAdded.add(enemyType);
 
                         const baseCount = 5;
-                        const enemyCount = baseCount + Math.floor(waveNumber * 0.8); 
-                        
+                        const enemyCount = baseCount + Math.floor(waveNumber * 0.8);
+
                         currentWaveConfig.enemies.push({
                             type: enemyType,
                             count: enemyCount,
@@ -2711,69 +2697,59 @@
                 waveEnemiesRemaining = 0;
                 currentWaveConfig.enemies.forEach(enemyType => {
                     waveEnemiesRemaining += enemyType.count;
+                    enemyType.spawnTimer = Math.random() * enemyType.spawnInterval; // <<<<<<< MUDANÇA 3: Inicializa o timer de spawn individual
                 });
 
-                enemySpawnTimer = 0;
+
                 if (waveNumber <= WAVE_CONFIGS.length) {
                     showTemporaryMessage(`ONDA ${waveNumber}!`, "gold");
                 }
                 if (DEBUG_MODE) console.log(`Iniciando Onda ${waveNumber}. Total de inimigos: ${waveEnemiesRemaining}`);
             }
 
+            // <<<<<<< MUDANÇA 3: LÓGICA DE SPAWN REFEITA
             function spawnEnemies() {
+                // Lógica de pausa entre ondas
                 if (waveEnemiesRemaining <= 0 && enemies.length === 0) {
                     if (waveCooldownTimer <= 0) {
                         waveCooldownTimer = 180; // 3 segundos de pausa entre ondas
                         showTemporaryMessage("PAUSA ENTRE ONDAS", "white");
-                        if (DEBUG_MODE) console.log("Onda concluída! Próxima onda em 3 segundos...");
                     } else {
                         waveCooldownTimer--;
                         if (waveCooldownTimer <= 0) {
                             startNextWave();
                         }
                     }
-                    return; // Não spawna inimigos se a onda acabou e está em cooldown
+                    return; // Não spawna inimigos durante o cooldown
                 }
 
-                enemySpawnTimer--;
-                if (enemySpawnTimer <= 0 && waveEnemiesRemaining > 0) {
-                    let x, y;
-                    const spawnSide = Math.floor(Math.random() * 4); // 0: Esquerda, 1: Direita, 2: Topo, 3: Fundo
+                if (!currentWaveConfig.enemies) return;
 
-                    const spawnMargin = 50; // Distância extra da borda da tela
-                    const camX = camera.x;
-                    const camY = camera.y;
-                    const camW = canvas.width;
-                    const camH = canvas.height;
+                // Itera sobre cada tipo de inimigo na configuração da onda
+                currentWaveConfig.enemies.forEach(enemyConfig => {
+                    if (enemyConfig.count > 0) {
+                        enemyConfig.spawnTimer--;
 
-                    if (spawnSide === 0) { // Esquerda
-                        x = camX - spawnMargin;
-                        y = camY + Math.random() * camH;
-                    } else if (spawnSide === 1) { // Direita
-                        x = camX + camW + spawnMargin;
-                        y = camY + Math.random() * camH;
-                    } else if (spawnSide === 2) { // Topo
-                        x = camX + Math.random() * camW;
-                        y = camY - spawnMargin;
-                    } else { // Fundo
-                        x = camX + Math.random() * camW;
-                        y = camY + camH + spawnMargin;
+                        if (enemyConfig.spawnTimer <= 0) {
+                            // Lógica para encontrar uma posição de spawn fora da tela
+                            let x, y;
+                            const spawnSide = Math.floor(Math.random() * 4);
+                            const spawnMargin = 50;
+                            const camX = camera.x, camY = camera.y, camW = canvas.width, camH = canvas.height;
+
+                            if (spawnSide === 0) { x = camX - spawnMargin; y = camY + Math.random() * camH; }
+                            else if (spawnSide === 1) { x = camX + camW + spawnMargin; y = camY + Math.random() * camH; }
+                            else if (spawnSide === 2) { x = camX + Math.random() * camW; y = camY - spawnMargin; }
+                            else { x = camX + Math.random() * camW; y = camY + camH + spawnMargin; }
+
+                            const isElite = Math.random() < currentWaveConfig.eliteChance;
+                            enemies.push(new Enemy(x, y, enemyConfig.type, isElite));
+
+                            enemyConfig.count--;
+                            enemyConfig.spawnTimer = enemyConfig.spawnInterval; // Reinicia o timer para este tipo específico
+                        }
                     }
-                    
-                    const availableEnemyTypes = currentWaveConfig.enemies.filter(e => e.count > 0);
-                    if (availableEnemyTypes.length === 0) {
-                        return;
-                    }
-                    const selectedEnemyConfig = availableEnemyTypes[Math.floor(Math.random() * availableEnemyTypes.length)];
-                    let enemyType = selectedEnemyConfig.type;
-                    
-                    const isElite = Math.random() < currentWaveConfig.eliteChance;
-
-                    enemies.push(new Enemy(x, y, enemyType, isElite));
-                    selectedEnemyConfig.count--;
-
-                    enemySpawnTimer = selectedEnemyConfig.spawnInterval;
-                }
+                });
             }
 
             function chainLightningEffect(source, initialTarget, levelData) {
@@ -2802,7 +2778,7 @@
                             }
                         }
                     }
-                    
+
                     currentTarget = nextTarget;
                     if(currentTarget) targetsHit.add(currentTarget);
                 }
@@ -2818,7 +2794,7 @@
                     const t = i / segments;
                     const x = startPos.x + dx * t + (Math.random() - 0.5) * 10;
                     const y = startPos.y + dy * t + (Math.random() - 0.5) * 10;
-                    getFromPool(particlePool, x, y, '#ADD8E6', 1.5); // Azul claro
+                    particleManager.createParticle(x, y, '#ADD8E6', 1.5); // <<<<<<< MUDANÇA 1
                 }
             }
 
@@ -2828,7 +2804,7 @@
                 handleEnemyProjectiles();
             }
 
-            function handlePlayerProjectiles(qtree) { 
+            function handlePlayerProjectiles(qtree) {
                 if (!projectilePool) return;
 
                 for (const proj of projectilePool) {
@@ -2861,7 +2837,7 @@
                 let searchRadius = player.radius + 50;
                 let range = new Rectangle(player.x - searchRadius, player.y - searchRadius, searchRadius * 2, searchRadius * 2);
                 let nearbyEnemies = qtree.query(range);
-                
+
                 for (let enemy of nearbyEnemies) {
                     if (enemy.isDead) continue;
                     if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < player.radius + enemy.radius) {
@@ -2881,14 +2857,14 @@
                     if (Math.hypot(player.x - eProj.x, player.y - eProj.y) < player.radius + eProj.radius) {
                         player.takeDamage(eProj.damage);
                         for (let i = 0; i < 10; i++) {
-                            if (particlePool) getFromPool(particlePool, eProj.x, eProj.y, 'orange', 1.5);
+                            if (particleManager) particleManager.createParticle(eProj.x, eProj.y, 'orange', 1.5); // <<<<<<< MUDANÇA 1
                         }
                         eProj.isDead = true;
                         releaseToPool(eProj);
                     }
                 }
             }
-            
+
             let demoPlayer;
 
             // OTIMIZAÇÃO: Função genérica para remover entidades mortas de forma eficiente
@@ -2901,12 +2877,12 @@
             }
 
             function updateGame(deltaTime) {
-                gameTime += deltaTime; 
+                gameTime += deltaTime;
                 frameCount++;
 
                 // Redefinir e preencher o Quadtree em cada frame
                 const worldBounds = new Rectangle(-CONFIG.WORLD_BOUNDS.width, -CONFIG.WORLD_BOUNDS.height, CONFIG.WORLD_BOUNDS.width * 2, CONFIG.WORLD_BOUNDS.height * 2);
-                qtree = new Quadtree(worldBounds, 4); 
+                qtree = new Quadtree(worldBounds, 4);
 
                 for (const enemy of enemies) {
                     if (!enemy.isDead) {
@@ -2916,21 +2892,21 @@
 
                 if (player) player.update();
                 if (camera) camera.update();
-                
+
                 enemies.forEach(e => e.update());
                 for (const p of projectilePool) { if (p.active) p.update(); }
                 for (const p of enemyProjectilePool) { if (p.active) p.update(); }
                 for (const o of xpOrbPool) { if (o.active) o.update(); }
-                for (const p of particlePool) { if (p.active) p.update(); }
+                particleManager.update(); // <<<<<<< MUDANÇA 1
                 activeDamageNumbers.forEach(dn => dn.update());
 
                 powerUps.forEach(p => p.update());
                 activeVortexes.forEach(v => v.update());
                 activeStaticFields.forEach(sf => sf.update());
 
-                spawnEnemies(); 
-                handleCollisions(); 
-                
+                spawnEnemies();
+                handleCollisions();
+
                 // OTIMIZAÇÃO: Substituindo .filter() por loops `for` reversos com `splice()`
                 removeDeadEntities(enemies);
                 removeDeadEntities(powerUps);
@@ -2943,7 +2919,7 @@
                     if (screenShake.duration <= 0) screenShake.intensity = 0;
                 }
             }
-            
+
             function drawGame() {
                 // ALTERAÇÃO 4a: Lógica do Parallax melhorada
                 if (player) {
@@ -2960,16 +2936,16 @@
                     const parallaxY3 = -camera.y * 0.1;
 
                     // Combina todas as posições numa única string
-                    gameContainer.style.backgroundPosition = 
+                    gameContainer.style.backgroundPosition =
                         `${parallaxX1}px ${parallaxY1}px, ` + // Nebulosa
                         `${parallaxX2}px ${parallaxY2}px, ` + // Estrelas 1
                         `${parallaxX3}px ${parallaxY3}px, ` + // Estrelas 2
                         `${parallaxX3 * 1.5}px ${parallaxY3 * 1.5}px`; // Estrelas 3 (ainda mais rápidas)
                 }
-                
+
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.save();
-                
+
                 // ALTERAÇÃO 4b: Desenhar Partículas de Ambiente
                 ctx.save();
                 ctx.translate(-camera.x * 0.5, -camera.y * 0.5); // Um parallax mais lento para elas
@@ -2985,22 +2961,22 @@
                 if (screenShake.intensity > 0) {
                     ctx.translate((Math.random() - 0.5) * screenShake.intensity, (Math.random() - 0.5) * screenShake.intensity);
                 }
-                
+
                 platforms.forEach(p => p.draw(ctx));
 
                 for (const o of xpOrbPool) { if (o.active) o.draw(ctx); }
                 powerUps.forEach(p => p.draw(ctx));
-                activeVortexes.forEach(v => v.update());
-                activeStaticFields.forEach(sf => sf.update());
+                activeVortexes.forEach(v => v.draw(ctx)); // CORRIGIDO (estava v.update())
+                activeStaticFields.forEach(sf => sf.draw(ctx)); // CORRIGIDO (estava v.update())
                 enemies.forEach(e => e.draw(ctx));
                 for (const p of projectilePool) { if (p.active) p.draw(ctx); }
                 for (const p of enemyProjectilePool) { if (p.active) p.draw(ctx); }
-                for (const p of particlePool) { if (p.active) p.draw(ctx); }
-                
+                particleManager.draw(ctx); // <<<<<<< MUDANÇA 1
+
                 activeDamageNumbers.forEach(dn => dn.draw(ctx));
-                
+
                 if (player) player.draw(ctx);
-                
+
                 if (player && player.skills && player.skills['orbital_shield']) {
                     const skillState = player.skills['orbital_shield'];
                     const levelData = SKILL_DATABASE['orbital_shield'].levels[skillState.level - 1];
@@ -3028,7 +3004,7 @@
                 ctx.restore();
                 updateHUD();
             }
-            
+
             function gameLoop(currentTime) {
                 requestAnimationFrame(gameLoop);
 
@@ -3037,14 +3013,14 @@
                 lastFrameTime = currentTime;
 
                 if (gameState === 'menu') {
-                    if (!demoPlayer) { 
+                    if (!demoPlayer) {
                         demoPlayer = new DemoPlayer(canvas.width / 2, canvas.height / 2);
                     }
                     demoPlayer.update();
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     demoPlayer.draw(ctx);
                 }
-                
+
                 if (gameState === 'playing') {
                     try {
                         updateGame(deltaTime);
@@ -3053,7 +3029,7 @@
                         setGameState('paused');
                     }
                 }
-                
+
                 if (gameState !== 'menu') {
                      try {
                         drawGame();
@@ -3091,27 +3067,31 @@
 
             function setGameState(newState) {
                 if (['menu', 'paused', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades'].includes(newState) && newState !== gameState) {
-                    SoundManager.play('uiClick', 'C6'); 
+                    SoundManager.play('uiClick', 'C6');
                 }
 
                 if (newState === 'playing' && demoPlayer) {
-                    demoPlayer = null; 
+                    demoPlayer = null;
                 }
-                
+
                 gameState = newState;
-                
+
                 if (newState === 'playing' && debugStatus) {
                     debugStatus.style.display = 'none';
                 } else if (debugStatus) {
                     debugStatus.style.display = 'block';
                 }
 
-                const isMenuState = ['menu', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades'].includes(newState);
-                
+                const isMenuState = ['menu', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades', 'paused'].includes(newState);
+
                 ui.layer.style.backgroundColor = (newState === 'menu') ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.7)';
-                ui.layer.classList.toggle('active-menu', isMenuState || newState === 'paused');
-                ui.hud.classList.toggle('hidden', isMenuState || newState !== 'playing');
-                ui.dashButtonMobile.classList.toggle('hidden', !isMobile || isMenuState || gameState !== 'playing');
+                ui.layer.classList.toggle('active-menu', isMenuState);
+
+                // <<<<<<< MUDANÇA 4: Lógica do HUD e Botão de Dash unificada
+                const showHud = (newState === 'playing' || newState === 'paused');
+                ui.hud.classList.toggle('hidden', !showHud);
+                ui.dashButtonMobile.classList.toggle('hidden', !isMobile || !showHud);
+
 
                 for (const panelKey in ui) {
                     if (ui[panelKey] && ui[panelKey].classList && panelKey !== 'layer' && panelKey !== 'hud' && panelKey !== 'temporaryMessage' && panelKey !== 'dashButtonMobile') {
@@ -3124,9 +3104,7 @@
                     updateGemDisplay();
                 } else if (newState === 'paused') {
                     ui.pauseMenu.classList.remove('hidden');
-                    ui.hud.classList.remove('hidden');
                 } else if (newState === 'gameOver') {
-                    // ALTERAÇÃO 3: Usar gameTime para o tempo final (corrigido para usar a variável global correta)
                     document.getElementById('final-time').innerText = formatTime(Math.floor(gameTime / (1000 / 60)));
                     document.getElementById('final-kills').innerText = score.kills;
                     ui.gameOverScreen.classList.remove('hidden');
@@ -3149,11 +3127,16 @@
                 if (player) {
                     document.getElementById('health-bar').style.width = `${(player.health / player.maxHealth) * 100}%`;
                     document.getElementById('xp-bar').style.width = `${(player.xp / player.xpToNextLevel) * 100}%`;
+
+                    // <<<<<<< MUDANÇA 4: Lógica do cooldown do botão de dash movida para cá
+                    if (isMobile) {
+                        ui.dashButtonMobile.classList.toggle('on-cooldown', player.dashCooldown > 0);
+                    }
                 }
                 // Converte o tempo do jogo de "delta-time-frames" para segundos
                 const gameTimeInSeconds = gameTime / (1000.0 / 60.0);
                 document.getElementById('timer').innerText = formatTime(Math.floor(gameTimeInSeconds));
-                
+
                 updateSkillsHUD();
             }
 
@@ -3180,7 +3163,7 @@
             function populateLevelUpOptions() {
                 const container = document.getElementById('skill-options');
                 container.innerHTML = '';
-                
+
                 let options = [];
                 for(const skillId in player.skills){
                     const skillData = SKILL_DATABASE[skillId];
@@ -3195,9 +3178,9 @@
                 if (options.length > 0 && options.length < 3 && !options.includes('heal')) {
                     options.push('heal');
                 }
-                
+
                 options.slice(0, 3).forEach(skillId => {
-                    const skill = SKILL_DATABASE[skillId]; 
+                    const skill = SKILL_DATABASE[skillId];
                     const card = document.createElement('div');
                     card.className = 'skill-card';
                     const currentLevel = player.skills[skillId]?.level || 0;
@@ -3214,16 +3197,16 @@
                     container.appendChild(card);
                 });
             }
-            
+
             function updateSkillsHUD() {
                 if (!player || !player.skills) return;
-            
+
                 for (const skillId in player.skills) {
                     const skillState = player.skills[skillId];
                     const skillData = SKILL_DATABASE[skillId];
-            
-                    if (!skillState.hudElement) continue; 
-            
+
+                    if (!skillState.hudElement) continue;
+
                     if (skillData.type !== 'passive' && skillData.type !== 'orbital' && skillState.timer > 0) {
                         skillState.hudElement.classList.add('on-cooldown');
                     } else {
@@ -3231,7 +3214,7 @@
                     }
                 }
             }
-            
+
             function saveScore() {
                 const currentTimeInSeconds = Math.floor(gameTime / (1000.0 / 60.0));
                 const bestTime = parseInt(localStorage.getItem('bestTime') || '0');
@@ -3258,10 +3241,10 @@
                     const upgrade = PERMANENT_UPGRADES[key];
                     const currentLevel = playerUpgrades[key] || 0;
                     const maxLevel = upgrade.levels.length;
-                    
+
                     const card = document.createElement('div');
                     card.className = 'skill-card';
-                    
+
                     if (currentLevel < maxLevel) {
                         const nextLevelData = upgrade.levels[currentLevel];
                         card.innerHTML = `<h3>${upgrade.name} (Nível ${currentLevel}/${maxLevel})</h3>
@@ -3298,14 +3281,14 @@
 
                 gameContainer.addEventListener('touchstart', (e) => {
                     if (e.target.classList.contains('ui-button')) {
-                        return; 
+                        return;
                     }
                     if (gameState !== 'playing') return;
                     e.preventDefault();
 
                     Array.from(e.changedTouches).forEach(touch => {
-                        const joystickType = 'move'; 
-                        
+                        const joystickType = 'move';
+
                         let existingJoystick = false;
                         for (let [id, joy] of activeTouches) {
                             if (joy.joystickType === joystickType) {
@@ -3314,7 +3297,7 @@
                             }
                         }
                         if (existingJoystick) {
-                            return; 
+                            return;
                         }
 
                         const base = document.createElement('div');
@@ -3322,7 +3305,7 @@
                         const handle = document.createElement('div');
                         handle.className = 'joystick-handle';
                         base.appendChild(handle);
-                        
+
                         base.style.left = `${touch.clientX - CONFIG.JOYSTICK_RADIUS}px`;
                         base.style.top = `${touch.clientY - CONFIG.JOYSTICK_RADIUS}px`;
                         gameContainer.appendChild(base);
@@ -3349,13 +3332,13 @@
                         const dy = touch.clientY - joy.startY;
                         const dist = Math.hypot(dx, dy);
                         const angle = Math.atan2(dy, dx);
-                        
+
                         const limitedDist = Math.min(dist, CONFIG.JOYSTICK_RADIUS);
                         const handleX = Math.cos(angle) * limitedDist;
                         const handleY = Math.sin(angle) * limitedDist;
 
                         joy.handleElement.style.transform = `translate(${handleX}px, ${handleY}px)`;
-                        
+
                         const normalizedDx = limitedDist > CONFIG.JOYSTICK_DEAD_ZONE ? dx / CONFIG.JOYSTICK_RADIUS : 0;
                         const normalizedDy = limitedDist > CONFIG.JOYSTICK_DEAD_ZONE ? dy / CONFIG.JOYSTICK_RADIUS : 0;
 
@@ -3431,7 +3414,7 @@
                             player.dash();
                         }
                     });
-                } else { 
+                } else {
                     window.addEventListener('keydown', (e) => {
                         const key = e.key.toLowerCase();
                         keys[key] = true;
@@ -3453,18 +3436,18 @@
                 window.addEventListener('blur', () => {
                     if(gameState === 'playing') setGameState('paused');
                 });
-                
+
                 const startGame = () => {
                     initGame();
-                    lastFrameTime = 0; 
+                    lastFrameTime = 0;
                 };
-                
+
                 document.getElementById('play-button').onclick = startGame;
                 document.getElementById('restart-button-pause').onclick = startGame;
                 document.getElementById('restart-button-gameover').onclick = startGame;
 
                 document.getElementById('resume-button').onclick = () => {
-                    lastFrameTime = 0; 
+                    lastFrameTime = 0;
                     setGameState('playing');
                 };
 
@@ -3479,7 +3462,7 @@
                 document.getElementById('back-from-rank-button').onclick = () => setGameState('menu');
                 document.getElementById('pause-button').onclick = () => { if(gameState === 'playing') setGameState('paused'); };
                 document.getElementById('fullscreen-button').onclick = toggleFullscreen;
-                
+
                 document.getElementById('upgrades-button').onclick = () => {
                     populateUpgradesMenu();
                     setGameState('upgrades');
