@@ -1136,6 +1136,8 @@
                     this.radius = radius;
                     this.isDead = false; // Usado para filtragem, ativo para agrupamento
                     this.active = true; // Para agrupamento de objetos
+                    this.velocityY = 0;
+                    this.onGround = false;
                 }
                 draw(ctx) {}
                 update() {}
@@ -1145,6 +1147,38 @@
                     this.y = 0;
                     this.radius = 0;
                     this.isDead = false;
+                }
+
+                moveAndCollide(dx, dy) {
+                    const wasOnGround = this.onGround;
+                    const steps = Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)));
+                    if (steps === 0) return;
+
+                    const stepX = dx / steps;
+                    const stepY = dy / steps;
+
+                    for (let i = 0; i < steps; i++) {
+                        this.x += stepX;
+                        // (Colisão horizontal com paredes iria aqui)
+
+                        this.y += stepY;
+                        let collided = false;
+                        for (const p of platforms) {
+                            if (this.x + this.radius > p.x && this.x - this.radius < p.x + p.width && this.y + this.radius > p.y && this.y - this.radius < p.y + p.height) {
+                                if (stepY >= 0 && (this.y - stepY) + this.radius <= p.y) {
+                                    this.y = p.y - this.radius;
+                                    this.velocityY = 0;
+                                    collided = true;
+                                    this.onGround = true;
+                                    // Hook genérico de aterrissagem
+                                    if (!wasOnGround && typeof this.onLanding === 'function') {
+                                        this.onLanding();
+                                    }
+                                }
+                            }
+                        }
+                        if (!collided) this.onGround = false;
+                    }
                 }
             }
 
@@ -1302,28 +1336,26 @@
                     this.isDashing = false;
                     this.dashTimer = 0;
                     this.dashCooldown = 0;
-                    this.lastMoveDirection = { x: 1, y: 0 }; // Para Raio Celestial
-                    this.squashStretchTimer = 0; // Para animação de squash
+                    this.lastMoveDirection = { x: 1, y: 0 };
+                    this.squashStretchTimer = 0;
                     this.x = canvas.width / 2;
                     this.y = canvas.height * (1 - CONFIG.GROUND_HEIGHT_PERCENT) - this.radius;
-                    this.onGround = true;
-                    this.shielded = false; // Para a habilidade Égide Divina
-                    this.shieldTimer = 0; // Duração do escudo
-                    this.invincibilityTimer = 0; // Para I-Frames
-                    this.knockbackVelocity = { x: 0, y: 0 }; // Para knockback
+                    this.shielded = false;
+                    this.shieldTimer = 0;
+                    this.invincibilityTimer = 0;
+                    this.knockbackVelocity = { x: 0, y: 0 };
+                    this.jumpsAvailable = 1;
                 }
 
                 draw(ctx) {
-                    // Adiciona efeito de piscar para I-Frames
                     if (this.invincibilityTimer > 0 && frameCount % 8 < 4) {
                         this.animationFrame++;
-                        return; // Pula o desenho, criando o efeito de piscar
+                        return;
                     }
 
                     ctx.save();
                     ctx.translate(this.x - camera.x, this.y - camera.y);
 
-                    // Squash and Stretch
                     let scaleX = 1;
                     let scaleY = 1;
                     if (this.squashStretchTimer > 0) {
@@ -1334,33 +1366,6 @@
                     }
                     ctx.scale(this.facingRight ? scaleX : -scaleX, scaleY);
 
-                    /*
-                    // --- LÓGICA DO CONTORNO (Desativada para teste de performance) ---
-                    const contourColor = this.invincibilityTimer > 0 ? 'gold' : 'white';
-                    ctx.strokeStyle = contourColor;
-                    ctx.lineWidth = 3; // Reduzido para melhor performance
-                    ctx.lineJoin = 'round'; // Para cantos mais suaves
-
-                    ctx.beginPath();
-                    // Corpo
-                    ctx.moveTo(0, -this.radius * 1.5);
-                    ctx.lineTo(this.radius * 1.2, this.radius * 0.8);
-                    ctx.lineTo(-this.radius * 1.2, this.radius * 0.8);
-                    ctx.closePath();
-                    // Asa Direita
-                    ctx.moveTo(this.radius * 0.8, -this.radius * 0.5);
-                    ctx.quadraticCurveTo(this.radius * 2, -this.radius * 1.5, this.radius * 1.5, this.radius * 0.5);
-                    ctx.lineTo(this.radius * 0.8, this.radius * 0.8);
-                    ctx.closePath();
-                    // Asa Esquerda
-                    ctx.moveTo(-this.radius * 0.8, -this.radius * 0.5);
-                    ctx.quadraticCurveTo(-this.radius * 2, -this.radius * 1.5, -this.radius * 1.5, this.radius * 0.5);
-                    ctx.lineTo(-this.radius * 0.8, this.radius * 0.8);
-                    ctx.closePath();
-                    ctx.stroke();
-                    */
-
-                    // --- LÓGICA DE DESENHO ORIGINAL ---
                     if (this.hitTimer > 0) {
                         ctx.fillStyle = 'red';
                         this.hitTimer--;
@@ -1419,52 +1424,39 @@
                 }
 
                 update() {
-                    // Decrementa o temporizador de invencibilidade
                     if (this.invincibilityTimer > 0) {
                         this.invincibilityTimer--;
                     }
 
                     this.handleMovement();
-                    this.applyGravity(); // Aplica gravidade ao jogador
+                    this.applyGravity();
                     this.updateSkills();
 
-                    // Garante que o jogador morre se cair muito para fora do mundo
-                    if (platforms.length > 0) {
-                        const groundPlatform = platforms[0]; // Assume que a primeira plataforma é sempre o chão principal.
-                        const groundTopY = groundPlatform.y;
-                        if (this.y > groundTopY + 400) { // Aumenta a margem de queda
-                            this.takeDamage(9999);
-                        }
+                    if (platforms.length > 0 && this.y > platforms[0].y + 400) {
+                        this.takeDamage(9999);
                     }
 
-                    // Aplica regeneração de vida se a habilidade estiver ativa
                     if (this.skills['health_regen']) {
                         const regenLevelData = SKILL_DATABASE['health_regen'].levels[this.skills['health_regen'].level - 1];
-                        this.health = Math.min(this.maxHealth, this.health + regenLevelData.regenPerSecond / 60); // Regeneração por frame
+                        this.health = Math.min(this.maxHealth, this.health + regenLevelData.regenPerSecond / 60);
                     }
 
-                    // Atualiza o alvo da câmara para a posição do jogador
                     camera.targetX = this.x - canvas.width / 2;
                     camera.targetY = this.y - canvas.height / 2;
                 }
 
                 handleMovement() {
-                    // 1. Aplica forças externas (knockback)
                     this.moveAndCollide(this.knockbackVelocity.x, this.knockbackVelocity.y);
                     this.knockbackVelocity.x *= 0.9;
                     this.knockbackVelocity.y *= 0.9;
 
-                    // 2. Lida com o dash
                     if (this.isDashing) {
                         this.moveAndCollide(this.dashDirection.x * CONFIG.PLAYER_DASH_FORCE, this.dashDirection.y * CONFIG.PLAYER_DASH_FORCE);
                         this.dashTimer--;
-                        if (this.dashTimer <= 0) {
-                            this.isDashing = false;
-                        }
-                        return; // Dash sobrepõe-se a outros movimentos
+                        if (this.dashTimer <= 0) this.isDashing = false;
+                        return;
                     }
 
-                    // 3. Lida com o input do jogador
                     let dx = 0;
                     let dy_input = 0;
                     if (isMobile) {
@@ -1479,12 +1471,10 @@
                         const magnitude = Math.hypot(dx, dy_input);
                         this.lastMoveDirection = { x: dx / magnitude, y: dy_input / magnitude };
                     }
-                    if (dx !== 0) {
-                        this.facingRight = dx > 0;
-                    }
+                    if (dx !== 0) this.facingRight = dx > 0;
+                    
                     this.moveAndCollide(dx * this.speed, 0);
 
-                    // 4. Lida com saltos e ativação de dash
                     const jumpPressed = isMobile ? (movementVector.y < -0.5) : (keys['w'] || keys['ArrowUp'] || keys[' ']);
                     if (jumpPressed && this.jumpsAvailable > 0) {
                         this.velocityY = (this.onGround || this.jumpsAvailable === (this.skills['double_jump'] ? 2 : 1)) ? CONFIG.PLAYER_JUMP_FORCE : CONFIG.PLAYER_DOUBLE_JUMP_FORCE;
@@ -2053,14 +2043,9 @@
                     if (this.slowedTimer > 0) this.slowedTimer--;
 
                     // Aplica knockback primeiro
-                    this.x += this.knockbackVelocity.x;
-                    this.y += this.knockbackVelocity.y;
-                    this.knockbackVelocity.x *= 0.9; // Reduz o knockback
+                    this.moveAndCollide(this.knockbackVelocity.x, this.knockbackVelocity.y);
+                    this.knockbackVelocity.x *= 0.9;
                     this.knockbackVelocity.y *= 0.9;
-                    if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 0.1) {
-                        this.knockbackVelocity.x = 0;
-                        this.knockbackVelocity.y = 0;
-                    }
 
                     // Decrementa o cooldown de acerto por orbe
                     if (this.orbHitCooldown > 0) {
@@ -2074,7 +2059,7 @@
                         return; // Para de se mover
                     }
 
-                    // Inimigos voadores movem-se em direção ao jogador em X e Y, a menos que estejam em knockback forte
+                    // Inimigos voadores movem-se em direção ao jogador em X e Y
                     if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 5) { // Só se move se o knockback for pequeno
                         const angle = Math.atan2(player.y - this.y, player.x - this.x);
                         let currentSpeed = this.speed;
@@ -2343,6 +2328,13 @@
                         score.kills++;
                         waveEnemiesRemaining--; // Conta o boss como 1 inimigo para a onda
                         console.log(`Boss morreu. waveEnemiesRemaining é agora ${waveEnemiesRemaining}`); // DEBUG
+                        
+                        // CORREÇÃO: Força o início do cooldown para a próxima onda
+                        if (waveEnemiesRemaining <= 0) {
+                            waveCooldownTimer = 180; 
+                            console.log("Morte do chefe acionou o cooldown da próxima onda.");
+                        }
+
                         showTemporaryMessage("BOSS DERROTADO!", "gold");
                         screenShake = { intensity: 20, duration: 60 };
                         // Partículas de morte do boss
@@ -3225,9 +3217,17 @@
                     let nextTarget = null;
                     let nearestDistSq = Infinity;
 
-                    // Encontra o próximo alvo mais próximo que ainda não foi atingido
+                    const screenLeft = camera.x;
+                    const screenRight = camera.x + canvas.width;
+                    const screenTop = camera.y;
+                    const screenBottom = camera.y + canvas.height;
+
+                    // Encontra o próximo alvo mais próximo que ainda não foi atingido E está na tela
                     for (const enemy of enemies) {
-                        if (!targetsHit.has(enemy) && !enemy.isDead) {
+                        const isOnScreen = enemy.x > screenLeft - 50 && enemy.x < screenRight + 50 &&
+                                           enemy.y > screenTop - 50 && enemy.y < screenBottom + 50;
+
+                        if (!targetsHit.has(enemy) && !enemy.isDead && isOnScreen) {
                             const distSq = Math.hypot(currentTarget.x - enemy.x, currentTarget.y - enemy.y);
                             if (distSq < levelData.chainRadius * levelData.chainRadius && distSq < nearestDistSq) {
                                 nearestDistSq = distSq;
