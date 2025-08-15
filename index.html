@@ -1428,6 +1428,15 @@
                     this.applyGravity(); // Aplica gravidade ao jogador
                     this.updateSkills();
 
+                    // Garante que o jogador morre se cair muito para fora do mundo
+                    if (platforms.length > 0) {
+                        const groundPlatform = platforms[0]; // Assume que a primeira plataforma é sempre o chão principal.
+                        const groundTopY = groundPlatform.y;
+                        if (this.y > groundTopY + 400) { // Aumenta a margem de queda
+                            this.takeDamage(9999);
+                        }
+                    }
+
                     // Aplica regeneração de vida se a habilidade estiver ativa
                     if (this.skills['health_regen']) {
                         const regenLevelData = SKILL_DATABASE['health_regen'].levels[this.skills['health_regen'].level - 1];
@@ -1440,70 +1449,83 @@
                 }
 
                 handleMovement() {
-                    // Aplica knockback primeiro
-                    this.x += this.knockbackVelocity.x;
-                    this.y += this.knockbackVelocity.y;
-                    this.knockbackVelocity.x *= 0.9; // Atrito
+                    // 1. Aplica forças externas (knockback) e reduz com atrito
+                    this.moveWithCollisions(this.knockbackVelocity.x, this.knockbackVelocity.y);
+                    this.knockbackVelocity.x *= 0.9;
                     this.knockbackVelocity.y *= 0.9;
-                    if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 0.1) {
-                        this.knockbackVelocity.x = 0;
-                        this.knockbackVelocity.y = 0;
-                    }
 
+                    // 2. Lida com o dash
                     if (this.isDashing) {
-                        this.x += this.dashDirection.x * CONFIG.PLAYER_DASH_FORCE;
-                        this.y += this.dashDirection.y * CONFIG.PLAYER_DASH_FORCE;
+                        const dashDX = this.dashDirection.x * CONFIG.PLAYER_DASH_FORCE;
+                        const dashDY = this.dashDirection.y * CONFIG.PLAYER_DASH_FORCE;
+                        this.moveWithCollisions(dashDX, dashDY);
                         this.dashTimer--;
                         if (this.dashTimer <= 0) {
                             this.isDashing = false;
                         }
-                        return; // Pára outros movimentos durante o dash
+                        return; // Dash sobrepõe-se a outros movimentos
                     }
 
+                    // 3. Lida com o input do jogador para movimento horizontal
                     let dx = 0;
-                    let dy_input = 0; // Input vertical separado
-
                     if (isMobile) {
                         dx = movementVector.x;
-                        dy_input = movementVector.y;
                     } else {
                         dx = (keys['d'] || keys['ArrowRight']) ? 1 : ((keys['a'] || keys['ArrowLeft']) ? -1 : 0);
-                        dy_input = (keys['s'] || keys['ArrowDown']) ? 1 : ((keys['w'] || keys['ArrowUp']) ? -1 : 0); // Para direção do dash
-                    }
-
-                    // Guarda a última direção de movimento se houver input
-                    if (dx !== 0 || dy_input !== 0) {
-                        const magnitude = Math.hypot(dx, dy_input);
-                        this.lastMoveDirection = { x: dx / magnitude, y: dy_input / magnitude };
                     }
                     if (dx !== 0) {
                         this.facingRight = dx > 0;
+                        this.lastMoveDirection = { x: dx, y: this.lastMoveDirection.y };
                     }
+                    this.moveWithCollisions(dx * this.speed, 0);
 
-                    // Aplica o movimento horizontal (apenas se não estiver a sofrer knockback forte)
-                    if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 1) {
-                        this.x += dx * this.speed;
-                    }
-
-                    // Lógica de Salto unificada
+                    // 4. Lida com saltos e ativação de dash
                     const jumpPressed = isMobile ? (movementVector.y < -0.5) : (keys['w'] || keys['ArrowUp'] || keys[' ']);
                     if (jumpPressed && this.jumpsAvailable > 0) {
                         const isFirstJump = this.onGround || this.jumpsAvailable === (this.skills['double_jump'] ? 2 : 1);
                         this.velocityY = isFirstJump ? CONFIG.PLAYER_JUMP_FORCE : CONFIG.PLAYER_DOUBLE_JUMP_FORCE;
                         this.jumpsAvailable--;
                         this.onGround = false;
-                        if (!isMobile) keys['w'] = keys['ArrowUp'] = keys[' '] = false;
+                        if (!isMobile) keys['w'] = keys['ArrowUp'] = keys[' '] = false; // Consome o input
                     }
 
-                    // Ativar Dash no PC
                     if (!isMobile && keys['shift']) {
                         this.dash();
-                        keys['shift'] = false; // Previne múltiplos dashes com uma tecla premida
+                        keys['shift'] = false;
                     }
 
-                    // Gestão do Cooldown do Dash
                     if (this.dashCooldown > 0) {
                         this.dashCooldown--;
+                    }
+                }
+
+                moveWithCollisions(dx, dy) {
+                    const wasOnGround = this.onGround;
+                    const prevY = this.y;
+
+                    // Move na horizontal
+                    this.x += dx;
+                    // (Paredes verticais não existem, então não há colisão em X)
+
+                    // Move na vertical
+                    this.y += dy;
+                    this.onGround = false;
+
+                    // Itera sobre as plataformas para resolver colisões verticais
+                    for (const p of platforms) {
+                        if (this.x + this.radius > p.x && this.x - this.radius < p.x + p.width && this.y + this.radius > p.y && this.y - this.radius < p.y + p.height) {
+                            // Colisão detectada. Se estava a mover para baixo, aterra em cima.
+                            if (dy > 0 && prevY + this.radius <= p.y) {
+                                this.y = p.y - this.radius;
+                                this.velocityY = 0;
+                                this.onGround = true;
+                                if (!wasOnGround) {
+                                    this.jumpsAvailable = (this.skills['double_jump'] ? SKILL_DATABASE['double_jump'].levels[0].jumps : 1);
+                                    this.squashStretchTimer = CONFIG.PLAYER_LANDING_SQUASH_DURATION;
+                                    SoundManager.play('land', '16n');
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -1952,12 +1974,7 @@
 
                     ctx.beginPath();
                     if (this.shape === 'square') { // Tanque
-                        // Corpo exterior
-                        ctx.fillStyle = this.color;
-                        ctx.fillRect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
-                        // Detalhe interior
-                        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-                        ctx.fillRect(-this.radius * 0.6, -this.radius * 0.6, this.radius * 1.2, this.radius * 1.2);
+                        ctx.rect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
                     } else if (this.shape === 'diamond') {
                         ctx.moveTo(0, -this.radius);
                         ctx.lineTo(this.radius * 0.7, 0);
@@ -1991,16 +2008,6 @@
                         ctx.lineTo(-this.radius, this.radius);
                         ctx.closePath();
                     } else { // Círculo (Chaser)
-                        // Glow exterior
-                        const grad = ctx.createRadialGradient(0, 0, this.radius * 0.5, 0, 0, this.radius * 1.2);
-                        grad.addColorStop(0, 'rgba(255, 77, 77, 0)');
-                        grad.addColorStop(1, 'rgba(255, 77, 77, 0.4)');
-                        ctx.fillStyle = grad;
-                        ctx.fillRect(-this.radius * 1.2, -this.radius * 1.2, this.radius * 2.4, this.radius * 2.4);
-
-                        // Corpo principal
-                        ctx.fillStyle = this.color; // Vermelho original
-                        ctx.beginPath();
                         ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                     }
                     ctx.closePath();
@@ -2630,7 +2637,7 @@
                     this.velocity.y *= this.friction;
                     this.x += this.velocity.x;
                     this.y += this.velocity.y;
-                    this.alpha -= 0.05; // Desaparece mais rapidamente para otimização
+                    this.alpha -= 0.02; // Desaparece mais lentamente para ser visível
                     if (this.alpha <= 0) {
                         this.isDead = true;
                         releaseToPool(this); // Libertar para o agrupamento
@@ -3218,7 +3225,7 @@
                 const dx = endPos.x - startPos.x;
                 const dy = endPos.y - startPos.y;
                 const dist = Math.hypot(dx, dy);
-                const segments = Math.floor(dist / 15); // Menos segmentos para performance
+                const segments = Math.floor(dist / 20); // Drasticamente menos partículas para performance
                 for (let i = 0; i < segments; i++) {
                     const t = i / segments;
                     const x = startPos.x + dx * t + (Math.random() - 0.5) * 10;
