@@ -460,47 +460,6 @@
             }
         }
 
-        /* --- ESTILOS DO MENU MELHORADO --- */
-        #main-menu {
-            border: none;
-            background: transparent;
-            box-shadow: none;
-            text-align: center;
-        }
-        .title-container {
-            position: relative;
-            margin-bottom: 40px;
-        }
-        .title-container h1 {
-            font-size: 4em;
-            margin: 0;
-            color: #FFF;
-            text-transform: uppercase;
-            animation: glow 2s ease-in-out infinite alternate;
-        }
-        .title-container h1.celestial-title {
-            color: #00FFFF;
-            animation-delay: 0.2s;
-        }
-
-        @keyframes glow {
-            from { text-shadow: 0 0 10px #FFF, 0 0 20px #FFF, 0 0 30px #00FFFF; }
-            to { text-shadow: 0 0 20px #FFF, 0 0 30px #00FFFF, 0 0 40px #00FFFF; }
-        }
-        @keyframes glitch-anim-1 {
-            0%, 100% { clip-path: inset(45% 0 50% 0); }
-            20% { clip-path: inset(10% 0 85% 0); }
-            40% { clip-path: inset(60% 0 30% 0); }
-            60% { clip-path: inset(25% 0 70% 0); }
-            80% { clip-path: inset(80% 0 10% 0); }
-        }
-        @keyframes glitch-anim-2 {
-            0%, 100% { clip-path: inset(5% 0 90% 0); }
-            20% { clip-path: inset(95% 0 2% 0); }
-            40% { clip-path: inset(40% 0 55% 0); }
-            60% { clip-path: inset(15% 0 80% 0); }
-            80% { clip-path: inset(70% 0 20% 0); }
-        }
     </style>
 </head>
 <body>
@@ -511,10 +470,7 @@
 
         <div id="ui-layer" class="ui-layer">
             <div id="main-menu" class="ui-panel hidden">
-                <div class="title-container">
-                    <h1 data-text="Sobrevivente">Sobrevivente</h1>
-                    <h1 data-text="Celestial" class="celestial-title">Celestial</h1>
-                </div>
+                <h1>Sobrevivente Celestial</h1>
                 <p>Gemas: <strong id="gem-counter">0</strong></p>
                 <button id="play-button" class="ui-button">Iniciar Jogo</button>
                 <button id="upgrades-button" class="ui-button">Melhorias</button>
@@ -709,7 +665,7 @@
             // --- CONFIGURAÇÕES GLOBAIS DO JOGO ---
             const CONFIG = {
                 PLAYER_HEALTH: 120, // Aumentado para diminuir a dificuldade
-                PLAYER_SPEED: 3,
+                PLAYER_SPEED: 4, // Aumentado para uma sensação mais frenética
                 PLAYER_JUMP_FORCE: -10, // Força do salto (negativo para subir)
                 PLAYER_DASH_FORCE: 15, // Força do dash
                 PLAYER_DASH_DURATION: 10, // Duração do dash em frames
@@ -1890,39 +1846,39 @@
                     switch(type) {
                         // ALTERAÇÃO 3: Novo Inimigo - Ceifador
                         case 'reaper':
-                            this.radius = 10; this.speed = 4.0 + (gameTime / 120) + (waveNumber * 0.02);
+                            this.radius = 10; this.speed = 4.5 + (gameTime / 100) + (waveNumber * 0.025); // Mais rápido
                             this.health = 15 + Math.floor(gameTime / 20) * 2 + waveNumber; this.color = '#7DF9FF'; // Ciano pálido
                             this.shape = 'diamond'; this.damage = 30; // Dano alto da explosão
                             this.xpValue = 15;
                             this.explodesOnDeath = true;
                             break;
                         case 'tank':
-                            this.radius = 18; this.speed = 1.2 + (gameTime / 150) + (waveNumber * 0.005);
+                            this.radius = 18; this.speed = 1.5 + (gameTime / 120) + (waveNumber * 0.008); // Mais rápido
                             this.health = 70 + Math.floor(gameTime / 10) * 7 + (waveNumber * 3); this.color = '#FFA500';
                             this.shape = 'square'; this.damage = 12; this.xpValue = 40;
                             break;
                         case 'speeder':
-                            this.radius = 8; this.speed = 3.5 + (gameTime / 60) + (waveNumber * 0.015);
+                            this.radius = 8; this.speed = 4.0 + (gameTime / 50) + (waveNumber * 0.02); // Mais rápido
                             this.health = 12 + Math.floor(gameTime / 15) * 2 + waveNumber; this.color = '#FFFF00';
                             this.shape = 'triangle'; this.damage = 7; this.xpValue = 12;
                             break;
                         case 'bomber':
-                            this.radius = 12; this.speed = 1.5 + (gameTime / 180) + (waveNumber * 0.008);
+                            this.radius = 12; this.speed = 1.8 + (gameTime / 150) + (waveNumber * 0.01); // Mais rápido
                             this.health = 45 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#9400D3'; // Roxo
                             this.shape = 'pentagon'; this.damage = 9; this.xpValue = 25;
                             this.explodesOnDeath = true; // Bomber também explode
                             break;
                         case 'shooter':
-                            this.radius = 15; this.speed = 0.8 + (gameTime / 220) + (waveNumber * 0.004);
+                            this.radius = 15; this.speed = 1.0 + (gameTime / 200) + (waveNumber * 0.005); // Mais rápido
                             this.health = 35 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#FF00FF'; // Magenta
                             this.shape = 'star'; this.damage = 4; this.xpValue = 35;
-                            this.attackCooldown = 150; // Ataca a cada 2.5 segundos
+                            this.attackCooldown = 140; // Ataca um pouco mais rápido
                             this.attackTimer = this.attackCooldown;
-                            this.projectileSpeed = 3.5;
+                            this.projectileSpeed = 4.0; // Projéteis mais rápidos
                             this.projectileDamage = 8;
                             break;
                         case 'healer':
-                            this.radius = 14; this.speed = 0.7 + (gameTime / 250) + (waveNumber * 0.003);
+                            this.radius = 14; this.speed = 0.9 + (gameTime / 220) + (waveNumber * 0.004); // Mais rápido
                             this.health = 60 + Math.floor(gameTime / 10) * 6 + (waveNumber * 3); this.color = '#00FF00'; // Verde
                             this.shape = 'cross'; this.damage = 0; this.xpValue = 50;
                             this.healCooldown = 180; // Cura a cada 3 segundos
@@ -1931,14 +1887,14 @@
                             this.healRadius = 100;
                             break;
                         case 'summoner':
-                            this.radius = 20; this.speed = 0.6 + (gameTime / 300) + (waveNumber * 0.002);
+                            this.radius = 20; this.speed = 0.8 + (gameTime / 250) + (waveNumber * 0.003); // Mais rápido
                             this.health = 80 + Math.floor(gameTime / 10) * 8 + (waveNumber * 4); this.color = '#8B4513'; // Marrom
                             this.shape = 'pyramid'; this.damage = 0; this.xpValue = 70;
-                            this.summonCooldown = 240; // Invoca a cada 4 segundos
+                            this.summonCooldown = 220; // Invoca um pouco mais rápido
                             this.summonTimer = this.summonCooldown;
                             break;
                         default: // chaser
-                            this.radius = 12; this.speed = 2.2 + (gameTime / 100) + (waveNumber * 0.01);
+                            this.radius = 12; this.speed = 2.8 + (gameTime / 80) + (waveNumber * 0.015); // Mais rápido
                             this.health = 25 + Math.floor(gameTime / 10) * 3 + (waveNumber * 1.5); this.color = '#FF4D4D';
                             this.shape = 'circle'; this.damage = 8; this.xpValue = 20;
                             break;
