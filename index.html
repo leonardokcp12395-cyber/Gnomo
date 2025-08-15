@@ -1449,16 +1449,14 @@
                 }
 
                 handleMovement() {
-                    // 1. Aplica forças externas (knockback) e reduz com atrito
-                    this.moveWithCollisions(this.knockbackVelocity.x, this.knockbackVelocity.y);
+                    // 1. Aplica forças externas (knockback)
+                    this.moveAndCollide(this.knockbackVelocity.x, this.knockbackVelocity.y);
                     this.knockbackVelocity.x *= 0.9;
                     this.knockbackVelocity.y *= 0.9;
 
                     // 2. Lida com o dash
                     if (this.isDashing) {
-                        const dashDX = this.dashDirection.x * CONFIG.PLAYER_DASH_FORCE;
-                        const dashDY = this.dashDirection.y * CONFIG.PLAYER_DASH_FORCE;
-                        this.moveWithCollisions(dashDX, dashDY);
+                        this.moveAndCollide(this.dashDirection.x * CONFIG.PLAYER_DASH_FORCE, this.dashDirection.y * CONFIG.PLAYER_DASH_FORCE);
                         this.dashTimer--;
                         if (this.dashTimer <= 0) {
                             this.isDashing = false;
@@ -1466,27 +1464,33 @@
                         return; // Dash sobrepõe-se a outros movimentos
                     }
 
-                    // 3. Lida com o input do jogador para movimento horizontal
+                    // 3. Lida com o input do jogador
                     let dx = 0;
+                    let dy_input = 0;
                     if (isMobile) {
                         dx = movementVector.x;
+                        dy_input = movementVector.y;
                     } else {
                         dx = (keys['d'] || keys['ArrowRight']) ? 1 : ((keys['a'] || keys['ArrowLeft']) ? -1 : 0);
+                        dy_input = (keys['s'] || keys['ArrowDown']) ? 1 : ((keys['w'] || keys['ArrowUp']) ? -1 : 0);
+                    }
+
+                    if (dx !== 0 || dy_input !== 0) {
+                        const magnitude = Math.hypot(dx, dy_input);
+                        this.lastMoveDirection = { x: dx / magnitude, y: dy_input / magnitude };
                     }
                     if (dx !== 0) {
                         this.facingRight = dx > 0;
-                        this.lastMoveDirection = { x: dx, y: this.lastMoveDirection.y };
                     }
-                    this.moveWithCollisions(dx * this.speed, 0);
+                    this.moveAndCollide(dx * this.speed, 0);
 
                     // 4. Lida com saltos e ativação de dash
                     const jumpPressed = isMobile ? (movementVector.y < -0.5) : (keys['w'] || keys['ArrowUp'] || keys[' ']);
                     if (jumpPressed && this.jumpsAvailable > 0) {
-                        const isFirstJump = this.onGround || this.jumpsAvailable === (this.skills['double_jump'] ? 2 : 1);
-                        this.velocityY = isFirstJump ? CONFIG.PLAYER_JUMP_FORCE : CONFIG.PLAYER_DOUBLE_JUMP_FORCE;
+                        this.velocityY = (this.onGround || this.jumpsAvailable === (this.skills['double_jump'] ? 2 : 1)) ? CONFIG.PLAYER_JUMP_FORCE : CONFIG.PLAYER_DOUBLE_JUMP_FORCE;
                         this.jumpsAvailable--;
                         this.onGround = false;
-                        if (!isMobile) keys['w'] = keys['ArrowUp'] = keys[' '] = false; // Consome o input
+                        if (!isMobile) keys['w'] = keys['ArrowUp'] = keys[' '] = false;
                     }
 
                     if (!isMobile && keys['shift']) {
@@ -1499,34 +1503,43 @@
                     }
                 }
 
-                moveWithCollisions(dx, dy) {
+                moveAndCollide(dx, dy) {
                     const wasOnGround = this.onGround;
-                    const prevY = this.y;
+                    const steps = Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)));
+                    if (steps === 0) return;
 
-                    // Move na horizontal
-                    this.x += dx;
-                    // (Paredes verticais não existem, então não há colisão em X)
+                    const stepX = dx / steps;
+                    const stepY = dy / steps;
 
-                    // Move na vertical
-                    this.y += dy;
-                    this.onGround = false;
+                    for (let i = 0; i < steps; i++) {
+                        this.x += stepX;
+                        // (Colisão horizontal com paredes iria aqui)
 
-                    // Itera sobre as plataformas para resolver colisões verticais
-                    for (const p of platforms) {
-                        if (this.x + this.radius > p.x && this.x - this.radius < p.x + p.width && this.y + this.radius > p.y && this.y - this.radius < p.y + p.height) {
-                            // Colisão detectada. Se estava a mover para baixo, aterra em cima.
-                            if (dy > 0 && prevY + this.radius <= p.y) {
-                                this.y = p.y - this.radius;
-                                this.velocityY = 0;
-                                this.onGround = true;
-                                if (!wasOnGround) {
-                                    this.jumpsAvailable = (this.skills['double_jump'] ? SKILL_DATABASE['double_jump'].levels[0].jumps : 1);
-                                    this.squashStretchTimer = CONFIG.PLAYER_LANDING_SQUASH_DURATION;
-                                    SoundManager.play('land', '16n');
+                        this.y += stepY;
+                        let collided = false;
+                        for (const p of platforms) {
+                            if (this.x + this.radius > p.x && this.x - this.radius < p.x + p.width && this.y + this.radius > p.y && this.y - this.radius < p.y + p.height) {
+                                if (stepY > 0 && (this.y - stepY) + this.radius <= p.y) {
+                                    this.y = p.y - this.radius;
+                                    this.velocityY = 0;
+                                    this.onGround = true;
+                                    if (!wasOnGround) {
+                                        this.jumpsAvailable = (this.skills['double_jump'] ? 2 : 1);
+                                        this.squashStretchTimer = CONFIG.PLAYER_LANDING_SQUASH_DURATION;
+                                        SoundManager.play('land', '16n');
+                                    }
                                 }
+                                collided = true;
+                                break;
                             }
                         }
+                        if (!collided) this.onGround = false;
                     }
+                }
+                
+                applyGravity() {
+                    this.velocityY += CONFIG.GRAVITY;
+                    this.moveAndCollide(0, this.velocityY);
                 }
 
                 dash() {
@@ -2324,10 +2337,12 @@
                         particleManager.createParticle(this.x, this.y, this.color, 2.5); // <<<<<<< MUDANÇA 1
                     }
                     if (this.health <= 0) {
+                        console.log("--- BOSS DERROTADO ---"); // DEBUG
                         this.isDead = true;
                         getFromPool(xpOrbPool, this.x, this.y, this.xpValue);
                         score.kills++;
                         waveEnemiesRemaining--; // Conta o boss como 1 inimigo para a onda
+                        console.log(`Boss morreu. waveEnemiesRemaining é agora ${waveEnemiesRemaining}`); // DEBUG
                         showTemporaryMessage("BOSS DERROTADO!", "gold");
                         screenShake = { intensity: 20, duration: 60 };
                         // Partículas de morte do boss
@@ -3080,6 +3095,7 @@
 
             function startNextWave() {
                 waveNumber++;
+                console.log(`--- Iniciando Onda ${waveNumber} ---`); // DEBUG
 
                 // A CADA 5 ONDAS, UMA ONDA DE BOSS
                 if (waveNumber > 0 && waveNumber % 5 === 0) {
@@ -3141,14 +3157,17 @@
 
             // <<<<<<< MUDANÇA 3: LÓGICA DE SPAWN REFEITA
             function spawnEnemies() {
+                // console.log(`spawnEnemies check: waveEnemiesRemaining=${waveEnemiesRemaining}, enemies.length=${enemies.length}`); // DEBUG intensivo
                 // Lógica de pausa entre ondas
                 if (waveEnemiesRemaining <= 0 && enemies.length === 0) {
                     if (waveCooldownTimer <= 0) {
                         waveCooldownTimer = 180; // 3 segundos de pausa entre ondas
                         showTemporaryMessage("PAUSA ENTRE ONDAS", "white");
+                        console.log("Iniciando cooldown entre ondas."); // DEBUG
                     } else {
                         waveCooldownTimer--;
                         if (waveCooldownTimer <= 0) {
+                            console.log("Cooldown finalizado. Chamando startNextWave."); // DEBUG
                             startNextWave();
                         }
                     }
@@ -3185,6 +3204,7 @@
             }
 
             function chainLightningEffect(source, initialTarget, levelData) {
+                console.log("DEBUG: chainLightningEffect ativado."); // DEBUG
                 if (SKILL_DATABASE['chain_lightning'].causesHitStop) {
                     hitStopTimer = 4; // Ativa o Hit Stop
                 }
@@ -3198,6 +3218,7 @@
 
                     // Causa dano e cria o efeito visual
                     currentTarget.takeDamage(levelData.damage * player.damageModifier);
+                    console.log(`DEBUG: Criando raio para ${currentTarget.type} em ${Math.round(currentTarget.x)},${Math.round(currentTarget.y)}`); // DEBUG
                     createLightningBolt(lastPosition, currentTarget);
 
                     lastPosition = { x: currentTarget.x, y: currentTarget.y };
@@ -3221,6 +3242,7 @@
             }
 
             function createLightningBolt(startPos, endPos) {
+                console.log(`DEBUG: createLightningBolt de ${startPos.x},${startPos.y} para ${endPos.x},${endPos.y}`); // DEBUG
                 // Cria partículas para simular o raio
                 const dx = endPos.x - startPos.x;
                 const dy = endPos.y - startPos.y;
