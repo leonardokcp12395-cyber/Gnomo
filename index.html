@@ -203,14 +203,6 @@
             width: 100%;
             font-weight: bold;
         }
-        #event-display {
-            text-align: center;
-            margin-top: 5px;
-            font-size: 1.5em;
-            color: #FFD700; /* Dourado */
-            text-shadow: 0 0 8px rgba(255, 215, 0, 0.7);
-            font-weight: bold;
-        }
         #skills-hud {
             display: flex;
             gap: 12px; /* Mais espaço entre ícones */
@@ -261,7 +253,7 @@
 
 
         /* Level Up Screen */
-        #level-up-screen .skill-card, #upgrades-menu .skill-card, .character-card {
+        #level-up-screen .skill-card, #upgrades-menu .skill-card {
             background-color: #1a1a1a; /* Fundo mais escuro */
             border: 2px solid #00FFFF; /* Borda ciano */
             text-align: left;
@@ -272,78 +264,22 @@
             border-radius: 12px; /* Cantos arredondados */
             box-shadow: 0 0 12px rgba(0,0,0,0.7);
         }
-        #level-up-screen .skill-card:hover, #upgrades-menu .skill-card:hover, .character-card:hover {
+        #level-up-screen .skill-card:hover, #upgrades-menu .skill-card:hover {
             border-color: #FFF; /* Borda branca no hover */
             box-shadow: 0 0 20px rgba(0, 255, 255, 1); /* Brilho intenso */
             transform: translateY(-2px);
         }
-        .character-card h3, .skill-card h3 {
+        .skill-card h3 {
             margin: 0 0 8px;
             color: #00FFFF;
             text-shadow: 0 0 8px #00FFFF;
             font-size: 1.3em;
         }
-        .skill-card p, .character-card p {
+        .skill-card p {
             margin: 0;
             font-size: 1em;
             color: #e0e0e0; /* Cor mais clara para o texto */
         }
-        
-        #character-options {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            width: 100%;
-            margin-top: 20px;
-        }
-
-        .character-card p {
-            margin-bottom: 15px;
-        }
-
-        .character-card .select-button {
-            width: 100%;
-            padding: 12px;
-            font-size: 1.1em;
-            margin-top: 10px;
-        }
-
-        #achievements-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            width: 100%;
-            margin-top: 20px;
-        }
-        .achievement-card {
-            background-color: #2a2a2a;
-            border: 2px solid #888;
-            padding: 1em;
-            border-radius: 10px;
-            opacity: 0.7;
-        }
-        .achievement-card.unlocked {
-            border-color: #FFD700; /* Gold */
-            background-color: #1a1a1a;
-            opacity: 1;
-            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-        }
-        .achievement-card h3 {
-            margin: 0 0 5px;
-            color: #ccc;
-        }
-        .achievement-card.unlocked h3 {
-            color: #FFD700;
-        }
-        .achievement-card p {
-            margin: 0;
-            font-size: 0.9em;
-            color: #aaa;
-        }
-        .achievement-card.unlocked p {
-            color: #e0e0e0;
-        }
-
 
         /* Joysticks Dinâmicos */
         .joystick-base {
@@ -460,6 +396,70 @@
             }
         }
 
+        /* --- ESTILOS DO MENU MELHORADO --- */
+        #main-menu {
+            border: none;
+            background: transparent;
+            box-shadow: none;
+            text-align: center;
+        }
+        .title-container {
+            position: relative;
+            margin-bottom: 40px;
+        }
+        .title-container h1 {
+            font-size: 4em;
+            margin: 0;
+            color: #FFF;
+            text-transform: uppercase;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        .title-container h1.celestial-title {
+            color: #00FFFF;
+            animation-delay: 0.2s;
+        }
+
+        /* Efeito de Glitch no Título */
+        .title-container h1::before,
+        .title-container h1::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000; /* Cor de fundo principal */
+            overflow: hidden;
+        }
+        .title-container h1::before {
+            left: 2px;
+            text-shadow: -2px 0 #FF00FF;
+            animation: glitch-anim-1 2s infinite linear alternate-reverse;
+        }
+        .title-container h1::after {
+            left: -2px;
+            text-shadow: -2px 0 #00FFFF, 2px 2px #FF00FF;
+            animation: glitch-anim-2 2s infinite linear alternate-reverse;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 10px #FFF, 0 0 20px #FFF, 0 0 30px #00FFFF; }
+            to { text-shadow: 0 0 20px #FFF, 0 0 30px #00FFFF, 0 0 40px #00FFFF; }
+        }
+        @keyframes glitch-anim-1 {
+            0%, 100% { clip-path: inset(45% 0 50% 0); }
+            20% { clip-path: inset(10% 0 85% 0); }
+            40% { clip-path: inset(60% 0 30% 0); }
+            60% { clip-path: inset(25% 0 70% 0); }
+            80% { clip-path: inset(80% 0 10% 0); }
+        }
+        @keyframes glitch-anim-2 {
+            0%, 100% { clip-path: inset(5% 0 90% 0); }
+            20% { clip-path: inset(95% 0 2% 0); }
+            40% { clip-path: inset(40% 0 55% 0); }
+            60% { clip-path: inset(15% 0 80% 0); }
+            80% { clip-path: inset(70% 0 20% 0); }
+        }
     </style>
 </head>
 <body>
@@ -470,22 +470,16 @@
 
         <div id="ui-layer" class="ui-layer">
             <div id="main-menu" class="ui-panel hidden">
-                <h1>Sobrevivente Celestial</h1>
+                <div class="title-container">
+                    <h1 data-text="Sobrevivente">Sobrevivente</h1>
+                    <h1 data-text="Celestial" class="celestial-title">Celestial</h1>
+                </div>
                 <p>Gemas: <strong id="gem-counter">0</strong></p>
                 <button id="play-button" class="ui-button">Iniciar Jogo</button>
                 <button id="upgrades-button" class="ui-button">Melhorias</button>
-                <button id="achievements-button" class="ui-button">Conquistas</button>
                 <button id="guide-button" class="ui-button">Como Jogar</button>
                 <button id="rank-button" class="ui-button">Rank Global</button>
                 <button id="fullscreen-button" class="ui-button">Ecrã Inteiro</button>
-            </div>
-
-            <div id="character-select-screen" class="ui-panel hidden">
-                <h2>Escolha seu Sobrevivente</h2>
-                <div id="character-options">
-                    <!-- Character cards will be generated by JS -->
-                </div>
-                <button id="back-to-menu-from-select-button" class="ui-button">Voltar</button>
             </div>
 
             <div id="pause-menu" class="ui-panel hidden">
@@ -530,14 +524,6 @@
                 <button id="back-from-rank-button" class="ui-button">Voltar</button>
             </div>
 
-            <div id="achievements-screen" class="ui-panel hidden">
-                <h2>Conquistas</h2>
-                <div id="achievements-list">
-                    <!-- Achievement cards will be generated by JS -->
-                </div>
-                <button id="back-from-achievements-button" class="ui-button">Voltar</button>
-            </div>
-
             <div id="upgrades-menu" class="ui-panel hidden">
                 <h2>Melhorias Permanentes</h2>
                 <p>Gemas: <strong id="gem-counter-upgrades">0</strong></p>
@@ -556,9 +542,6 @@
                 <button id="pause-button" class="ui-button">II</button>
             </div>
             <div id="timer">00:00</div>
-            <div id="event-display" class="hidden">
-                <strong id="event-name"></strong>: <span id="event-timer"></span>
-            </div>
             <div id="skills-hud"></div>
         </div>
         <button id="dash-button-mobile" class="ui-button hidden">»</button>
@@ -588,7 +571,6 @@
     let enemyProjectilePool;
     let xpOrbPool;
     let damageNumberPool;
-            let meteorWarningPool;
     let qtree; // Variável global para o Quadtree
 
     // Variável para calcular o tempo decorrido entre frames
@@ -620,38 +602,10 @@
     };
     let playerGems = 0;
     let playerUpgrades = {};
-    let playerAchievements = {};
-
-            async function loadGameData() {
-                try {
-                    const [skills, characters, evolutions, achievements] = await Promise.all([
-                        fetch('skills.json').then(res => res.json()),
-                        fetch('characters.json').then(res => res.json()),
-                        fetch('evolutions.json').then(res => res.json()),
-                        fetch('achievements.json').then(res => res.json())
-                    ]);
-                    SKILL_DATABASE = skills;
-                    CHARACTER_DATABASE = characters;
-                    EVOLUTION_DATABASE = evolutions;
-                    ACHIEVEMENT_DATABASE = achievements;
-                    console.log("Game data loaded successfully.");
-                    return true;
-                } catch (error) {
-                    console.error("Failed to load game data:", error);
-                    const debugStatus = document.getElementById('debug-status');
-                    if (debugStatus) {
-                        debugStatus.style.color = 'red';
-                        debugStatus.textContent = 'Erro Crítico: Falha ao carregar dados do jogo (JSON). Verifique a consola.';
-                    }
-                    return false;
-                }
-            }
 
     function loadPermanentData() {
         playerGems = parseInt(localStorage.getItem('playerGems') || '0');
         playerUpgrades = JSON.parse(localStorage.getItem('playerUpgrades') || '{}');
-        playerAchievements = JSON.parse(localStorage.getItem('playerAchievements') || '{"unlocked":{},"stats":{"totalKills":0}}');
-        
         // Inicializa se não existir
         for(const key in PERMANENT_UPGRADES) {
             if (playerUpgrades[key] === undefined || playerUpgrades[key] === null) {
@@ -663,7 +617,6 @@
     function savePermanentData() {
         localStorage.setItem('playerGems', playerGems);
         localStorage.setItem('playerUpgrades', JSON.stringify(playerUpgrades));
-        localStorage.setItem('playerAchievements', JSON.stringify(playerAchievements));
     }
 
     window.onload = () => {
@@ -685,15 +638,13 @@
                 return; // Parar a execução
             }
 
-            // Carrega os dados permanentes e os dados do jogo
+            // Carrega os dados permanentes do localStorage
             loadPermanentData();
-            const dataLoaded = await loadGameData();
-            if (!dataLoaded) return; // Para a execução se os dados não carregarem
 
             // --- CONFIGURAÇÕES GLOBAIS DO JOGO ---
             const CONFIG = {
                 PLAYER_HEALTH: 120, // Aumentado para diminuir a dificuldade
-                PLAYER_SPEED: 4, // Aumentado para uma sensação mais frenética
+                PLAYER_SPEED: 3,
                 PLAYER_JUMP_FORCE: -10, // Força do salto (negativo para subir)
                 PLAYER_DASH_FORCE: 15, // Força do dash
                 PLAYER_DASH_DURATION: 10, // Duração do dash em frames
@@ -716,11 +667,75 @@
                 WORLD_BOUNDS: { width: 8000, height: 2000 } // Um mundo com 8000px de largura
             };
 
-            // --- BASES DE DADOS (CARREGADAS DE JSON) ---
-            let SKILL_DATABASE = {};
-            let CHARACTER_DATABASE = {};
-            let ACHIEVEMENT_DATABASE = {};
-            let EVOLUTION_DATABASE = {};
+            // --- BASE DE DADOS DE HABILIDADES ---
+            const SKILL_DATABASE = {
+                'chain_lightning': { name: "Relâmpago em Cadeia", icon: "↯", type: 'projectile', cooldown: 120, levels: [
+                    { desc: "Lança um raio que salta para 2 inimigos.", damage: 25, chains: 2, chainRadius: 150 },
+                    { desc: "O raio salta para 3 inimigos.", damage: 30, chains: 3, chainRadius: 160 },
+                    { desc: "Aumenta o dano e o número de saltos.", damage: 35, chains: 4, chainRadius: 170 },
+                    { desc: "Aumenta ainda mais o dano e os saltos.", damage: 40, chains: 5, chainRadius: 180 },
+                    { desc: "O raio é devastador e salta massivamente.", damage: 50, chains: 6, chainRadius: 200 }
+                ]},
+                'divine_lance': { name: "Lança Divina", icon: "↑", type: 'projectile', cooldown: 50, levels: [
+                    { desc: "Dispara uma lança perfurante.", count: 1, damage: 10, pierce: 2, speed: 7 },
+                    { desc: "Dispara duas lanças.", count: 2, damage: 12, pierce: 2, speed: 7 },
+                    { desc: "Aumenta o dano e a perfuração.", count: 2, damage: 15, pierce: 3, speed: 8 },
+                    { desc: "Dispara três lanças.", count: 3, damage: 15, pierce: 3, speed: 8 },
+                    { desc: "Lanças mais rápidas e fortes.", count: 3, damage: 20, pierce: 4, speed: 9 }
+                ]},
+                'orbital_shield': { name: "Escudo Orbital", icon: "O", type: 'orbital', cooldown: 0, levels: [
+                    { desc: "Um orbe sagrado gira ao seu redor.", count: 1, damage: 5, radius: 70, speed: 0.05 },
+                    { desc: "Adiciona um segundo orbe.", count: 2, damage: 8, radius: 75, speed: 0.05 },
+                    { desc: "Aumenta o dano dos orbes.", count: 2, damage: 15, radius: 80, speed: 0.05 },
+                    { desc: "Adiciona um terceiro orbe.", count: 3, damage: 15, radius: 85, speed: 0.06 },
+                    { desc: "Orbes mais rápidos e fortes.", count: 3, damage: 20, radius: 90, speed: 0.07 }
+                ]},
+                'vortex': { name: "Vórtice Sagrado", icon: "V", type: 'aura', cooldown: 400, levels: [
+                    { desc: "Cria um vórtice que puxa inimigos.", radius: 150, duration: 120, force: 1.5, damage: 1 },
+                    { desc: "Aumenta a força de atração.", radius: 160, duration: 120, force: 2.0, damage: 1 },
+                    { desc: "Aumenta o raio do vórtice.", radius: 200, duration: 150, force: 2.0, damage: 2 },
+                    { desc: "Vórtice mais duradouro e forte.", radius: 220, duration: 180, force: 2.5, damage: 2 },
+                ]},
+                'magnet': { name: "Íman Divino", icon: "M", type: 'passive', levels: [
+                    { desc: "Aumenta o raio de recolha de XP em 25%.", collectRadiusBonus: 0.25 },
+                    { desc: "Aumenta o raio de recolha de XP em 50%.", collectRadiusBonus: 0.50 },
+                    { desc: "Aumenta o raio de recolha de XP em 75%.", collectRadiusBonus: 0.75 },
+                ]},
+                'heal': { name: "Cura Divina", icon: "+", type: 'utility', desc: "Restaura 25% da sua vida máxima.", instant: true },
+                'health_regen': { name: "Regeneração Divina", icon: "♥", type: 'passive', levels: [
+                    { desc: "Regenera 0.5 de vida por segundo.", regenPerSecond: 0.5 },
+                    { desc: "Regenera 1 de vida por segundo.", regenPerSecond: 1 },
+                    { desc: "Regenera 1.5 de vida por segundo.", regenPerSecond: 1.5 },
+                    { desc: "Regenera 2 de vida por segundo.", regenPerSecond: 2 },
+                ]},
+                'particle_burst': { name: "Explosão de Partículas", icon: "✹", type: 'aura', cooldown: 240, levels: [
+                    { desc: "Liberta uma explosão de partículas que causa 10 de dano.", radius: 80, damage: 10, particleCount: 30 },
+                    { desc: "Aumenta o raio e o dano da explosão.", radius: 100, damage: 15, particleCount: 40 },
+                    { desc: "Aumenta ainda mais o dano e as partículas.", radius: 120, damage: 25, particleCount: 50 },
+                ]},
+                'dash': { name: "Carga Astral", icon: "»", type: 'utility', cooldown: CONFIG.PLAYER_DASH_COOLDOWN, levels: [
+                    { desc: `Realiza uma esquiva rápida na direção do movimento (cooldown: ${CONFIG.PLAYER_DASH_COOLDOWN/60}s).`, duration: CONFIG.PLAYER_DASH_DURATION, force: CONFIG.PLAYER_DASH_FORCE }
+                ]},
+                'double_jump': { name: "Salto Duplo", icon: "▲", type: 'passive', levels: [
+                    { desc: "Permite um segundo salto no ar.", jumps: 2 }
+                ]},
+                // ALTERAÇÃO 2: Nova Habilidade - Raio Celestial
+                'celestial_ray': { name: "Raio Celestial", icon: "→", type: 'projectile', cooldown: 90, levels: [
+                    { desc: "Dispara um raio poderoso na última direção de movimento.", damage: 30, speed: 10, width: 10, length: 150, pierce: 5 }
+                ]},
+                'static_field': { name: "Campo Estático", icon: "⚡", type: 'aura', cooldown: 300, levels: [
+                    { desc: "Cria um campo que abranda inimigos em 50%.", radius: 100, duration: 180, slowFactor: 0.5 }
+                ]},
+                'black_hole': { name: "Buraco Negro", icon: "⚫", type: 'utility', cooldown: 900, levels: [ // 15 segundos de cooldown
+                    { desc: "Invoca um buraco negro que destrói todos os inimigos no ecrã.", damage: 99999 }
+                ]},
+                'aegis_shield': { name: "Égide Divina", icon: "🛡️", type: 'utility', cooldown: 600, levels: [ // 10s cooldown
+                    { desc: "Cria um escudo temporário que absorve um golpe.", duration: 300 } // 5 segundos de duração
+                ]},
+                'scorched_earth': { name: "Rastro Ardente", icon: "🔥", type: 'passive', levels: [
+                    { desc: "Deixa um rasto de chamas enquanto dá um dash, causando dano.", damagePerFrame: 0.5 }
+                ]}
+            };
 
             // --- CONFIGURAÇÃO DE ONDAS ---
             const WAVE_CONFIGS = [
@@ -739,87 +754,8 @@
                 { duration: 120, enemies: [{ type: 'ghost', count: 5, spawnInterval: 120 }, { type: 'splitter', count: 4, spawnInterval: 180 }, { type: 'tank', count: 6, spawnInterval: 100 }], eliteChance: 0.07 },
             ];
 
-            // --- GERENCIADOR DE EVENTOS GLOBAIS ---
-            const EVENTS = {
-                'meteor_shower': {
-                    name: "Chuva de Meteoros",
-                    duration: 30 * 60,
-                    start: () => {},
-                    update: () => {
-                        // Spawna um novo aviso de meteoro a cada 20 frames
-                        if (frameCount % 20 === 0) {
-                            // Tenta encontrar uma plataforma de chão. Se não, usa uma posição padrão.
-                            const groundPlatform = platforms.find(p => p.height > 100) || { y: canvas.height * 0.8 };
-                            const groundY = groundPlatform.y;
-                            
-                            // Spawna o aviso perto do jogador
-                            const spawnX = player.x + (Math.random() - 0.5) * canvas.width;
-                            activeMeteorWarnings.push(getFromPool(meteorWarningPool, spawnX, groundY));
-                        }
-                    },
-                    end: () => {}
-                },
-                'golden_frenzy': {
-                    name: "Frenesi Dourado",
-                    duration: 30 * 60, // 30 segundos
-                    start: () => { isGoldenFrenzyActive = true; },
-                    update: () => {},
-                    end: () => { isGoldenFrenzyActive = false; }
-                },
-                'distortion_zone': {
-                    name: "Zona de Distorção",
-                    duration: 60 * 60, // 1 minuto
-                    start: () => {
-                        CONFIG.GRAVITY /= 2;
-                        showTemporaryMessage("Gravidade Reduzida!", "magenta");
-                    },
-                    update: () => {},
-                    end: () => {
-                        CONFIG.GRAVITY = 0.5; // Restaura para o valor padrão
-                    }
-                }
-            };
-
-            const eventManager = {
-                timeUntilNextEvent: 120 * 60, // 2 minutos para o primeiro evento
-                currentEvent: null,
-                eventTimer: 0,
-                
-                update() {
-                    if (this.currentEvent) {
-                        this.eventTimer--;
-                        if (EVENTS[this.currentEvent]?.update) {
-                            EVENTS[this.currentEvent].update();
-                        }
-                        
-                        if (this.eventTimer <= 0) {
-                            const endedEventName = EVENTS[this.currentEvent]?.name || 'Evento';
-                            if (EVENTS[this.currentEvent]?.end) {
-                                EVENTS[this.currentEvent].end();
-                            }
-                            this.currentEvent = null;
-                            this.timeUntilNextEvent = (Math.random() * 60 + 120) * 60; // Próximo evento em 2 a 3 minutos
-                            showTemporaryMessage(`${endedEventName} terminou!`, 'white');
-                        }
-                    } else {
-                        this.timeUntilNextEvent--;
-                        if (this.timeUntilNextEvent <= 0) {
-                            const eventNames = Object.keys(EVENTS);
-                            const nextEvent = eventNames[Math.floor(Math.random() * eventNames.length)];
-                            this.currentEvent = nextEvent;
-                            this.eventTimer = EVENTS[nextEvent].duration;
-                            if (EVENTS[nextEvent]?.start) {
-                                EVENTS[nextEvent].start();
-                            }
-                            showTemporaryMessage(EVENTS[nextEvent].name, 'gold');
-                        }
-                    }
-                }
-            };
-
             // --- VARIÁVEIS GLOBAIS DE ESTADO ---
             let gameState = 'menu'; // 'menu', 'playing', 'paused', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades'
-            let activeMeteorWarnings = [];
             let keys = {}; // Para controlos de teclado
             let gameTime = 0; // Tempo em segundos (agora baseado em deltaTime)
             let frameCount = 0; // Contador de frames
@@ -828,8 +764,6 @@
                 time: 0 // Tempo em segundos
             };
             let screenShake = { intensity: 0, duration: 0 };
-            let hitStopTimer = 0; // Para o efeito de "hit stop"
-            let isGoldenFrenzyActive = false; // Flag para o evento Frenesi Dourado
             const isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
             // --- CONTROLO MÓVEL DINÂMICO ---
@@ -856,8 +790,7 @@
             const SoundManager = {
                 initialized: false,
                 sfx: {},
-                bgm: { main: null, boss: null, bass: null }, // Objeto para armazenar loops de BGM
-                bgmNotes: ["C3", "E3", "G3"], // Notas iniciais
+                bgm: null,
 
                 init() {
                     if (this.initialized) return;
@@ -867,85 +800,72 @@
                     const sfxVolume = new Tone.Volume(-5).connect(masterVolume);
                     const bgmVolumeNode = new Tone.Volume(-20).connect(masterVolume);
 
-                    // SFX...
+                    // SFX de XP (mais melódico)
                     this.sfx.xp = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 }, volume: -12 }).connect(sfxVolume);
+
+                    // SFX de Subir de Nível (acorde ascendente)
                     this.sfx.levelUp = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "triangle" }, envelope: { attack: 0.02, decay: 0.2, sustain: 0.1, release: 0.3 }, volume: -8 }).connect(sfxVolume);
+
+                    // SFX de Dano (mais agressivo) - NoiseSynth
                     this.sfx.damage = new Tone.NoiseSynth({ noise: { type: "brown" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }, volume: -3 }).connect(sfxVolume);
+
+                    // SFX de Lança (mais nítido) - MembraneSynth
                     this.sfx.lance = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 8, envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.4 }, volume: -15 }).connect(sfxVolume);
+
+                    // SFX de Nuke (explosão massiva) - NoiseSynth
                     this.sfx.nuke = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.01, decay: 0.8, sustain: 0, release: 1 }, volume: 0 }).connect(sfxVolume);
+
+                    // SFX de Disparo de Inimigo (novo) - Synth
                     this.sfx.enemyShot = new Tone.Synth({ oscillator: { type: "square" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 }, volume: -10 }).connect(sfxVolume);
+
+                    // SFX de Explosão de Partículas (novo) - NoiseSynth
                     this.sfx.particleBurst = new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.3 }, volume: -5 }).connect(sfxVolume);
+
+                    // SFX de UI Click (novo)
                     this.sfx.uiClick = new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.1 }, volume: -20 }).connect(sfxVolume);
+
+                    // SFX de Aterragem do Jogador (novo)
                     this.sfx.land = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 }, volume: -15 }).connect(sfxVolume);
 
-                    // BGM Principal
-                    const mainSynth = new Tone.Synth({ oscillator: { type: 'sine' } }).connect(bgmVolumeNode);
-                    this.bgm.main = new Tone.Loop(time => {
-                        mainSynth.triggerAttackRelease(this.bgmNotes[Math.floor(Math.random() * this.bgmNotes.length)], "2n", time);
-                    }, "2n");
+                    // Música de Fundo (BGM)
+                    this.bgm = new Tone.Loop(time => {
+                        const notes = ["C3", "E3", "G3", "A3", "F3", "D3"];
+                        const synth = new Tone.Synth().connect(bgmVolumeNode);
+                        synth.triggerAttackRelease(notes[Math.floor(Math.random() * notes.length)], "2n", time);
+                    }, "2n").start(0);
 
-                    // Linha de Baixo (para evolução)
-                    const bassSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, volume: -10 }).connect(bgmVolumeNode);
-                    this.bgm.bass = new Tone.Loop(time => {
-                        bassSynth.triggerAttackRelease("C2", "1n", time);
-                    }, "1n");
-
-                    // BGM do Chefe
-                    const bossSynth = new Tone.FMSynth({ harmonicity: 3, modulationIndex: 10, envelope: { attack: 0.01, decay: 0.2 }, modulationEnvelope: { attack: 0.01, decay: 0.2 } }).connect(bgmVolumeNode);
-                    this.bgm.boss = new Tone.Loop(time => {
-                        const notes = ["C2", "G2", "C2", "Ab2"];
-                        bossSynth.triggerAttackRelease(notes[Math.floor(Math.random() * notes.length)], "8n", time);
-                    }, "4n");
-
+                    // Inicialmente, a BGM está em mute até o contexto de áudio começar
                     Tone.Transport.pause();
-                },
-
-                updateBGM(waveNumber) {
-                    if (waveNumber >= 5 && waveNumber < 10) {
-                        this.bgmNotes = ["C3", "E3", "G3", "A3", "B3"];
-                    } else if (waveNumber >= 10) {
-                        this.bgmNotes = ["C3", "E3", "G3", "A3", "B3", "D4", "F4"];
-                        if (this.bgm.bass.state !== 'started') {
-                            this.bgm.bass.start(0);
-                        }
-                    }
-                },
-
-                playMainBGM() {
-                    this.startAudioContext();
-                    if (this.bgm.boss.state === 'started') this.bgm.boss.stop();
-                    if (this.bgm.main.state !== 'started') this.bgm.main.start(0);
-                },
-
-                playBossBGM() {
-                    this.startAudioContext();
-                    if (this.bgm.main.state === 'started') this.bgm.main.stop();
-                    if (this.bgm.bass && this.bgm.bass.state === 'started') this.bgm.bass.stop();
-                    if (this.bgm.boss.state !== 'started') this.bgm.boss.start(0);
                 },
 
                 async startAudioContext() {
                     if (Tone.context.state !== 'running') {
                         try {
                             await Tone.start();
-                            Tone.Transport.start();
+                            Tone.Transport.start(); // Inicia o transporte da BGM
                         } catch (e) {
                             if (DEBUG_MODE) console.error("Falha ao iniciar/resumir o contexto de áudio:", e);
+                            // Se falhar, não há muito o que fazer além de registrar o erro.
                         }
                     }
                 },
 
-                play(effectName, noteOrDuration = null) {
-                    this.startAudioContext();
+                play(effectName, noteOrDuration = null) { // Renamed parameter for clarity
+                    this.startAudioContext(); // Ensures audio context is running
                     const sfx = this.sfx[effectName];
                     if (sfx) {
                         try {
+                            // Check if the instrument is a NoiseSynth or similar that expects duration as first arg
                             if (sfx instanceof Tone.NoiseSynth) {
-                                sfx.triggerAttackRelease(noteOrDuration || "8n");
+                                // For NoiseSynth, the first argument is duration, second is time (optional)
+                                sfx.triggerAttackRelease(noteOrDuration || "8n"); // Use '8n' as default duration if none provided
                             } else if (sfx instanceof Tone.MembraneSynth) {
-                                sfx.triggerAttackRelease(noteOrDuration || "C4", "8n");
-                            } else {
-                                sfx.triggerAttackRelease(noteOrDuration || "C5", "8n");
+                                // MembraneSynth can take note, duration, time
+                                sfx.triggerAttackRelease(noteOrDuration || "C4", "8n"); // Default note C4, duration 8n
+                            }
+                            else {
+                                // For pitched synths (Synth, PolySynth), first arg is note, second is duration
+                                sfx.triggerAttackRelease(noteOrDuration || "C5", "8n"); // Default note C5, duration 8n
                             }
                         } catch (e) {
                             if (DEBUG_MODE) console.error(`Erro ao reproduzir o efeito sonoro '${effectName}':`, e);
@@ -999,8 +919,6 @@
                     this.radius = radius;
                     this.isDead = false; // Usado para filtragem, ativo para agrupamento
                     this.active = true; // Para agrupamento de objetos
-                    this.velocityY = 0;
-                    this.onGround = false;
                 }
                 draw(ctx) {}
                 update() {}
@@ -1010,77 +928,6 @@
                     this.y = 0;
                     this.radius = 0;
                     this.isDead = false;
-                }
-
-                moveAndCollide(dx, dy) {
-                    const wasOnGround = this.onGround;
-                    const steps = Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)));
-                    if (steps === 0) return;
-
-                    const stepX = dx / steps;
-                    const stepY = dy / steps;
-
-                    for (let i = 0; i < steps; i++) {
-                        this.x += stepX;
-                        // (Colisão horizontal com paredes iria aqui)
-
-                        this.y += stepY;
-                        let collided = false;
-                        for (const p of platforms) {
-                            if (this.x + this.radius > p.x && this.x - this.radius < p.x + p.width && this.y + this.radius > p.y && this.y - this.radius < p.y + p.height) {
-                                if (stepY >= 0 && (this.y - stepY) + this.radius <= p.y) {
-                                    this.y = p.y - this.radius;
-                                    this.velocityY = 0;
-                                    collided = true;
-                                    this.onGround = true;
-                                    // Hook genérico de aterrissagem
-                                    if (!wasOnGround && typeof this.onLanding === 'function') {
-                                        this.onLanding();
-                                    }
-                                }
-                            }
-                        }
-                        if (!collided) this.onGround = false;
-                    }
-                }
-            }
-
-            function unlockAchievement(id) {
-                if (playerAchievements.unlocked[id]) return; // Segurança extra
-
-                playerAchievements.unlocked[id] = true;
-                const achievement = ACHIEVEMENT_DATABASE[id];
-
-                // Concede a recompensa
-                if (achievement.reward) {
-                    if (achievement.reward.type === 'gems') {
-                        playerGems += achievement.reward.amount;
-                    }
-                }
-
-                savePermanentData();
-
-                // Notifica o jogador
-                showTemporaryMessage(`Conquista: ${achievement.name}`, 'gold');
-            }
-
-            function checkAchievements(eventType, value = 0) {
-                for (const id in ACHIEVEMENT_DATABASE) {
-                    if (!playerAchievements.unlocked[id]) { // Verifica se já não está desbloqueada
-                        const achievement = ACHIEVEMENT_DATABASE[id];
-                        if (achievement.condition.type === eventType) {
-                            let conditionMet = false;
-                            if (eventType === 'totalKills' && playerAchievements.stats.totalKills >= achievement.condition.value) {
-                                conditionMet = true;
-                            } else if (eventType === 'survivalTime' && value >= achievement.condition.value) {
-                                conditionMet = true;
-                            }
-
-                            if (conditionMet) {
-                                unlockAchievement(id);
-                            }
-                        }
-                    }
                 }
             }
 
@@ -1169,22 +1016,20 @@
             }
 
             class Player extends Entity {
-                constructor(characterId = 'SERAPH') {
+                constructor() {
                     super(0, 0, 15);
-                    const characterData = CHARACTER_DATABASE[characterId];
-
                     // Aplica melhorias permanentes
                     const healthUpgradeLevel = playerUpgrades.max_health;
                     const damageUpgradeLevel = playerUpgrades.damage_boost;
                     const xpUpgradeLevel = playerUpgrades.xp_gain;
 
-                    this.baseHealth = characterData.baseHealth + (healthUpgradeLevel > 0 ? PERMANENT_UPGRADES.max_health.levels[healthUpgradeLevel - 1].effect : 0);
+                    this.baseHealth = CONFIG.PLAYER_HEALTH + (healthUpgradeLevel > 0 ? PERMANENT_UPGRADES.max_health.levels[healthUpgradeLevel - 1].effect : 0);
                     this.damageModifier = 1 + (damageUpgradeLevel > 0 ? PERMANENT_UPGRADES.damage_boost.levels[damageUpgradeLevel - 1].effect : 0);
                     this.xpModifier = 1 + (xpUpgradeLevel > 0 ? PERMANENT_UPGRADES.xp_gain.levels[xpUpgradeLevel - 1].effect : 0);
 
                     this.maxHealth = this.baseHealth;
                     this.health = this.maxHealth;
-                    this.speed = characterData.speed;
+                    this.speed = CONFIG.PLAYER_SPEED;
                     this.xp = 0;
                     this.level = 1;
                     this.xpToNextLevel = CONFIG.XP_TO_NEXT_LEVEL_BASE;
@@ -1199,47 +1044,49 @@
                     this.isDashing = false;
                     this.dashTimer = 0;
                     this.dashCooldown = 0;
-                    this.lastMoveDirection = { x: 1, y: 0 };
-                    this.squashStretchTimer = 0;
+                    this.lastMoveDirection = { x: 1, y: 0 }; // Para Raio Celestial
+                    this.squashStretchTimer = 0; // Para animação de squash
                     this.x = canvas.width / 2;
                     this.y = canvas.height * (1 - CONFIG.GROUND_HEIGHT_PERCENT) - this.radius;
-                    this.shielded = false;
-                    this.shieldTimer = 0;
-                    this.invincibilityTimer = 0;
-                    this.knockbackVelocity = { x: 0, y: 0 };
-                    this.jumpsAvailable = 1;
+                    this.onGround = true;
+                    this.shielded = false; // Para a habilidade Égide Divina
+                    this.shieldTimer = 0; // Duração do escudo
                     this.damageTaken = 0; // Para o sistema de rank
                 }
 
                 draw(ctx) {
-                    if (this.invincibilityTimer > 0 && frameCount % 8 < 4) {
-                        this.animationFrame++;
-                        return;
-                    }
-
                     ctx.save();
-                    ctx.translate(this.x - camera.x, this.y - camera.y);
+                    ctx.translate(this.x - camera.x, this.y - camera.y); // Aplica o deslocamento da câmara
 
+                    // Squash and Stretch
                     let scaleX = 1;
                     let scaleY = 1;
                     if (this.squashStretchTimer > 0) {
                         const progress = this.squashStretchTimer / CONFIG.PLAYER_LANDING_SQUASH_DURATION;
-                        scaleY = 1 - (0.3 * Math.sin(Math.PI * progress));
-                        scaleX = 1 + (0.3 * Math.sin(Math.PI * progress));
+                        scaleY = 1 - (0.3 * Math.sin(Math.PI * progress)); // Achata e volta
+                        scaleX = 1 + (0.3 * Math.sin(Math.PI * progress)); // Alarga e volta
                         this.squashStretchTimer--;
                     }
-                    ctx.scale(this.facingRight ? scaleX : -scaleX, scaleY);
+                    ctx.scale(this.facingRight ? scaleX : -scaleX, scaleY); // Vira e aplica squash
 
+                    // Feedback de dano
                     if (this.hitTimer > 0) {
                         ctx.fillStyle = 'red';
+                        // OTIMIZAÇÃO: shadowBlur removido
+                        // ctx.shadowColor = 'red';
+                        // ctx.shadowBlur = 20;
                         this.hitTimer--;
                     } else {
                         ctx.fillStyle = 'white';
+                        // OTIMIZAÇÃO: Animação de pulso com shadowBlur removida
+                        // ctx.shadowColor = 'cyan';
+                        // const pulse = Math.sin(this.animationFrame * 0.1) * 5 + 10;
+                        // ctx.shadowBlur = pulse;
                     }
 
-                    // Corpo principal
+                    // Desenha o corpo principal (triângulo base)
                     ctx.beginPath();
-                    ctx.moveTo(0, -this.radius * 1.5);
+                    ctx.moveTo(0, -this.radius * 1.5); // Ponta mais alta
                     ctx.lineTo(this.radius * 1.2, this.radius * 0.8);
                     ctx.lineTo(-this.radius * 1.2, this.radius * 0.8);
                     ctx.closePath();
@@ -1248,16 +1095,7 @@
                     ctx.lineWidth = 2;
                     ctx.stroke();
 
-                    // Detalhe "cockpit"
-                    ctx.fillStyle = '#00FFFF';
-                    ctx.beginPath();
-                    ctx.moveTo(0, -this.radius * 0.5);
-                    ctx.lineTo(this.radius * 0.4, this.radius * 0.2);
-                    ctx.lineTo(-this.radius * 0.4, this.radius * 0.2);
-                    ctx.closePath();
-                    ctx.fill();
-
-                    // Asas
+                    // Desenha as "asas" (formas adicionais)
                     ctx.beginPath();
                     ctx.moveTo(this.radius * 0.8, -this.radius * 0.5);
                     ctx.quadraticCurveTo(this.radius * 2, -this.radius * 1.5, this.radius * 1.5, this.radius * 0.5);
@@ -1274,7 +1112,7 @@
                     ctx.fill();
                     ctx.stroke();
 
-                    // Escudo
+                    // Desenha o escudo se ativo
                     if (this.shielded) {
                         ctx.beginPath();
                         ctx.arc(0, 0, this.radius * 1.5, 0, Math.PI * 2);
@@ -1284,116 +1122,80 @@
                     }
 
                     ctx.restore();
+                    // ctx.shadowBlur = 0; // Desnecessário pois foi removido
                     this.animationFrame++;
                 }
 
                 update() {
-                    if (this.invincibilityTimer > 0) {
-                        this.invincibilityTimer--;
-                    }
-
                     this.handleMovement();
-                    this.applyGravity();
+                    this.applyGravity(); // Aplica gravidade ao jogador
                     this.updateSkills();
 
-                    if (platforms.length > 0 && this.y > platforms[0].y + 400) {
-                        this.takeDamage(9999);
-                    }
-
+                    // Aplica regeneração de vida se a habilidade estiver ativa
                     if (this.skills['health_regen']) {
                         const regenLevelData = SKILL_DATABASE['health_regen'].levels[this.skills['health_regen'].level - 1];
-                        this.health = Math.min(this.maxHealth, this.health + regenLevelData.regenPerSecond / 60);
+                        this.health = Math.min(this.maxHealth, this.health + regenLevelData.regenPerSecond / 60); // Regeneração por frame
                     }
 
+                    // Atualiza o alvo da câmara para a posição do jogador
                     camera.targetX = this.x - canvas.width / 2;
                     camera.targetY = this.y - canvas.height / 2;
                 }
 
                 handleMovement() {
-                    this.moveAndCollide(this.knockbackVelocity.x, this.knockbackVelocity.y);
-                    this.knockbackVelocity.x *= 0.9;
-                    this.knockbackVelocity.y *= 0.9;
-
                     if (this.isDashing) {
-                        this.moveAndCollide(this.dashDirection.x * CONFIG.PLAYER_DASH_FORCE, this.dashDirection.y * CONFIG.PLAYER_DASH_FORCE);
+                        this.x += this.dashDirection.x * CONFIG.PLAYER_DASH_FORCE;
+                        this.y += this.dashDirection.y * CONFIG.PLAYER_DASH_FORCE;
                         this.dashTimer--;
-                        if (this.dashTimer <= 0) this.isDashing = false;
-                        return;
+                        if (this.dashTimer <= 0) {
+                            this.isDashing = false;
+                        }
+                        return; // Pára outros movimentos durante o dash
                     }
 
                     let dx = 0;
-                    let dy_input = 0;
+                    let dy_input = 0; // Input vertical separado
+
                     if (isMobile) {
                         dx = movementVector.x;
                         dy_input = movementVector.y;
                     } else {
                         dx = (keys['d'] || keys['ArrowRight']) ? 1 : ((keys['a'] || keys['ArrowLeft']) ? -1 : 0);
-                        dy_input = (keys['s'] || keys['ArrowDown']) ? 1 : ((keys['w'] || keys['ArrowUp']) ? -1 : 0);
+                        dy_input = (keys['s'] || keys['ArrowDown']) ? 1 : ((keys['w'] || keys['ArrowUp']) ? -1 : 0); // Para direção do dash
                     }
 
+                    // Guarda a última direção de movimento se houver input
                     if (dx !== 0 || dy_input !== 0) {
                         const magnitude = Math.hypot(dx, dy_input);
                         this.lastMoveDirection = { x: dx / magnitude, y: dy_input / magnitude };
                     }
-                    if (dx !== 0) this.facingRight = dx > 0;
-                    
-                    this.moveAndCollide(dx * this.speed, 0);
+                    if (dx !== 0) {
+                        this.facingRight = dx > 0;
+                    }
 
+                    // Aplica o movimento horizontal
+                    this.x += dx * this.speed;
+
+                    // Lógica de Salto unificada
                     const jumpPressed = isMobile ? (movementVector.y < -0.5) : (keys['w'] || keys['ArrowUp'] || keys[' ']);
                     if (jumpPressed && this.jumpsAvailable > 0) {
-                        this.velocityY = (this.onGround || this.jumpsAvailable === (this.skills['double_jump'] ? 2 : 1)) ? CONFIG.PLAYER_JUMP_FORCE : CONFIG.PLAYER_DOUBLE_JUMP_FORCE;
+                        const isFirstJump = this.onGround || this.jumpsAvailable === (this.skills['double_jump'] ? 2 : 1);
+                        this.velocityY = isFirstJump ? CONFIG.PLAYER_JUMP_FORCE : CONFIG.PLAYER_DOUBLE_JUMP_FORCE;
                         this.jumpsAvailable--;
                         this.onGround = false;
                         if (!isMobile) keys['w'] = keys['ArrowUp'] = keys[' '] = false;
                     }
 
+                    // Ativar Dash no PC
                     if (!isMobile && keys['shift']) {
                         this.dash();
-                        keys['shift'] = false;
+                        keys['shift'] = false; // Previne múltiplos dashes com uma tecla premida
                     }
 
+                    // Gestão do Cooldown do Dash
                     if (this.dashCooldown > 0) {
                         this.dashCooldown--;
                     }
-                }
-
-                moveAndCollide(dx, dy) {
-                    const wasOnGround = this.onGround;
-                    const steps = Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)));
-                    if (steps === 0) return;
-
-                    const stepX = dx / steps;
-                    const stepY = dy / steps;
-
-                    for (let i = 0; i < steps; i++) {
-                        this.x += stepX;
-                        // (Colisão horizontal com paredes iria aqui)
-
-                        this.y += stepY;
-                        let collided = false;
-                        for (const p of platforms) {
-                            if (this.x + this.radius > p.x && this.x - this.radius < p.x + p.width && this.y + this.radius > p.y && this.y - this.radius < p.y + p.height) {
-                                if (stepY > 0 && (this.y - stepY) + this.radius <= p.y) {
-                                    this.y = p.y - this.radius;
-                                    this.velocityY = 0;
-                                    this.onGround = true;
-                                    if (!wasOnGround) {
-                                        this.jumpsAvailable = (this.skills['double_jump'] ? 2 : 1);
-                                        this.squashStretchTimer = CONFIG.PLAYER_LANDING_SQUASH_DURATION;
-                                        SoundManager.play('land', '16n');
-                                    }
-                                }
-                                collided = true;
-                                break;
-                            }
-                        }
-                        if (!collided) this.onGround = false;
-                    }
-                }
-                
-                applyGravity() {
-                    this.velocityY += CONFIG.GRAVITY;
-                    this.moveAndCollide(0, this.velocityY);
                 }
 
                 dash() {
@@ -1405,11 +1207,6 @@
 
                     // A direção já foi guardada em handleMovement, por isso basta usá-la
                     this.dashDirection = { x: this.lastMoveDirection.x, y: this.lastMoveDirection.y };
-
-                    // CORREÇÃO: Impede o dash para baixo se estiver no chão
-                    if (this.onGround && this.dashDirection.y > 0) {
-                        this.dashDirection.y = 0;
-                    }
 
                     // Fallback: se por alguma razão não houver direção, usa a que está virado
                     if (this.dashDirection.x === 0 && this.dashDirection.y === 0) {
@@ -1476,12 +1273,7 @@
                     }
                 }
 
-                takeDamage(amount, source = null) {
-                    // Se estiver em dash ou invencível (I-Frames), ignora o dano
-                    if (this.isDashing || this.invincibilityTimer > 0) {
-                        return;
-                    }
-
+                takeDamage(amount) {
                     if (this.shielded) {
                         this.shielded = false;
                         this.shieldTimer = 0; // Garante que o escudo se foi
@@ -1492,24 +1284,11 @@
                         showTemporaryMessage("Escudo Quebrado!", "cyan");
                         return;
                     }
-
                     this.damageTaken += amount;
                     this.health -= amount;
-                    this.hitTimer = 30;
-                    SoundManager.play('damage', '8n');
+                    this.hitTimer = 30; // Pisca por 30 frames
+                    SoundManager.play('damage', '8n'); // Passa uma duração para o NoiseSynth
                     screenShake = { intensity: 5, duration: 15 };
-
-                    // Ativa I-Frames
-                    this.invincibilityTimer = 36; // 0.6 segundos de invencibilidade
-
-                    // Aplica knockback se uma fonte for fornecida
-                    if (source) {
-                        const knockbackForce = 8; // Força do knockback
-                        const angle = Math.atan2(this.y - source.y, this.x - source.x);
-                        this.knockbackVelocity.x = Math.cos(angle) * knockbackForce;
-                        this.knockbackVelocity.y = Math.sin(angle) * knockbackForce;
-                    }
-
                     if (this.health <= 0) {
                         this.health = 0;
                         this.isDead = true;
@@ -1612,20 +1391,24 @@
                                     let angle = Math.atan2(targetEnemy.y - this.y, targetEnemy.x - this.x);
                                     for (let i = 0; i < levelData.count; i++) {
                                         const spreadAngle = (i - (levelData.count - 1) / 2) * 0.1;
+                                        // Aplica o modificador de dano do jogador
                                         const projectileDamage = levelData.damage * this.damageModifier;
-                                        // Passa o skillId para o projétil
-                                        getFromPool(projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage }, skillId);
+                                        const newProjectile = getFromPool(projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage });
+                                        if (!newProjectile) {
+                                            if (DEBUG_MODE) console.warn("Falha ao obter projétil do pool!");
+                                        }
                                     }
                                     SoundManager.play('lance', 'C4'); // Som de lança
                                     skillState.timer = skillData.cooldown;
                                 } else {
                                     skillState.timer = 10; // Tenta a cada 10 frames
                                 }
+                            // ALTERAÇÃO 2: Lógica de ativação do Raio Celestial
                             } else if (skillId === 'celestial_ray') {
                                 const rayAngle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
+                                // Aplica o modificador de dano do jogador
                                 const rayDamage = levelData.damage * this.damageModifier;
-                                // Passa o skillId para o projétil
-                                getFromPool(projectilePool, this.x, this.y, rayAngle, { ...levelData, damage: rayDamage }, skillId);
+                                getFromPool(projectilePool, this.x, this.y, rayAngle, { ...levelData, damage: rayDamage }, 'celestial_ray');
                                 SoundManager.play('lance', 'E5'); // Som diferente para o raio
                                 skillState.timer = skillData.cooldown;
                             } else if (skillId === 'chain_lightning') { // NOVA HABILIDADE
@@ -1702,12 +1485,6 @@
                                     if(frameCount - orb.lastHitFrame > CONFIG.ORB_HIT_COOLDOWN_FRAMES && enemy.orbHitCooldown <= 0) {
                                         enemy.takeDamage(levelData.damage * this.damageModifier); // Aplica modificador de dano
                                         enemy.applyKnockback(orbX, orbY, CONFIG.ENEMY_KNOCKBACK_FORCE * 0.5); // Pequeno knockback
-                                        
-                                        // Lógica da evolução "Aura da Stasis"
-                                        if (skillState.evolved) {
-                                            enemy.applySlow(120); // Aplica lentidão por 2 segundos
-                                        }
-
                                         orb.lastHitFrame = frameCount; // Atualiza o último frame de acerto do orbe
                                         enemy.orbHitCooldown = CONFIG.ORB_HIT_COOLDOWN_FRAMES; // Define cooldown no inimigo
                                     }
@@ -1759,45 +1536,44 @@
                     this.attackTimer = 0; // Para inimigos atiradores
                     this.knockbackVelocity = { x: 0, y: 0 }; // Para efeito de recuo
                     this.orbHitCooldown = 0; // Cooldown para ser atingido por orbes
-                    this.slowedTimer = 0; // Para efeito de lentidão
                     this.explodesOnDeath = false; // Propriedade para Ceifador/Bomber
 
                     switch(type) {
                         // ALTERAÇÃO 3: Novo Inimigo - Ceifador
                         case 'reaper':
-                            this.radius = 10; this.speed = 4.5 + (gameTime / 100) + (waveNumber * 0.025); // Mais rápido
+                            this.radius = 10; this.speed = 2.5 + (gameTime / 180) + (waveNumber * 0.02);
                             this.health = 15 + Math.floor(gameTime / 20) * 2 + waveNumber; this.color = '#7DF9FF'; // Ciano pálido
                             this.shape = 'diamond'; this.damage = 30; // Dano alto da explosão
                             this.xpValue = 15;
                             this.explodesOnDeath = true;
                             break;
                         case 'tank':
-                            this.radius = 18; this.speed = 1.5 + (gameTime / 120) + (waveNumber * 0.008); // Mais rápido
+                            this.radius = 18; this.speed = 0.7 + (gameTime / 200) + (waveNumber * 0.005);
                             this.health = 70 + Math.floor(gameTime / 10) * 7 + (waveNumber * 3); this.color = '#FFA500';
                             this.shape = 'square'; this.damage = 12; this.xpValue = 40;
                             break;
                         case 'speeder':
-                            this.radius = 8; this.speed = 4.0 + (gameTime / 50) + (waveNumber * 0.02); // Mais rápido
+                            this.radius = 8; this.speed = 2.2 + (gameTime / 100) + (waveNumber * 0.015);
                             this.health = 12 + Math.floor(gameTime / 15) * 2 + waveNumber; this.color = '#FFFF00';
                             this.shape = 'triangle'; this.damage = 7; this.xpValue = 12;
                             break;
                         case 'bomber':
-                            this.radius = 12; this.speed = 1.8 + (gameTime / 150) + (waveNumber * 0.01); // Mais rápido
+                            this.radius = 12; this.speed = 0.9 + (gameTime / 220) + (waveNumber * 0.008);
                             this.health = 45 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#9400D3'; // Roxo
                             this.shape = 'pentagon'; this.damage = 9; this.xpValue = 25;
                             this.explodesOnDeath = true; // Bomber também explode
                             break;
                         case 'shooter':
-                            this.radius = 15; this.speed = 1.0 + (gameTime / 200) + (waveNumber * 0.005); // Mais rápido
+                            this.radius = 15; this.speed = 0.4 + (gameTime / 280) + (waveNumber * 0.004);
                             this.health = 35 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#FF00FF'; // Magenta
                             this.shape = 'star'; this.damage = 4; this.xpValue = 35;
-                            this.attackCooldown = 140; // Ataca um pouco mais rápido
+                            this.attackCooldown = 150; // Ataca a cada 2.5 segundos
                             this.attackTimer = this.attackCooldown;
-                            this.projectileSpeed = 4.0; // Projéteis mais rápidos
+                            this.projectileSpeed = 3.5;
                             this.projectileDamage = 8;
                             break;
                         case 'healer':
-                            this.radius = 14; this.speed = 0.9 + (gameTime / 220) + (waveNumber * 0.004); // Mais rápido
+                            this.radius = 14; this.speed = 0.3 + (gameTime / 300) + (waveNumber * 0.003);
                             this.health = 60 + Math.floor(gameTime / 10) * 6 + (waveNumber * 3); this.color = '#00FF00'; // Verde
                             this.shape = 'cross'; this.damage = 0; this.xpValue = 50;
                             this.healCooldown = 180; // Cura a cada 3 segundos
@@ -1806,10 +1582,10 @@
                             this.healRadius = 100;
                             break;
                         case 'summoner':
-                            this.radius = 20; this.speed = 0.8 + (gameTime / 250) + (waveNumber * 0.003); // Mais rápido
+                            this.radius = 20; this.speed = 0.2 + (gameTime / 350) + (waveNumber * 0.002);
                             this.health = 80 + Math.floor(gameTime / 10) * 8 + (waveNumber * 4); this.color = '#8B4513'; // Marrom
                             this.shape = 'pyramid'; this.damage = 0; this.xpValue = 70;
-                            this.summonCooldown = 220; // Invoca um pouco mais rápido
+                            this.summonCooldown = 240; // Invoca a cada 4 segundos
                             this.summonTimer = this.summonCooldown;
                             break;
                         case 'ghost':
@@ -1826,7 +1602,7 @@
                             this.isSplit = isSplit || false; // Para saber se é uma versão pequena
                             break;
                         default: // chaser
-                            this.radius = 12; this.speed = 2.8 + (gameTime / 80) + (waveNumber * 0.015); // Mais rápido
+                            this.radius = 12; this.speed = 1.3 + (gameTime / 150) + (waveNumber * 0.01);
                             this.health = 25 + Math.floor(gameTime / 10) * 3 + (waveNumber * 1.5); this.color = '#FF4D4D';
                             this.shape = 'circle'; this.damage = 8; this.xpValue = 20;
                             break;
@@ -1868,8 +1644,10 @@
                     // ctx.shadowBlur = pulse;
 
                     ctx.beginPath();
-                    if (this.shape === 'square') { // Tanque
+                    if (this.shape === 'square') {
                         ctx.rect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
+                    } else if (this.shape === 'hexagon') {
+                        for(let i=0; i<6; i++) ctx.lineTo(Math.cos(i*2*Math.PI/6) * this.radius, Math.sin(i*2*Math.PI/6) * this.radius);
                     } else if (this.shape === 'diamond') {
                         ctx.moveTo(0, -this.radius);
                         ctx.lineTo(this.radius * 0.7, 0);
@@ -1902,7 +1680,7 @@
                         ctx.lineTo(this.radius, this.radius);
                         ctx.lineTo(-this.radius, this.radius);
                         ctx.closePath();
-                    } else { // Círculo (Chaser)
+                    } else {
                         ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                     }
                     ctx.closePath();
@@ -1932,12 +1710,15 @@
                 }
 
                 update() {
-                    if (this.slowedTimer > 0) this.slowedTimer--;
-
                     // Aplica knockback primeiro
-                    this.moveAndCollide(this.knockbackVelocity.x, this.knockbackVelocity.y);
-                    this.knockbackVelocity.x *= 0.9;
+                    this.x += this.knockbackVelocity.x;
+                    this.y += this.knockbackVelocity.y;
+                    this.knockbackVelocity.x *= 0.9; // Reduz o knockback
                     this.knockbackVelocity.y *= 0.9;
+                    if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 0.1) {
+                        this.knockbackVelocity.x = 0;
+                        this.knockbackVelocity.y = 0;
+                    }
 
                     // Decrementa o cooldown de acerto por orbe
                     if (this.orbHitCooldown > 0) {
@@ -1951,23 +1732,18 @@
                         return; // Para de se mover
                     }
 
-                    // Inimigos voadores movem-se em direção ao jogador em X e Y
+                    // Inimigos voadores movem-se em direção ao jogador em X e Y, a menos que estejam em knockback forte
                     if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 5) { // Só se move se o knockback for pequeno
                         const angle = Math.atan2(player.y - this.y, player.x - this.x);
                         let currentSpeed = this.speed;
 
-                        // Nova lógica de lentidão: aplica apenas o efeito mais forte
-                        let finalSlowFactor = 0;
-                        if (this.slowedTimer > 0) {
-                            finalSlowFactor = Math.max(finalSlowFactor, 0.5); // Aura da Stasis aplica 50% de lentidão
-                        }
+                        // Aplica lentidão se estiver num campo estático
                         for (const field of activeStaticFields) {
                             if (Math.hypot(field.x - this.x, field.y - this.y) < field.radius) {
-                                finalSlowFactor = Math.max(finalSlowFactor, field.slowFactor);
-                                break; // Assume que o inimigo só pode estar em um campo por vez
+                                currentSpeed *= (1 - field.slowFactor);
+                                break; // Apenas um campo por vez
                             }
                         }
-                        currentSpeed *= (1 - finalSlowFactor);
 
                         this.x += Math.cos(angle) * currentSpeed;
                         this.y += Math.sin(angle) * currentSpeed;
@@ -2004,7 +1780,7 @@
                             // Invoca um chaser ou speeder pequeno
                             const summonedType = Math.random() < 0.5 ? 'chaser' : 'speeder';
                             enemies.push(new Enemy(this.x + (Math.random()-0.5)*50, this.y + (Math.random()-0.5)*50, summonedType));
-                            for (let i = 0; i < 5; i++) { particleManager.createParticle(this.x, this.y, 'brown', 2); } // <<<<<<< MUDANÇA 1
+                            for (let i = 0; i < 5; i++) { particleManager.createParticle(this.x, this.y, 'brown', 2); }
                             this.summonTimer = this.summonCooldown;
                         }
                     }
@@ -2037,61 +1813,37 @@
 
                     // Partículas de dano
                     for (let i = 0; i < 5; i++) {
-                        particleManager.createParticle(this.x, this.y, this.color, 1.8);
+                        particleManager.createParticle(this.x, this.y, this.color, 1.8); // <<<<<<< MUDANÇA 1
                     }
                     if (this.health <= 0) {
                         this.isDead = true;
+                        // Garante que o XP Orb é criado e adicionado ao pool
                         getFromPool(xpOrbPool, this.x, this.y, this.xpValue);
-                        score.kills++;
-                        
-                        if(playerAchievements.stats) {
-                            playerAchievements.stats.totalKills = (playerAchievements.stats.totalKills || 0) + 1;
-                            checkAchievements('totalKills');
-                        }
-
-                        // Lógica do Splitter
-                        if (this.type === 'splitter' && !this.isSplit) {
-                            for (let i = 0; i < 2; i++) {
-                                const newSplitter = new Enemy(this.x + (Math.random() - 0.5) * 20, this.y + (Math.random() - 0.5) * 20, 'splitter', false, true);
-                                newSplitter.radius *= 0.7;
-                                newSplitter.speed *= 1.5;
-                                newSplitter.health *= 0.5;
-                                newSplitter.xpValue = Math.round(this.xpValue / 3);
-                                enemies.push(newSplitter);
-                                waveEnemiesRemaining++; // Adiciona os novos inimigos à contagem da onda
-                            }
-                        }
-
+                        score.kills++; // Contabiliza a morte
+                        // Partículas de morte do inimigo
                         for (let i = 0; i < 10; i++) {
-                            particleManager.createParticle(this.x, this.y, this.color, 3);
+                            particleManager.createParticle(this.x, this.y, this.color, 3); // <<<<<<< MUDANÇA 1
                         }
 
+                        // ALTERAÇÃO 3: Efeito de explosão para inimigos explosivos
                         if(this.explodesOnDeath) {
                             const explosionRadius = this.type === 'reaper' ? 70 : 90;
                             activeVortexes.push(new Vortex(this.x, this.y, {radius: explosionRadius, duration: 30, damage: this.damage, isExplosion:true, force: 0}));
-                            for (let i = 0; i < 20; i++) { particleManager.createParticle(this.x, this.y, this.color, 4); }
+                            // Efeito visual maior para a explosão
+                            for (let i = 0; i < 20; i++) { particleManager.createParticle(this.x, this.y, this.color, 4); } // <<<<<<< MUDANÇA 1
                         }
 
                         if(Math.random() < CONFIG.POWERUP_DROP_CHANCE){
                             powerUps.push(new PowerUp(this.x, this.y, 'nuke'));
-                            showTemporaryMessage("NUKE!", "yellow");
+                            showTemporaryMessage("NUKE!", "yellow"); // Feedback para power-up
                         }
-
-                        if (isGoldenFrenzyActive) {
-                            if (Math.random() < 0.1) {
-                                playerGems++;
-                                showTemporaryMessage("+1 Gema!", 'violet');
-                                savePermanentData();
-                            }
-                        }
-
-                        if (this.isElite) {
-                            const gemsDropped = Math.floor(Math.random() * 3) + 1;
+                        if (this.isElite) { // Larga gemas se for inimigo de elite
+                            const gemsDropped = Math.floor(Math.random() * 3) + 1; // 1 a 3 gemas
                             playerGems += gemsDropped;
                             showTemporaryMessage(`+${gemsDropped} Gemas!`, 'violet');
-                            savePermanentData();
+                            savePermanentData(); // Salva os dados permanentes
                         }
-                        waveEnemiesRemaining--;
+                        waveEnemiesRemaining--; // Decrementa inimigos da onda
                     }
                 }
 
@@ -2099,10 +1851,6 @@
                     const angle = Math.atan2(this.y - sourceY, this.x - sourceX);
                     this.knockbackVelocity.x = Math.cos(angle) * force;
                     this.knockbackVelocity.y = Math.sin(angle) * force;
-                }
-
-                applySlow(duration) {
-                    this.slowedTimer = Math.max(this.slowedTimer, duration);
                 }
             }
 
@@ -2230,19 +1978,10 @@
                         particleManager.createParticle(this.x, this.y, this.color, 2.5); // <<<<<<< MUDANÇA 1
                     }
                     if (this.health <= 0) {
-                        console.log("--- BOSS DERROTADO ---"); // DEBUG
                         this.isDead = true;
                         getFromPool(xpOrbPool, this.x, this.y, this.xpValue);
                         score.kills++;
                         waveEnemiesRemaining--; // Conta o boss como 1 inimigo para a onda
-                        console.log(`Boss morreu. waveEnemiesRemaining é agora ${waveEnemiesRemaining}`); // DEBUG
-                        
-                        // CORREÇÃO: Força o início do cooldown para a próxima onda
-                        if (waveEnemiesRemaining <= 0) {
-                            waveCooldownTimer = 180; 
-                            console.log("Morte do chefe acionou o cooldown da próxima onda.");
-                        }
-
                         showTemporaryMessage("BOSS DERROTADO!", "gold");
                         screenShake = { intensity: 20, duration: 60 };
                         // Partículas de morte do boss
@@ -2269,32 +2008,33 @@
                 constructor() {
                     super();
                     this.piercedEnemies = new Set();
-                    this.skillId = null; // ID da habilidade que o criou
+                    // <<<<<<< MUDANÇA 1: RASTRO DE PARTÍCULAS REMOVIDO DAQUI
+                    this.type = 'normal'; // 'normal' ou 'celestial_ray'
                 }
 
                 // método init para agrupamento
-                init(x, y, angle, levelData, skillId = null) {
+                init(x, y, angle, levelData, type = 'normal') {
                     super.reset();
                     this.x = x;
                     this.y = y;
-                    this.skillId = skillId;
+                    this.type = type;
 
-                    this.velocity = { x: Math.cos(angle) * levelData.speed, y: Math.sin(angle) * levelData.speed };
-                    this.damage = levelData.damage;
-                    this.pierce = levelData.pierce;
-
-                    // Propriedades específicas da habilidade
-                    if (this.skillId === 'celestial_ray') {
+                    if (this.type === 'celestial_ray') {
                         this.radius = levelData.width / 2;
                         this.length = levelData.length;
-                        this.angle = angle;
-                    } else { // Projétil padrão (ex: Lança Divina)
-                        this.radius = 5;
+                        this.velocity = { x: Math.cos(angle) * levelData.speed, y: Math.sin(angle) * levelData.speed };
+                        this.damage = levelData.damage; // Já vem com o modificador
+                        this.pierce = levelData.pierce;
+                        this.angle = angle; // Para desenhar o raio
+                    } else { // Normal projectile (Divine Lance)
+                        this.radius = 5; // Raio fixo para projétil
+                        this.velocity = { x: Math.cos(angle) * levelData.speed, y: Math.sin(angle) * levelData.speed };
+                        this.damage = levelData.damage; // Já vem com o modificador
+                        this.pierce = levelData.pierce;
                     }
-
-                    this.piercedEnemies.clear();
-                    this.active = true;
-                    this.isDead = false;
+                    this.piercedEnemies.clear(); // Limpar conjunto para reutilização
+                    this.active = true; // Garante que o projétil está ativo ao ser inicializado
+                    this.isDead = false; // Garante que não está morto
                 }
 
                 draw(ctx) {
@@ -2303,7 +2043,7 @@
                     const screenRight = camera.x + canvas.width;
                     const screenTop = camera.y;
                     const screenBottom = camera.y + canvas.height;
-                    const largerDimension = this.skillId === 'celestial_ray' ? this.length : this.radius;
+                    const largerDimension = this.type === 'celestial_ray' ? this.length : this.radius;
                     if (this.x + largerDimension < screenLeft || this.x - largerDimension > screenRight ||
                         this.y + largerDimension < screenTop || this.y - largerDimension > screenBottom) {
                         return;
@@ -2312,8 +2052,10 @@
                     ctx.save();
                     ctx.translate(this.x - camera.x, this.y - camera.y);
 
+                    // <<<<<<< MUDANÇA 1: LÓGICA DE DESENHAR RASTRO REMOVIDA
+
                     // Desenha o projétil principal
-                    if (this.skillId === 'celestial_ray') {
+                    if (this.type === 'celestial_ray') {
                         ctx.save();
                         ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
                         ctx.rotate(this.angle);
@@ -2552,7 +2294,7 @@
                     this.velocity.y *= this.friction;
                     this.x += this.velocity.x;
                     this.y += this.velocity.y;
-                    this.alpha -= 0.02; // Desaparece mais lentamente para ser visível
+                    this.alpha -= 0.05; // Desaparece mais rapidamente para otimização
                     if (this.alpha <= 0) {
                         this.isDead = true;
                         releaseToPool(this); // Libertar para o agrupamento
@@ -2718,44 +2460,6 @@
                 }
             }
 
-            class MeteorWarningIndicator extends Entity {
-                constructor() {
-                    super();
-                }
-                init(x, y, life = 60) { // 1 segundo de aviso
-                    super.reset();
-                    this.x = x;
-                    this.y = y;
-                    this.radius = 20;
-                    this.life = life;
-                    this.initialLife = life;
-                }
-                update() {
-                    this.life--;
-                    if (this.life <= 0) {
-                        this.isDead = true;
-                        // Spawna o meteoro vindo de cima
-                        const meteorStartX = this.x;
-                        const meteorStartY = camera.y - 50; // Acima da tela
-                        getFromPool(enemyProjectilePool, meteorStartX, meteorStartY, Math.PI / 2, 8, 20); // angulo, velocidade, dano
-                    }
-                }
-                draw(ctx) {
-                    // Desenha um círculo de aviso no chão
-                    ctx.save();
-                    ctx.translate(this.x - camera.x, this.y - camera.y);
-                    const progress = this.life / this.initialLife;
-                    const alpha = 1 - progress; // Fade in
-                    const radius = this.radius * (1 - progress); // Cresce
-                    ctx.strokeStyle = `rgba(255, 100, 0, ${alpha})`;
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, radius, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.restore();
-                }
-            }
-
             class DemoPlayer extends Entity {
                 constructor(x, y) {
                     super(x, y, 25); // Um pouco maior que o jogador normal
@@ -2888,7 +2592,7 @@
             };
 
             // --- LÓGICA DO JOGO ---
-            function initGame(characterId = 'SERAPH') {
+            function initGame() {
                 // ALTERAÇÃO 1: Geração de plataformas aprimorada para um mundo maior
                 platforms = [];
                 const groundLevel = canvas.height * (1 - CONFIG.GROUND_HEIGHT_PERCENT);
@@ -2946,7 +2650,7 @@
                 }
 
 
-                player = new Player(characterId);
+                player = new Player();
 
                 // Inicializa os agrupamentos de objetos
                 particleManager = new ParticleManager(500); // <<<<<<< MUDANÇA 1: Inicializa o gestor de partículas
@@ -2954,9 +2658,8 @@
                 enemyProjectilePool = createPool(EnemyProjectile, 50);
                 xpOrbPool = createPool(XPOrb, 100);
                 damageNumberPool = createPool(DamageNumber, 50);
-                meteorWarningPool = createPool(MeteorWarningIndicator, 20);
 
-                player.addSkill(CHARACTER_DATABASE[characterId].initialSkill);
+                player.addSkill('divine_lance');
 
                 // Limpa todas as entidades ativas
                 enemies = [];
@@ -2964,7 +2667,6 @@
                 powerUps = [];
                 activeStaticFields = [];
                 activeDamageNumbers = [];
-                activeMeteorWarnings = [];
 
                 // Limpa o HTML do HUD
                 document.getElementById('skills-hud').innerHTML = '';
@@ -2975,7 +2677,6 @@
                 enemyProjectilePool.forEach(p => releaseToPool(p));
                 xpOrbPool.forEach(o => releaseToPool(o));
                 damageNumberPool.forEach(dn => releaseToPool(dn));
-                meteorWarningPool.forEach(p => releaseToPool(p));
 
                 gameTime = 0; frameCount = 0;
                 score = { kills: 0, time: 0 };
@@ -2986,30 +2687,20 @@
                 waveCooldownTimer = 0;
                 startNextWave();
 
-                // Reinicia o gerenciador de eventos
-                eventManager.currentEvent = null;
-                eventManager.timeUntilNextEvent = 120 * 60; // Reinicia o temporizador para o próximo jogo
-
                 setGameState('playing');
             }
 
             function startNextWave() {
                 waveNumber++;
-                console.log(`--- Iniciando Onda ${waveNumber} ---`); // DEBUG
 
                 // A CADA 5 ONDAS, UMA ONDA DE BOSS
                 if (waveNumber > 0 && waveNumber % 5 === 0) {
-                    SoundManager.playBossBGM();
                     showTemporaryMessage(`BOSS - ONDA ${waveNumber}`, "red");
                     enemies.push(new BossEnemy(player.x + canvas.width / 2 + 100, player.y - 100));
                     waveEnemiesRemaining = 1;
                     currentWaveConfig = { enemies: [], eliteChance: 0 };
                     return;
                 }
-
-                // Para ondas normais, toca a BGM principal e a evolui
-                SoundManager.playMainBGM();
-                SoundManager.updateBGM(waveNumber);
 
                 // Ondas pré-definidas
                 if (waveNumber <= WAVE_CONFIGS.length) {
@@ -3057,17 +2748,14 @@
 
             // <<<<<<< MUDANÇA 3: LÓGICA DE SPAWN REFEITA
             function spawnEnemies() {
-                // console.log(`spawnEnemies check: waveEnemiesRemaining=${waveEnemiesRemaining}, enemies.length=${enemies.length}`); // DEBUG intensivo
                 // Lógica de pausa entre ondas
                 if (waveEnemiesRemaining <= 0 && enemies.length === 0) {
                     if (waveCooldownTimer <= 0) {
                         waveCooldownTimer = 180; // 3 segundos de pausa entre ondas
                         showTemporaryMessage("PAUSA ENTRE ONDAS", "white");
-                        console.log("Iniciando cooldown entre ondas."); // DEBUG
                     } else {
                         waveCooldownTimer--;
                         if (waveCooldownTimer <= 0) {
-                            console.log("Cooldown finalizado. Chamando startNextWave."); // DEBUG
                             startNextWave();
                         }
                     }
@@ -3112,11 +2800,6 @@
             }
 
             function chainLightningEffect(source, initialTarget, levelData) {
-                console.log("DEBUG: chainLightningEffect ativado."); // DEBUG
-                if (SKILL_DATABASE['chain_lightning'].causesHitStop) {
-                    hitStopTimer = 4; // Ativa o Hit Stop
-                }
-
                 let currentTarget = initialTarget;
                 let targetsHit = new Set([currentTarget]);
                 let lastPosition = { x: source.x, y: source.y };
@@ -3126,24 +2809,15 @@
 
                     // Causa dano e cria o efeito visual
                     currentTarget.takeDamage(levelData.damage * player.damageModifier);
-                    console.log(`DEBUG: Criando raio para ${currentTarget.type} em ${Math.round(currentTarget.x)},${Math.round(currentTarget.y)}`); // DEBUG
                     createLightningBolt(lastPosition, currentTarget);
 
                     lastPosition = { x: currentTarget.x, y: currentTarget.y };
                     let nextTarget = null;
                     let nearestDistSq = Infinity;
 
-                    const screenLeft = camera.x;
-                    const screenRight = camera.x + canvas.width;
-                    const screenTop = camera.y;
-                    const screenBottom = camera.y + canvas.height;
-
-                    // Encontra o próximo alvo mais próximo que ainda não foi atingido E está na tela
+                    // Encontra o próximo alvo mais próximo que ainda não foi atingido
                     for (const enemy of enemies) {
-                        const isOnScreen = enemy.x > screenLeft - 50 && enemy.x < screenRight + 50 &&
-                                           enemy.y > screenTop - 50 && enemy.y < screenBottom + 50;
-
-                        if (!targetsHit.has(enemy) && !enemy.isDead && isOnScreen) {
+                        if (!targetsHit.has(enemy) && !enemy.isDead) {
                             const distSq = Math.hypot(currentTarget.x - enemy.x, currentTarget.y - enemy.y);
                             if (distSq < levelData.chainRadius * levelData.chainRadius && distSq < nearestDistSq) {
                                 nearestDistSq = distSq;
@@ -3158,17 +2832,16 @@
             }
 
             function createLightningBolt(startPos, endPos) {
-                console.log(`DEBUG: createLightningBolt de ${startPos.x},${startPos.y} para ${endPos.x},${endPos.y}`); // DEBUG
                 // Cria partículas para simular o raio
                 const dx = endPos.x - startPos.x;
                 const dy = endPos.y - startPos.y;
                 const dist = Math.hypot(dx, dy);
-                const segments = Math.floor(dist / 20); // Drasticamente menos partículas para performance
+                const segments = Math.floor(dist / 10);
                 for (let i = 0; i < segments; i++) {
                     const t = i / segments;
                     const x = startPos.x + dx * t + (Math.random() - 0.5) * 10;
                     const y = startPos.y + dy * t + (Math.random() - 0.5) * 10;
-                    particleManager.createParticle(x, y, '#E0FFFF', 2.0);
+                    particleManager.createParticle(x, y, '#ADD8E6', 1.5); // <<<<<<< MUDANÇA 1
                 }
             }
 
@@ -3194,12 +2867,7 @@
                         if (Math.hypot(proj.x - enemy.x, proj.y - enemy.y) < proj.radius + enemy.radius) {
                             enemy.takeDamage(proj.damage);
                             enemy.applyKnockback(proj.x, proj.y, CONFIG.ENEMY_KNOCKBACK_FORCE);
-
-                            // Ativa o Hit Stop se a habilidade do projétil o causar
-                            if (proj.skillId && SKILL_DATABASE[proj.skillId]?.causesHitStop) {
-                                hitStopTimer = 4;
-                            }
-
+                            
                             // Lógica da evolução "Lanças do Firmamento" (Lifesteal)
                             const skillState = player.skills[proj.skillId];
                             if (skillState && skillState.evolved) {
@@ -3234,11 +2902,10 @@
                 for (let enemy of nearbyEnemies) {
                     if (enemy.isDead) continue;
                     if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < player.radius + enemy.radius) {
-                        player.takeDamage(enemy.damage, enemy); // Passa o inimigo como fonte do dano
-                        // O knockback do inimigo já é aplicado no takeDamage do inimigo, mas podemos manter um pequeno empurrão para separação
+                        player.takeDamage(enemy.damage);
                         const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-                        enemy.x += Math.cos(angle) * 5;
-                        enemy.y += Math.sin(angle) * 5;
+                        enemy.x += Math.cos(angle) * 15;
+                        enemy.y += Math.sin(angle) * 15;
                     }
                 }
             }
@@ -3249,7 +2916,7 @@
                 for (const eProj of enemyProjectilePool) {
                     if (!eProj.active) continue;
                     if (Math.hypot(player.x - eProj.x, player.y - eProj.y) < player.radius + eProj.radius) {
-                        player.takeDamage(eProj.damage, eProj); // Passa o projétil inimigo como fonte do dano
+                        player.takeDamage(eProj.damage);
                         for (let i = 0; i < 10; i++) {
                             if (particleManager) particleManager.createParticle(eProj.x, eProj.y, 'orange', 1.5); // <<<<<<< MUDANÇA 1
                         }
@@ -3270,44 +2937,9 @@
                 }
             }
 
-            function populateAchievementsScreen() {
-                const container = document.getElementById('achievements-list');
-                container.innerHTML = ''; // Limpa para garantir que não há duplicados
-
-                for (const id in ACHIEVEMENT_DATABASE) {
-                    const ach = ACHIEVEMENT_DATABASE[id];
-                    const isUnlocked = playerAchievements.unlocked[id];
-                    
-                    const card = document.createElement('div');
-                    card.className = isUnlocked ? 'achievement-card unlocked' : 'achievement-card';
-
-                    let progressHTML = '';
-                    if (!isUnlocked && ach.condition.type === 'totalKills') {
-                        const current = playerAchievements.stats.totalKills || 0;
-                        const target = ach.condition.value;
-                        progressHTML = `<p>Progresso: ${current} / ${target}</p>`;
-                    }
-                    
-                    card.innerHTML = `
-                        <h3>${ach.name}</h3>
-                        <p>${ach.description}</p>
-                        ${progressHTML}
-                    `;
-                    container.appendChild(card);
-                }
-            }
-
             function updateGame(deltaTime) {
-                // Lógica de Hit Stop: se o temporizador estiver ativo, pausa a lógica do jogo.
-                if (hitStopTimer > 0) {
-                    hitStopTimer--;
-                    return; // Pula o resto da função de atualização
-                }
-
                 gameTime += deltaTime;
                 frameCount++;
-
-                eventManager.update();
 
                 // Redefinir e preencher o Quadtree em cada frame
                 const worldBounds = new Rectangle(-CONFIG.WORLD_BOUNDS.width, -CONFIG.WORLD_BOUNDS.height, CONFIG.WORLD_BOUNDS.width * 2, CONFIG.WORLD_BOUNDS.height * 2);
@@ -3332,7 +2964,6 @@
                 powerUps.forEach(p => p.update());
                 activeVortexes.forEach(v => v.update());
                 activeStaticFields.forEach(sf => sf.update());
-                activeMeteorWarnings.forEach(w => w.update());
 
                 spawnEnemies();
                 handleCollisions();
@@ -3343,7 +2974,6 @@
                 removeDeadEntities(activeVortexes);
                 removeDeadEntities(activeStaticFields);
                 removeDeadEntities(activeDamageNumbers);
-                removeDeadEntities(activeMeteorWarnings);
 
                 if (screenShake.duration > 0) {
                     screenShake.duration--;
@@ -3399,7 +3029,6 @@
                 powerUps.forEach(p => p.draw(ctx));
                 activeVortexes.forEach(v => v.draw(ctx)); // CORRIGIDO (estava v.update())
                 activeStaticFields.forEach(sf => sf.draw(ctx)); // CORRIGIDO (estava v.update())
-                activeMeteorWarnings.forEach(w => w.draw(ctx));
                 enemies.forEach(e => e.draw(ctx));
                 for (const p of projectilePool) { if (p.active) p.draw(ctx); }
                 for (const p of enemyProjectilePool) { if (p.active) p.draw(ctx); }
@@ -3449,12 +3078,6 @@
                         demoPlayer = new DemoPlayer(canvas.width / 2, canvas.height / 2);
                     }
                     demoPlayer.update();
-                    
-                    // Animação de fundo para o menu
-                    const parallaxX = Math.cos(frameCount * 0.002) * 20;
-                    const parallaxY = Math.sin(frameCount * 0.002) * 10;
-                     gameContainer.style.backgroundPosition = `${parallaxX}px ${parallaxY}px, ${parallaxX*2}px ${parallaxY*2}px, ${parallaxX*3}px ${parallaxY*3}px, ${parallaxX*4}px ${parallaxY*4}px`;
-
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     demoPlayer.draw(ctx);
                 }
@@ -3487,8 +3110,6 @@
                 guideScreen: document.getElementById('guide-screen'),
                 rankScreen: document.getElementById('rank-screen'),
                 upgradesMenu: document.getElementById('upgrades-menu'),
-                characterSelectScreen: document.getElementById('character-select-screen'),
-                achievementsScreen: document.getElementById('achievements-screen'),
                 hud: document.getElementById('hud'),
                 temporaryMessage: document.getElementById('temporary-message'),
                 dashButtonMobile: document.getElementById('dash-button-mobile')
@@ -3505,35 +3126,8 @@
                 }
             }
 
-            function populateCharacterSelectScreen() {
-                const container = document.getElementById('character-options');
-                container.innerHTML = ''; // Limpa opções anteriores
-
-                for (const characterId in CHARACTER_DATABASE) {
-                    const char = CHARACTER_DATABASE[characterId];
-                    const card = document.createElement('div');
-                    card.className = 'character-card';
-
-                    card.innerHTML = `
-                        <h3>${char.name}</h3>
-                        <p>${char.description}</p>
-                        <button class="ui-button select-button" data-character-id="${characterId}">Selecionar</button>
-                    `;
-                    container.appendChild(card);
-                }
-
-                // Adiciona event listeners para os novos botões
-                container.querySelectorAll('.select-button').forEach(button => {
-                    button.onclick = () => {
-                        const charId = button.getAttribute('data-character-id');
-                        initGame(charId);
-                        lastFrameTime = 0; // Reseta o cálculo do delta time
-                    };
-                });
-            }
-
             function setGameState(newState) {
-                if (['menu', 'paused', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades', 'characterSelect'].includes(newState) && newState !== gameState) {
+                if (['menu', 'paused', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades'].includes(newState) && newState !== gameState) {
                     SoundManager.play('uiClick', 'C6');
                 }
 
@@ -3549,7 +3143,7 @@
                     debugStatus.style.display = 'block';
                 }
 
-                const isMenuState = ['menu', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades', 'paused', 'characterSelect', 'achievements'].includes(newState);
+                const isMenuState = ['menu', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades', 'paused'].includes(newState);
 
                 ui.layer.style.backgroundColor = (newState === 'menu') ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.7)';
                 ui.layer.classList.toggle('active-menu', isMenuState);
@@ -3572,15 +3166,14 @@
                 } else if (newState === 'paused') {
                     ui.pauseMenu.classList.remove('hidden');
                 } else if (newState === 'gameOver') {
-                    const finalTimeInSeconds = Math.floor(gameTime);
+                    const finalTimeInSeconds = Math.floor(gameTime / (1000 / 60));
                     document.getElementById('final-time').innerText = formatTime(finalTimeInSeconds);
                     document.getElementById('final-kills').innerText = score.kills;
-
+                    
                     const rank = calculateRank(finalTimeInSeconds, score.kills, player.damageTaken);
                     document.getElementById('final-rank').innerText = rank.rank;
                     document.getElementById('final-rank').style.color = rank.color;
 
-                    checkAchievements('survivalTime', finalTimeInSeconds);
                     ui.gameOverScreen.classList.remove('hidden');
                     saveScore();
                 } else if (newState === 'levelUp') {
@@ -3594,38 +3187,6 @@
                 } else if (newState === 'upgrades') {
                     populateUpgradesMenu();
                     ui.upgradesMenu.classList.remove('hidden');
-                } else if (newState === 'characterSelect') {
-                    populateCharacterSelectScreen();
-                    ui.characterSelectScreen.classList.remove('hidden');
-                } else if (newState === 'achievements') {
-                    populateAchievementsScreen();
-                    ui.achievementsScreen.classList.remove('hidden');
-                }
-            }
-
-            let lastEventName = '';
-            let lastEventTime = -1;
-
-            function updateEventHUD() {
-                const eventDisplay = document.getElementById('event-display');
-                const currentEventName = eventManager.currentEvent ? EVENTS[eventManager.currentEvent].name : '';
-
-                if (currentEventName !== lastEventName) {
-                    if (currentEventName) {
-                        document.getElementById('event-name').textContent = currentEventName;
-                        eventDisplay.classList.remove('hidden');
-                    } else {
-                        eventDisplay.classList.add('hidden');
-                    }
-                    lastEventName = currentEventName;
-                }
-
-                if (eventManager.currentEvent) {
-                    const remainingSeconds = Math.ceil(eventManager.eventTimer / 60);
-                    if (remainingSeconds !== lastEventTime) {
-                        document.getElementById('event-timer').textContent = `${remainingSeconds}s`;
-                        lastEventTime = remainingSeconds;
-                    }
                 }
             }
 
@@ -3639,10 +3200,10 @@
                         ui.dashButtonMobile.classList.toggle('on-cooldown', player.dashCooldown > 0);
                     }
                 }
-                // O gameTime já está em segundos, basta arredondar.
-                document.getElementById('timer').innerText = formatTime(Math.floor(gameTime));
+                // Converte o tempo do jogo de "delta-time-frames" para segundos
+                const gameTimeInSeconds = gameTime / (1000.0 / 60.0);
+                document.getElementById('timer').innerText = formatTime(Math.floor(gameTimeInSeconds));
 
-                updateEventHUD();
                 updateSkillsHUD();
             }
 
@@ -3669,80 +3230,39 @@
             function populateLevelUpOptions() {
                 const container = document.getElementById('skill-options');
                 container.innerHTML = '';
+
                 let options = [];
-                let evolutionOptions = [];
-
-                // 1. Verifica por evoluções disponíveis
-                for (const evoId in EVOLUTION_DATABASE) {
-                    const evo = EVOLUTION_DATABASE[evoId];
-                    const baseSkillState = player.skills[evo.baseSkill];
-                    const passiveSkillState = player.skills[evo.passiveReq];
-
-                    if (baseSkillState && baseSkillState.level === SKILL_DATABASE[evo.baseSkill].levels.length && passiveSkillState && !baseSkillState.evolved) {
-                        evolutionOptions.push({ ...evo, id: evoId, type: 'evolution' });
+                for(const skillId in player.skills){
+                    const skillData = SKILL_DATABASE[skillId];
+                    if(player.skills[skillId].level < skillData.levels.length) options.push(skillId);
+                }
+                for(const skillId in SKILL_DATABASE){
+                    if(!player.skills[skillId] && SKILL_DATABASE[skillId].type !== 'utility' && !options.includes(skillId)) {
+                        options.push(skillId);
                     }
                 }
+                options.sort(() => 0.5 - Math.random());
+                if (options.length > 0 && options.length < 3 && !options.includes('heal')) {
+                    options.push('heal');
+                }
 
-                // 2. Adiciona evoluções como a primeira opção, se disponíveis
-                evolutionOptions.forEach(evo => {
+                options.slice(0, 3).forEach(skillId => {
+                    const skill = SKILL_DATABASE[skillId];
                     const card = document.createElement('div');
                     card.className = 'skill-card';
-                    card.style.borderColor = 'gold'; // Destaque especial
-                    card.innerHTML = `<h3>EVOLUÇÃO: ${evo.name}</h3><p>${evo.description}</p>`;
+                    const currentLevel = player.skills[skillId]?.level || 0;
+                    let levelText = skill.type !== 'utility' || (skill.levels && skill.levels.length > 1) ? ` (Nível ${currentLevel + 1})` : '';
+                    let descText = skill.desc || (skill.levels && skill.levels[currentLevel] ? skill.levels[currentLevel].desc : '');
+
+                    card.innerHTML = `<h3>${skill.name}${levelText}</h3><p>${descText}</p>`;
                     card.onclick = (event) => {
                         event.stopPropagation();
-                        const baseSkill = player.skills[evo.baseSkill];
-                        baseSkill.evolved = true;
-                        if (baseSkill.hudElement) {
-                            baseSkill.hudElement.style.borderColor = 'gold';
-                            baseSkill.hudElement.style.boxShadow = '0 0 15px gold';
-                        }
-                        showTemporaryMessage(`Evoluiu: ${evo.name}!`, 'gold');
+                        player.addSkill(skillId);
                         setGameState('playing');
                         lastFrameTime = 0;
                     };
                     container.appendChild(card);
                 });
-
-                // 3. Preenche com opções normais se houver espaço
-                const optionsToDisplay = 3 - evolutionOptions.length;
-                if (optionsToDisplay > 0) {
-                    for(const skillId in player.skills){
-                        const skillData = SKILL_DATABASE[skillId];
-                        // Não oferece upgrade para habilidades que podem evoluir
-                        const canEvolve = Object.values(EVOLUTION_DATABASE).some(e => e.baseSkill === skillId);
-                        if(player.skills[skillId].level < skillData.levels.length && !canEvolve) {
-                            options.push(skillId);
-                        }
-                    }
-                    for(const skillId in SKILL_DATABASE){
-                        if(!player.skills[skillId] && SKILL_DATABASE[skillId].type !== 'utility' && !options.includes(skillId)) {
-                            options.push(skillId);
-                        }
-                    }
-                    options.sort(() => 0.5 - Math.random());
-                    if (options.length > 0 && options.length < optionsToDisplay && !options.includes('heal')) {
-                        options.push('heal');
-                    }
-
-                    options.slice(0, optionsToDisplay).forEach(skillId => {
-                        const skill = SKILL_DATABASE[skillId];
-                        const card = document.createElement('div');
-                        card.className = 'skill-card';
-                        const currentLevel = player.skills[skillId]?.level || 0;
-                        let levelText = skill.type !== 'utility' || (skill.levels && skill.levels.length > 1) ? ` (Nível ${currentLevel + 1})` : '';
-                        let descText = skill.desc || (skill.levels && skill.levels[currentLevel] ? skill.levels[currentLevel].desc : '');
-
-                        card.innerHTML = `<h3>${skill.name}${levelText}</h3><p>${descText}</p>`;
-                        card.onclick = (event) => {
-                            event.stopPropagation();
-                            player.addSkill(skillId);
-                            setGameState('playing');
-                            lastFrameTime = 0;
-                        };
-                        container.appendChild(card);
-                    });
-                }
             }
 
             function updateSkillsHUD() {
@@ -4006,12 +3526,14 @@
                     if(gameState === 'playing') setGameState('paused');
                 });
 
-                // O botão de jogar agora leva para a seleção de personagem
-                document.getElementById('play-button').onclick = () => setGameState('characterSelect');
+                const startGame = () => {
+                    initGame();
+                    lastFrameTime = 0;
+                };
 
-                // Botões de reiniciar ainda iniciam o jogo diretamente (com o último personagem selecionado, que será o padrão)
-                document.getElementById('restart-button-pause').onclick = () => initGame();
-                document.getElementById('restart-button-gameover').onclick = () => initGame();
+                document.getElementById('play-button').onclick = startGame;
+                document.getElementById('restart-button-pause').onclick = startGame;
+                document.getElementById('restart-button-gameover').onclick = startGame;
 
                 document.getElementById('resume-button').onclick = () => {
                     lastFrameTime = 0;
@@ -4027,9 +3549,6 @@
                     setGameState('rank');
                 };
                 document.getElementById('back-from-rank-button').onclick = () => setGameState('menu');
-                document.getElementById('back-to-menu-from-select-button').onclick = () => setGameState('menu');
-                document.getElementById('achievements-button').onclick = () => setGameState('achievements');
-                document.getElementById('back-from-achievements-button').onclick = () => setGameState('menu');
                 document.getElementById('pause-button').onclick = () => { if(gameState === 'playing') setGameState('paused'); };
                 document.getElementById('fullscreen-button').onclick = toggleFullscreen;
 
