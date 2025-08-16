@@ -3218,28 +3218,57 @@ let activeChests = []; // Baús de recompensa
             }
 
             function populateLevelUpOptions() {
-                const container = document.getElementById('skill-options');
-                container.innerHTML = '';
+                const optionsContainer = document.getElementById('skill-options');
+                const activeSkillsContainer = document.getElementById('current-active-skills');
+                const passiveSkillsContainer = document.getElementById('current-passive-skills');
+                
+                // Limpa containers
+                optionsContainer.innerHTML = '';
+                activeSkillsContainer.innerHTML = '';
+                passiveSkillsContainer.innerHTML = '';
+
+                // Popula as habilidades atuais
+                for (const skillId in player.skills) {
+                    const skillData = SKILL_DATABASE[skillId];
+                    const skillState = player.skills[skillId];
+                    if (!skillData) continue;
+
+                    const item = document.createElement('div');
+                    item.className = 'current-skill-item';
+                    
+                    const isMaxLevel = skillState.level >= skillData.levels.length;
+                    
+                    item.innerHTML = `
+                        <span class="icon">${skillData.icon}</span>
+                        <span class="name">${skillData.name}</span>
+                        <span class="level">${isMaxLevel ? 'MAX' : `Lvl ${skillState.level}`}</span>
+                    `;
+
+                    if (skillData.category === 'active') {
+                        activeSkillsContainer.appendChild(item);
+                    } else if (skillData.category === 'passive') {
+                        passiveSkillsContainer.appendChild(item);
+                    }
+                }
+
                 let potentialOptions = [];
                 let evolutionOptions = [];
                 const skillCounts = player.getSkillCounts();
 
-                // 1. Check for available evolutions (highest priority)
+                // 1. Check for available evolutions
                 for (const evoId in EVOLUTION_DATABASE) {
                     const evo = EVOLUTION_DATABASE[evoId];
                     const baseSkillState = player.skills[evo.baseSkill];
                     const passiveSkillState = player.skills[evo.passiveReq];
-
-                    // Check if base skill is max level, passive is acquired, and not already evolved
                     if (baseSkillState && baseSkillState.level === SKILL_DATABASE[evo.baseSkill].levels.length && passiveSkillState && !baseSkillState.evolved) {
                         evolutionOptions.push({ ...evo, id: evoId, type: 'evolution' });
                     }
                 }
 
-                // 2. Display evolution options first
+                // 2. Display evolution options
                 evolutionOptions.forEach(evo => {
                     const card = document.createElement('div');
-                    card.className = 'skill-card evolution'; // Special class for styling
+                    card.className = 'skill-card evolution';
                     card.innerHTML = `<h3><span class="evolution-star">⭐</span>EVOLUÇÃO: ${evo.name}</h3><p>${evo.description}</p>`;
                     card.onclick = (event) => {
                         event.stopPropagation();
@@ -3253,52 +3282,37 @@ let activeChests = []; // Baús de recompensa
                         setGameState('playing');
                         lastFrameTime = 0;
                     };
-                    container.appendChild(card);
+                    optionsContainer.appendChild(card);
                 });
 
-                // 3. Fill remaining slots with normal upgrades or new skills
+                // 3. Fill remaining slots
                 const optionsToDisplay = 3 - evolutionOptions.length;
                 if (optionsToDisplay > 0) {
-                    
-                    // Gather possible upgrades (skills player has that are not max level)
                     const upgradeableSkills = Object.keys(player.skills).filter(skillId => {
                         const skillData = SKILL_DATABASE[skillId];
-                        if (!skillData || !skillData.levels) return false; // Not a standard upgradeable skill
-                        const isMaxLevel = player.skills[skillId].level >= skillData.levels.length;
-                        return !isMaxLevel;
+                        return skillData && skillData.levels && player.skills[skillId].level < skillData.levels.length;
                     });
 
-                    // Gather possible new skills, respecting limits
                     const canTakeActive = skillCounts.active < 6;
                     const canTakePassive = skillCounts.passive < 6;
                     const newSkills = Object.keys(SKILL_DATABASE).filter(skillId => {
-                        if (player.skills[skillId]) return false; // Already have it
+                        if (player.skills[skillId]) return false;
                         const skillData = SKILL_DATABASE[skillId];
-                        if (skillData.category === 'utility') return false; // Don't offer utility skills here
-
-                        if (skillData.category === 'active' && canTakeActive) return true;
-                        if (skillData.category === 'passive' && canTakePassive) return true;
-                        
-                        return false;
+                        if (skillData.category === 'utility') return false;
+                        return (skillData.category === 'active' && canTakeActive) || (skillData.category === 'passive' && canTakePassive);
                     });
-                    
+
                     potentialOptions = [...new Set([...upgradeableSkills, ...newSkills])];
-                    
-                    // Shuffle and select
                     potentialOptions.sort(() => 0.5 - Math.random());
                     let finalOptions = potentialOptions.slice(0, optionsToDisplay);
 
-                    // If not enough options, add utility items like Heal
                     if (finalOptions.length < optionsToDisplay && !finalOptions.includes('heal')) {
-                         finalOptions.push('heal');
+                        finalOptions.push('heal');
                     }
-                    
-                    // If there are NO options at all (e.g. all skills maxed), offer a "chest"
                     if (finalOptions.length === 0 && evolutionOptions.length === 0) {
-                        finalOptions.push('heal'); // For now, just heal. Later could be a chest.
+                        finalOptions.push('heal');
                     }
 
-                    // Create and display the cards for the final options
                     finalOptions.forEach(skillId => {
                         const skill = SKILL_DATABASE[skillId];
                         const card = document.createElement('div');
@@ -3306,20 +3320,8 @@ let activeChests = []; // Baús de recompensa
                         const currentLevel = player.skills[skillId]?.level || 0;
                         const isNew = currentLevel === 0;
                         
-                        let levelText;
-                        if(skill.category === 'utility') {
-                            levelText = '';
-                        } else if (isNew) {
-                            levelText = ` (NOVO)`;
-                        } else {
-                            levelText = ` (Nível ${currentLevel + 1})`;
-                        }
-
-                        let descText = skill.desc;
-                        if (skill.levels) {
-                            const descIndex = isNew ? 0 : currentLevel;
-                            descText = skill.levels[descIndex] ? skill.levels[descIndex].desc : 'NÍVEL MÁXIMO';
-                        }
+                        let levelText = (skill.category === 'utility') ? '' : (isNew ? ` (NOVO)` : ` (Nível ${currentLevel + 1})`);
+                        let descText = skill.desc || (skill.levels ? (skill.levels[isNew ? 0 : currentLevel]?.desc || 'NÍVEL MÁXIMO') : '');
 
                         card.innerHTML = `<h3>${skill.icon} ${skill.name}${levelText}</h3><p>${descText}</p>`;
                         card.onclick = (event) => {
@@ -3328,7 +3330,7 @@ let activeChests = []; // Baús de recompensa
                             setGameState('playing');
                             lastFrameTime = 0;
                         };
-                        container.appendChild(card);
+                        optionsContainer.appendChild(card);
                     });
                 }
             }
