@@ -52,10 +52,33 @@
             </div>
 
             <div id="level-up-screen" class="ui-panel hidden">
-                <h2>Subiu de Nível!</h2>
-                <p>Escolha uma Melhoria:</p>
-                <div id="skill-options">
+                <div class="level-up-container">
+                    <!-- Coluna da Esquerda: Habilidades Atuais -->
+                    <div class="current-skills-column">
+                        <h3>Habilidades Atuais</h3>
+                        <div class="skills-box">
+                            <h4>Ativas</h4>
+                            <div id="current-active-skills" class="current-skills-list">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+                        <div class="skills-box">
+                            <h4>Passivas</h4>
+                            <div id="current-passive-skills" class="current-skills-list">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- Coluna da Direita: Opções de Upgrade -->
+                    <div class="upgrade-options-column">
+                        <h2>Subiu de Nível!</h2>
+                        <p>Escolha uma Melhoria:</p>
+                        <div id="skill-options">
+                            <!-- Skill cards will be populated by JS -->
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div id="guide-screen" class="ui-panel hidden">
