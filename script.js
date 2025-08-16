@@ -8,6 +8,7 @@
     let activeVortexes = [];
     let powerUps = [];
     let activeStaticFields = []; // Novo array para campos estáticos
+let activeChests = []; // Baús de recompensa
     let activeDamageNumbers = [];
     // ALTERAÇÃO 4b: Partículas de Ambiente
     let ambientParticles = [];
@@ -571,6 +572,84 @@
                             }
                         }
                     }
+                }
+            }
+
+            class Chest extends Entity {
+                constructor(x, y) {
+                    super(x, y, 20);
+                    this.animationFrame = 0;
+                }
+
+                draw(ctx) {
+                    ctx.save();
+                    ctx.translate(this.x - camera.x, this.y - camera.y);
+                    
+                    const pulse = Math.sin(this.animationFrame * 0.05) * 2;
+                    
+                    // Desenho do baú
+                    ctx.fillStyle = '#8B4513'; // Marrom para o corpo
+                    ctx.strokeStyle = '#5A2D0C'; // Marrom escuro para o contorno
+                    ctx.lineWidth = 2;
+                    
+                    // Sombra
+                    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                    ctx.beginPath();
+                    ctx.ellipse(0, this.radius * 0.7, this.radius, this.radius / 3);
+                    ctx.fill();
+
+                    // Corpo do baú
+                    ctx.fillStyle = '#8B4513';
+                    ctx.beginPath();
+                    ctx.rect(-this.radius * 0.8, -this.radius * 0.6, this.radius * 1.6, this.radius * 1.2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Tampa do baú
+                    ctx.fillStyle = '#A0522D'; // Sienna
+                    ctx.beginPath();
+                    ctx.moveTo(-this.radius * 0.9, -this.radius * 0.5);
+                    ctx.lineTo(this.radius * 0.9, -this.radius * 0.5);
+                    ctx.lineTo(this.radius * 0.8, -this.radius * 0.8);
+                    ctx.lineTo(-this.radius * 0.8, -this.radius * 0.8);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Detalhes dourados
+                    ctx.fillStyle = '#FFD700'; // Dourado
+                    ctx.fillRect(-this.radius * 0.9, -this.radius * 0.1, this.radius * 1.8, this.radius * 0.2); // Faixa horizontal
+                    ctx.fillRect(-this.radius * 0.2, -this.radius * 0.7, this.radius * 0.4, this.radius * 0.4); // Fechadura
+                    
+                    ctx.restore();
+                }
+
+                update() {
+                    this.animationFrame++;
+                    // Verifica a colisão com o jogador
+                    if (Math.hypot(player.x - this.x, player.y - this.y) < player.radius + this.radius) {
+                        this.collect();
+                    }
+                }
+
+                collect() {
+                    if (this.isDead) return; // Previne coleta dupla
+
+                    // Recompensa: Sobe de nível instantaneamente
+                    if (player.xp < player.xpToNextLevel) {
+                        player.addXp(player.xpToNextLevel - player.xp);
+                    } else {
+                        player.addXp(1); // Garante que o level up ocorra mesmo se a barra já estiver cheia
+                    }
+                    
+                    // Feedback visual e sonoro
+                    showTemporaryMessage("BAÚ DE TESOURO!", "gold");
+                    SoundManager.play('levelUp', ['C4', 'E4', 'G4', 'C5']); // Som especial para o baú
+                    for (let i = 0; i < 30; i++) {
+                        particleManager.createParticle(this.x, this.y, 'gold', 3);
+                    }
+
+                    this.isDead = true;
                 }
             }
 
@@ -1593,11 +1672,8 @@
                         }
                     }
 
-                        if (this.isElite) { // Larga gemas se for inimigo de elite
-                            const gemsDropped = Math.floor(Math.random() * 3) + 1; // 1 a 3 gemas
-                            playerGems += gemsDropped;
-                            showTemporaryMessage(`+${gemsDropped} Gemas!`, 'violet');
-                            savePermanentData(); // Salva os dados permanentes
+                        if (this.isElite) { // Elites deixam um baú
+                            activeChests.push(new Chest(this.x, this.y));
                         }
                         waveEnemiesRemaining--; // Decrementa inimigos da onda
                     }
@@ -1750,11 +1826,8 @@
                         for (let i = 0; i < 50; i++) {
                             particleManager.createParticle(this.x, this.y, this.color, 5); // <<<<<<< MUDANÇA 1
                         }
-                        // Bosses largam mais gemas
-                        const gemsDropped = Math.floor(Math.random() * 10) + 5; // 5 a 14 gemas
-                        playerGems += gemsDropped;
-                        showTemporaryMessage(`+${gemsDropped} Gemas!`, 'violet');
-                        savePermanentData(); // Salva os dados permanentes
+                        // Bosses deixam um baú
+                        activeChests.push(new Chest(this.x, this.y));
                     }
                 }
 
@@ -2466,6 +2539,7 @@
                 activeStaticFields = [];
                 activeDamageNumbers = [];
                 activeMeteorWarnings = [];
+                activeChests = [];
 
                 // Limpa o HTML do HUD
                 document.getElementById('skills-hud').innerHTML = '';
@@ -2812,6 +2886,7 @@
                 activeVortexes.forEach(v => v.update());
                 activeStaticFields.forEach(sf => sf.update());
                 activeMeteorWarnings.forEach(w => w.update());
+                activeChests.forEach(c => c.update());
 
                 spawnEnemies();
                 handleCollisions();
@@ -2823,6 +2898,7 @@
                 removeDeadEntities(activeStaticFields);
                 removeDeadEntities(activeDamageNumbers);
                 removeDeadEntities(activeMeteorWarnings);
+                removeDeadEntities(activeChests);
 
                 if (screenShake.duration > 0) {
                     screenShake.duration--;
@@ -2876,6 +2952,7 @@
 
                 for (const o of xpOrbPool) { if (o.active) o.draw(ctx); }
                 powerUps.forEach(p => p.draw(ctx));
+                activeChests.forEach(c => c.draw(ctx));
                 activeVortexes.forEach(v => v.draw(ctx)); // CORRIGIDO (estava v.update())
                 activeStaticFields.forEach(sf => sf.draw(ctx)); // CORRIGIDO (estava v.update())
                 activeMeteorWarnings.forEach(w => w.draw(ctx));
