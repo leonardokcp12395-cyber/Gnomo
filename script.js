@@ -122,70 +122,69 @@
 
             // --- BASE DE DADOS DE HABILIDADES ---
             const SKILL_DATABASE = {
-                'chain_lightning': { name: "Relâmpago em Cadeia", icon: "↯", type: 'projectile', cooldown: 120, causesHitStop: true, levels: [
+                'chain_lightning': { name: "Relâmpago em Cadeia", icon: "↯", type: 'projectile', category: 'active', cooldown: 120, causesHitStop: true, levels: [
                     { desc: "Lança um raio que salta para 2 inimigos.", damage: 25, chains: 2, chainRadius: 150 },
                     { desc: "O raio salta para 3 inimigos.", damage: 30, chains: 3, chainRadius: 160 },
                     { desc: "Aumenta o dano e o número de saltos.", damage: 35, chains: 4, chainRadius: 170 },
                     { desc: "Aumenta ainda mais o dano e os saltos.", damage: 40, chains: 5, chainRadius: 180 },
                     { desc: "O raio é devastador e salta massivamente.", damage: 50, chains: 6, chainRadius: 200 }
                 ]},
-                'divine_lance': { name: "Lança Divina", icon: "↑", type: 'projectile', cooldown: 50, levels: [
+                'divine_lance': { name: "Lança Divina", icon: "↑", type: 'projectile', category: 'active', cooldown: 50, levels: [
                     { desc: "Dispara uma lança perfurante.", count: 1, damage: 10, pierce: 2, speed: 7 },
                     { desc: "Dispara duas lanças.", count: 2, damage: 12, pierce: 2, speed: 7 },
                     { desc: "Aumenta o dano e a perfuração.", count: 2, damage: 15, pierce: 3, speed: 8 },
                     { desc: "Dispara três lanças.", count: 3, damage: 15, pierce: 3, speed: 8 },
                     { desc: "Lanças mais rápidas e fortes.", count: 3, damage: 20, pierce: 4, speed: 9 }
                 ]},
-                'orbital_shield': { name: "Escudo Orbital", icon: "O", type: 'orbital', cooldown: 0, levels: [
+                'orbital_shield': { name: "Escudo Orbital", icon: "O", type: 'orbital', category: 'active', cooldown: 0, levels: [
                     { desc: "Um orbe sagrado gira ao seu redor.", count: 1, damage: 5, radius: 70, speed: 0.05 },
                     { desc: "Adiciona um segundo orbe.", count: 2, damage: 8, radius: 75, speed: 0.05 },
                     { desc: "Aumenta o dano dos orbes.", count: 2, damage: 15, radius: 80, speed: 0.05 },
                     { desc: "Adiciona um terceiro orbe.", count: 3, damage: 15, radius: 85, speed: 0.06 },
                     { desc: "Orbes mais rápidos e fortes.", count: 3, damage: 20, radius: 90, speed: 0.07 }
                 ]},
-                'vortex': { name: "Vórtice Sagrado", icon: "V", type: 'aura', cooldown: 400, levels: [
+                'vortex': { name: "Vórtice Sagrado", icon: "V", type: 'aura', category: 'active', cooldown: 400, levels: [
                     { desc: "Cria um vórtice que puxa inimigos.", radius: 150, duration: 120, force: 1.5, damage: 1 },
                     { desc: "Aumenta a força de atração.", radius: 160, duration: 120, force: 2.0, damage: 1 },
                     { desc: "Aumenta o raio do vórtice.", radius: 200, duration: 150, force: 2.0, damage: 2 },
                     { desc: "Vórtice mais duradouro e forte.", radius: 220, duration: 180, force: 2.5, damage: 2 },
                 ]},
-                'magnet': { name: "Íman Divino", icon: "M", type: 'passive', levels: [
+                'magnet': { name: "Íman Divino", icon: "M", type: 'passive', category: 'passive', levels: [
                     { desc: "Aumenta o raio de recolha de XP em 25%.", collectRadiusBonus: 0.25 },
                     { desc: "Aumenta o raio de recolha de XP em 50%.", collectRadiusBonus: 0.50 },
                     { desc: "Aumenta o raio de recolha de XP em 75%.", collectRadiusBonus: 0.75 },
                 ]},
-                'heal': { name: "Cura Divina", icon: "+", type: 'utility', desc: "Restaura 25% da sua vida máxima.", instant: true },
-                'health_regen': { name: "Regeneração Divina", icon: "♥", type: 'passive', levels: [
+                'heal': { name: "Cura Divina", icon: "+", type: 'utility', category: 'utility', desc: "Restaura 25% da sua vida máxima.", instant: true },
+                'health_regen': { name: "Regeneração Divina", icon: "♥", type: 'passive', category: 'passive', levels: [
                     { desc: "Regenera 0.5 de vida por segundo.", regenPerSecond: 0.5 },
                     { desc: "Regenera 1 de vida por segundo.", regenPerSecond: 1 },
                     { desc: "Regenera 1.5 de vida por segundo.", regenPerSecond: 1.5 },
                     { desc: "Regenera 2 de vida por segundo.", regenPerSecond: 2 },
                 ]},
-                'particle_burst': { name: "Explosão de Partículas", icon: "✹", type: 'aura', cooldown: 240, levels: [
+                'particle_burst': { name: "Explosão de Partículas", icon: "✹", type: 'aura', category: 'active', cooldown: 240, levels: [
                     { desc: "Liberta uma explosão de partículas que causa 10 de dano.", radius: 80, damage: 10, particleCount: 30 },
                     { desc: "Aumenta o raio e o dano da explosão.", radius: 100, damage: 15, particleCount: 40 },
                     { desc: "Aumenta ainda mais o dano e as partículas.", radius: 120, damage: 25, particleCount: 50 },
                 ]},
-                'dash': { name: "Carga Astral", icon: "»", type: 'utility', cooldown: CONFIG.PLAYER_DASH_COOLDOWN, levels: [
+                'dash': { name: "Carga Astral", icon: "»", type: 'utility', category: 'utility', cooldown: CONFIG.PLAYER_DASH_COOLDOWN, levels: [
                     { desc: `Realiza uma esquiva rápida na direção do movimento (cooldown: ${CONFIG.PLAYER_DASH_COOLDOWN/60}s).`, duration: CONFIG.PLAYER_DASH_DURATION, force: CONFIG.PLAYER_DASH_FORCE }
                 ]},
-                'double_jump': { name: "Salto Duplo", icon: "▲", type: 'passive', levels: [
+                'double_jump': { name: "Salto Duplo", icon: "▲", type: 'passive', category: 'passive', levels: [
                     { desc: "Permite um segundo salto no ar.", jumps: 2 }
                 ]},
-                // ALTERAÇÃO 2: Nova Habilidade - Raio Celestial
-                'celestial_ray': { name: "Raio Celestial", icon: "→", type: 'projectile', cooldown: 90, causesHitStop: true, levels: [
+                'celestial_ray': { name: "Raio Celestial", icon: "→", type: 'projectile', category: 'active', cooldown: 90, causesHitStop: true, levels: [
                     { desc: "Dispara um raio poderoso na última direção de movimento.", damage: 30, speed: 10, width: 10, length: 150, pierce: 5 }
                 ]},
-                'static_field': { name: "Campo Estático", icon: "⚡", type: 'aura', cooldown: 300, levels: [
+                'static_field': { name: "Campo Estático", icon: "⚡", type: 'aura', category: 'active', cooldown: 300, levels: [
                     { desc: "Cria um campo que abranda inimigos em 50%.", radius: 100, duration: 180, slowFactor: 0.5 }
                 ]},
-                'black_hole': { name: "Buraco Negro", icon: "⚫", type: 'utility', cooldown: 900, levels: [ // 15 segundos de cooldown
+                'black_hole': { name: "Buraco Negro", icon: "⚫", type: 'utility', category: 'utility', cooldown: 900, levels: [ // 15 segundos de cooldown
                     { desc: "Invoca um buraco negro que destrói todos os inimigos no ecrã.", damage: 99999 }
                 ]},
-                'aegis_shield': { name: "Égide Divina", icon: "🛡️", type: 'utility', cooldown: 600, levels: [ // 10s cooldown
+                'aegis_shield': { name: "Égide Divina", icon: "🛡️", type: 'utility', category: 'active', cooldown: 600, levels: [ // 10s cooldown
                     { desc: "Cria um escudo temporário que absorve um golpe.", duration: 300 } // 5 segundos de duração
                 ]},
-                'scorched_earth': { name: "Rastro Ardente", icon: "🔥", type: 'passive', levels: [
+                'scorched_earth': { name: "Rastro Ardente", icon: "🔥", type: 'passive', category: 'passive', levels: [
                     { desc: "Deixa um rasto de chamas enquanto dá um dash, causando dano.", damagePerFrame: 0.5 }
                 ]}
             };
@@ -1268,6 +1267,20 @@
                         }
                     }
                     return nearest;
+                }
+
+                getSkillCounts() {
+                    let active = 0;
+                    let passive = 0;
+                    for (const skillId in this.skills) {
+                        const category = SKILL_DATABASE[skillId]?.category;
+                        if (category === 'active') {
+                            active++;
+                        } else if (category === 'passive') {
+                            passive++;
+                        }
+                    }
+                    return { active, passive };
                 }
             }
 
@@ -3130,26 +3143,27 @@
             function populateLevelUpOptions() {
                 const container = document.getElementById('skill-options');
                 container.innerHTML = '';
-                let options = [];
+                let potentialOptions = [];
                 let evolutionOptions = [];
+                const skillCounts = player.getSkillCounts();
 
-                // 1. Verifica por evoluções disponíveis
+                // 1. Check for available evolutions (highest priority)
                 for (const evoId in EVOLUTION_DATABASE) {
                     const evo = EVOLUTION_DATABASE[evoId];
                     const baseSkillState = player.skills[evo.baseSkill];
                     const passiveSkillState = player.skills[evo.passiveReq];
 
+                    // Check if base skill is max level, passive is acquired, and not already evolved
                     if (baseSkillState && baseSkillState.level === SKILL_DATABASE[evo.baseSkill].levels.length && passiveSkillState && !baseSkillState.evolved) {
                         evolutionOptions.push({ ...evo, id: evoId, type: 'evolution' });
                     }
                 }
 
-                // 2. Adiciona evoluções como a primeira opção, se disponíveis
+                // 2. Display evolution options first
                 evolutionOptions.forEach(evo => {
                     const card = document.createElement('div');
-                    card.className = 'skill-card';
-                    card.style.borderColor = 'gold'; // Destaque especial
-                    card.innerHTML = `<h3>EVOLUÇÃO: ${evo.name}</h3><p>${evo.description}</p>`;
+                    card.className = 'skill-card evolution'; // Special class for styling
+                    card.innerHTML = `<h3><span class="evolution-star">⭐</span>EVOLUÇÃO: ${evo.name}</h3><p>${evo.description}</p>`;
                     card.onclick = (event) => {
                         event.stopPropagation();
                         const baseSkill = player.skills[evo.baseSkill];
@@ -3165,36 +3179,72 @@
                     container.appendChild(card);
                 });
 
-                // 3. Preenche com opções normais se houver espaço
+                // 3. Fill remaining slots with normal upgrades or new skills
                 const optionsToDisplay = 3 - evolutionOptions.length;
                 if (optionsToDisplay > 0) {
-                    for(const skillId in player.skills){
+                    
+                    // Gather possible upgrades (skills player has that are not max level)
+                    const upgradeableSkills = Object.keys(player.skills).filter(skillId => {
                         const skillData = SKILL_DATABASE[skillId];
-                        // Não oferece upgrade para habilidades que podem evoluir
-                        const canEvolve = Object.values(EVOLUTION_DATABASE).some(e => e.baseSkill === skillId);
-                        if(player.skills[skillId].level < skillData.levels.length && !canEvolve) {
-                            options.push(skillId);
-                        }
+                        if (!skillData || !skillData.levels) return false; // Not a standard upgradeable skill
+                        const isMaxLevel = player.skills[skillId].level >= skillData.levels.length;
+                        return !isMaxLevel;
+                    });
+
+                    // Gather possible new skills, respecting limits
+                    const canTakeActive = skillCounts.active < 6;
+                    const canTakePassive = skillCounts.passive < 6;
+                    const newSkills = Object.keys(SKILL_DATABASE).filter(skillId => {
+                        if (player.skills[skillId]) return false; // Already have it
+                        const skillData = SKILL_DATABASE[skillId];
+                        if (skillData.category === 'utility') return false; // Don't offer utility skills here
+
+                        if (skillData.category === 'active' && canTakeActive) return true;
+                        if (skillData.category === 'passive' && canTakePassive) return true;
+                        
+                        return false;
+                    });
+                    
+                    potentialOptions = [...new Set([...upgradeableSkills, ...newSkills])];
+                    
+                    // Shuffle and select
+                    potentialOptions.sort(() => 0.5 - Math.random());
+                    let finalOptions = potentialOptions.slice(0, optionsToDisplay);
+
+                    // If not enough options, add utility items like Heal
+                    if (finalOptions.length < optionsToDisplay && !finalOptions.includes('heal')) {
+                         finalOptions.push('heal');
                     }
-                    for(const skillId in SKILL_DATABASE){
-                        if(!player.skills[skillId] && SKILL_DATABASE[skillId].type !== 'utility' && !options.includes(skillId)) {
-                            options.push(skillId);
-                        }
-                    }
-                    options.sort(() => 0.5 - Math.random());
-                    if (options.length > 0 && options.length < optionsToDisplay && !options.includes('heal')) {
-                        options.push('heal');
+                    
+                    // If there are NO options at all (e.g. all skills maxed), offer a "chest"
+                    if (finalOptions.length === 0 && evolutionOptions.length === 0) {
+                        finalOptions.push('heal'); // For now, just heal. Later could be a chest.
                     }
 
-                    options.slice(0, optionsToDisplay).forEach(skillId => {
+                    // Create and display the cards for the final options
+                    finalOptions.forEach(skillId => {
                         const skill = SKILL_DATABASE[skillId];
                         const card = document.createElement('div');
                         card.className = 'skill-card';
                         const currentLevel = player.skills[skillId]?.level || 0;
-                        let levelText = skill.type !== 'utility' || (skill.levels && skill.levels.length > 1) ? ` (Nível ${currentLevel + 1})` : '';
-                        let descText = skill.desc || (skill.levels && skill.levels[currentLevel] ? skill.levels[currentLevel].desc : '');
+                        const isNew = currentLevel === 0;
+                        
+                        let levelText;
+                        if(skill.category === 'utility') {
+                            levelText = '';
+                        } else if (isNew) {
+                            levelText = ` (NOVO)`;
+                        } else {
+                            levelText = ` (Nível ${currentLevel + 1})`;
+                        }
 
-                        card.innerHTML = `<h3>${skill.name}${levelText}</h3><p>${descText}</p>`;
+                        let descText = skill.desc;
+                        if (skill.levels) {
+                            const descIndex = isNew ? 0 : currentLevel;
+                            descText = skill.levels[descIndex] ? skill.levels[descIndex].desc : 'NÍVEL MÁXIMO';
+                        }
+
+                        card.innerHTML = `<h3>${skill.icon} ${skill.name}${levelText}</h3><p>${descText}</p>`;
                         card.onclick = (event) => {
                             event.stopPropagation();
                             player.addSkill(skillId);
