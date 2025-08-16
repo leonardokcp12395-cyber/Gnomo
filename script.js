@@ -8,6 +8,7 @@ let enemies = [];
 let activeVortexes = [];
 let powerUps = [];
 let activeStaticFields = []; // Novo array para campos estáticos
+let activeSanctuaryZones = []; // Novo array para Santuários
 let activeLightningBolts = []; // Array para os raios
 let activeDamageNumbers = [];
 // ALTERAÇÃO 4b: Partículas de Ambiente
@@ -188,7 +189,45 @@ window.onload = () => {
             ]},
             'scorched_earth': { name: "Rastro Ardente", icon: "🔥", type: 'passive', levels: [
                 { desc: "Deixa um rasto de chamas enquanto dá um dash, causando dano.", damagePerFrame: 0.5 }
-            ]}
+                ]},
+                'spectral_blades': {
+                    name: "Lâminas Espectrais",
+                    icon: "⚔️",
+                    type: 'area', // Um novo tipo para identificar ataques de curto alcance
+                    category: 'active',
+                    cooldown: 70, // Cooldown rápido
+                    causesHitStop: true,
+                    levels: [
+                        { desc: "Ataca rapidamente à sua frente, trespassando 3 inimigos.", damage: 20, pierce: 3, arc: Math.PI / 2, range: 80 },
+                        { desc: "Aumenta o dano e a área do ataque.", damage: 25, pierce: 4, arc: Math.PI / 2, range: 90 },
+                        { desc: "Aumenta drasticamente o dano.", damage: 40, pierce: 4, arc: Math.PI / 1.8, range: 100 },
+                        { desc: "As lâminas atacam com fúria celestial, aumentando a perfuração.", damage: 50, pierce: 6, arc: Math.PI / 1.8, range: 110 },
+                        { desc: "Um golpe devastador que acerta múltiplos inimigos.", damage: 70, pierce: 8, arc: Math.PI / 1.5, range: 120 }
+                    ]
+                },
+                'celestial_pact': {
+                    name: "Pacto Celestial",
+                    icon: "✨",
+                    type: 'passive',
+                    category: 'passive',
+                    levels: [
+                        { desc: "Aumenta o spawn de inimigos em 10%, mas aumenta o ganho de XP em 8%.", enemyBonus: 0.10, xpBonus: 0.08 },
+                        { desc: "Aumenta o spawn de inimigos em 20%, mas aumenta o ganho de XP em 16%.", enemyBonus: 0.20, xpBonus: 0.16 },
+                        { desc: "Aumenta o spawn de inimigos em 30%, mas aumenta o ganho de XP em 24% e a chance de encontrar gemas.", enemyBonus: 0.30, xpBonus: 0.24, gemBonus: 0.01 }
+                    ]
+                },
+                'sanctuary': {
+                    name: "Santuário",
+                    icon: "🏠",
+                    type: 'aura',
+                    category: 'active',
+                    cooldown: 600, // Cooldown longo
+                    levels: [
+                        { desc: "Cria uma zona segura que aumenta a sua regeneração e abranda inimigos.", radius: 180, duration: 300, slowFactor: 0.3, regenBoost: 2.0 },
+                        { desc: "Aumenta a duração e o efeito de abrandamento.", radius: 190, duration: 360, slowFactor: 0.4, regenBoost: 2.5 },
+                        { desc: "Aumenta significativamente o raio e a regeneração.", radius: 220, duration: 420, slowFactor: 0.5, regenBoost: 3.5 }
+                    ]
+                }
         };
 
         // --- BASE DE DADOS DE PERSONAGENS ---
@@ -244,6 +283,18 @@ window.onload = () => {
                 baseSkill: 'orbital_shield',
                 passiveReq: 'static_field',
                 description: "Os orbes agora abrandam inimigos que tocam."
+                },
+                'sanguine_blades': {
+                    name: "Lâminas Sanguinárias",
+                    baseSkill: 'spectral_blades',
+                    passiveReq: 'health_regen',
+                    description: "Os acertos com as lâminas agora têm uma pequena chance de gerar orbes de vida."
+                },
+                'consecrated_sanctuary': {
+                    name: "Santuário Consagrado",
+                    baseSkill: 'sanctuary',
+                    passiveReq: 'static_field',
+                    description: "O santuário agora também causa dano de luz contínuo aos inimigos."
             }
         };
 
@@ -672,7 +723,8 @@ window.onload = () => {
 
                 this.baseHealth = characterData.baseHealth + (healthUpgradeLevel > 0 ? PERMANENT_UPGRADES.max_health.levels[healthUpgradeLevel - 1].effect : 0);
                 this.damageModifier = 1 + (damageUpgradeLevel > 0 ? PERMANENT_UPGRADES.damage_boost.levels[damageUpgradeLevel - 1].effect : 0);
-                this.xpModifier = 1 + (xpUpgradeLevel > 0 ? PERMANENT_UPGRADES.xp_gain.levels[xpUpgradeLevel - 1].effect : 0);
+                    this.xpModifier = 1; // Will be calculated by recalculateStatModifiers
+                    this.recalculateStatModifiers();
 
                 this.maxHealth = this.baseHealth;
                 this.health = this.maxHealth;
@@ -1117,6 +1169,10 @@ window.onload = () => {
                     if(skillId === 'double_jump') {
                         this.jumpsAvailable = SKILL_DATABASE['double_jump'].levels[0].jumps;
                     }
+                        // Recalcula os modificadores de estatísticas para passivas que os afetam
+                        if (skillId === 'celestial_pact') {
+                            this.recalculateStatModifiers();
+                        }
                 }
             }
 
@@ -1198,6 +1254,61 @@ window.onload = () => {
                         } else {
                             this.shielded = false; // Desativa o escudo se o tempo acabar
                         }
+                        } else if (skillData.type === 'area' && skillId === 'spectral_blades') {
+                            const enemiesToHit = [];
+                            const playerAngle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
+                            
+                            // Find all enemies in range and in the arc
+                            for (const enemy of enemies) {
+                                if (enemy.isDead) continue;
+
+                                const dist = Math.hypot(this.x - enemy.x, this.y - enemy.y);
+                                if (dist < levelData.range) {
+                                    const angleToEnemy = Math.atan2(enemy.y - this.y, enemy.x - this.x);
+                                    let angleDiff = playerAngle - angleToEnemy;
+                                    
+                                    // Normalize the angle difference to be between -PI and PI
+                                    while (angleDiff <= -Math.PI) angleDiff += 2 * Math.PI;
+                                    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+
+                                    if (Math.abs(angleDiff) < levelData.arc / 2) {
+                                        enemiesToHit.push(enemy);
+                                    }
+                                }
+                            }
+
+                            // Sort by distance to apply pierce correctly
+                            enemiesToHit.sort((a, b) => Math.hypot(this.x - a.x, this.y - a.y) - Math.hypot(this.x - b.x, this.y - b.y));
+                            
+                            let piercedCount = 0;
+                            for (const enemy of enemiesToHit) {
+                                if (piercedCount >= levelData.pierce) break;
+                                enemy.takeDamage(levelData.damage * this.damageModifier);
+                                enemy.applyKnockback(this.x, this.y, CONFIG.ENEMY_KNOCKBACK_FORCE * 0.5);
+
+                                // Lógica da evolução Lâminas Sanguinárias
+                                if (skillState.evolved) {
+                                    const CHANCE_TO_DROP_HEAL = 0.05; // 5% de chance
+                                    if (Math.random() < CHANCE_TO_DROP_HEAL) {
+                                        powerUps.push(new PowerUp(enemy.x, enemy.y, 'heal_orb'));
+                                    }
+                                }
+
+                                piercedCount++;
+                            }
+
+                            // Visual effect
+                            if (enemiesToHit.length > 0) {
+                                createSlashEffect(this.x, this.y, playerAngle, levelData.range, levelData.arc);
+                                if (skillData.causesHitStop) {
+                                    hitStopTimer = 4;
+                                }
+                            }
+                            
+                            skillState.timer = skillData.cooldown;
+                        } else if (skillId === 'sanctuary') {
+                            activeSanctuaryZones.push(new SanctuaryZone(this.x, this.y, { ...levelData, evolved: skillState.evolved }));
+                            skillState.timer = skillData.cooldown;
                     }
                 }
                 // Habilidades orbitais atualizam sempre (não têm cooldown de ativação)
@@ -1274,6 +1385,20 @@ window.onload = () => {
                 }
                 return nearest;
             }
+
+                recalculateStatModifiers() {
+                    // Reset modifiers to base (including permanent upgrades)
+                    const xpUpgradeLevel = playerUpgrades.xp_gain;
+                    this.xpModifier = 1 + (xpUpgradeLevel > 0 ? PERMANENT_UPGRADES.xp_gain.levels[xpUpgradeLevel - 1].effect : 0);
+                    
+                    // Apply Celestial Pact bonus
+                    if (this.skills['celestial_pact']) {
+                        const level = this.skills['celestial_pact'].level;
+                        const levelData = SKILL_DATABASE['celestial_pact'].levels[level - 1];
+                        this.xpModifier += levelData.xpBonus;
+                    }
+                    // NOTE: In the future, other stat-modifying passives would be applied here.
+                }
         }
 
         class Enemy extends Entity {
@@ -1579,6 +1704,17 @@ window.onload = () => {
                         showTemporaryMessage(`+${gemsDropped} Gemas!`, 'violet');
                         savePermanentData(); // Salva os dados permanentes
                     }
+
+                        // Lógica do Pacto Celestial para chance de gema extra
+                        if (player.skills['celestial_pact']) {
+                            const levelData = SKILL_DATABASE['celestial_pact'].levels[player.skills['celestial_pact'].level - 1];
+                            if (levelData.gemBonus && Math.random() < levelData.gemBonus) {
+                                playerGems++;
+                                showTemporaryMessage("+1 Gema (Pacto)!", 'violet');
+                                savePermanentData();
+                            }
+                        }
+                        
                     waveEnemiesRemaining--; // Decrementa inimigos da onda
                 }
             }
@@ -2056,28 +2192,34 @@ window.onload = () => {
             constructor(x, y, type) {
                 super(x, y, 10);
                 this.type = type;
+                    this.animationFrame = 0;
             }
             draw(ctx) {
                 ctx.save();
-                ctx.translate(this.x - camera.x, this.y - camera.y); // Aplica o deslocamento da câmara
-                ctx.rotate(frameCount * 0.05);
-                ctx.fillStyle = 'yellow';
-                ctx.beginPath();
-                // Desenha uma estrela
-                for (let i = 0; i < 5; i++) {
-                    const angle = i * (Math.PI * 2 / 5) - Math.PI / 2; // Começa a apontar para cima
-                    const xOuter = Math.cos(angle) * this.radius;
-                    const yOuter = Math.sin(angle) * this.radius;
-                    ctx.lineTo(xOuter, yOuter);
-
-                    const innerAngle = angle + Math.PI / 5;
-                    const xInner = Math.cos(innerAngle) * (this.radius / 2); // Raio interno menor
-                    const yInner = Math.sin(innerAngle) * (this.radius / 2);
-                    ctx.lineTo(xInner, yInner);
+                    ctx.translate(this.x - camera.x, this.y - camera.y);
+                    
+                    if (this.type === 'heal_orb') {
+                        ctx.fillStyle = `rgba(255, 0, 0, ${0.7 + Math.sin(this.animationFrame * 0.1) * 0.3})`;
+                        ctx.beginPath();
+                        ctx.moveTo(0, -this.radius * 0.4);
+                        ctx.bezierCurveTo(-this.radius, -this.radius, -this.radius, 0, 0, this.radius * 0.6);
+                        ctx.bezierCurveTo(this.radius, 0, this.radius, -this.radius, 0, -this.radius * 0.4);
+                        ctx.fill();
+                    } else { // Nuke
+                        ctx.rotate(this.animationFrame * 0.05);
+                        ctx.fillStyle = 'yellow';
+                        ctx.beginPath();
+                        for (let i = 0; i < 5; i++) {
+                            const angle = i * (Math.PI * 2 / 5) - Math.PI / 2;
+                            ctx.lineTo(Math.cos(angle) * this.radius, Math.sin(angle) * this.radius);
+                            const innerAngle = angle + Math.PI / 5;
+                            ctx.lineTo(Math.cos(innerAngle) * (this.radius / 2), Math.sin(innerAngle) * (this.radius / 2));
+                        }
+                        ctx.closePath();
+                        ctx.fill();
                 }
-                ctx.closePath();
-                ctx.fill();
                 ctx.restore();
+                    this.animationFrame++;
             }
             update() {
                 if (Math.hypot(player.x - this.x, player.y - this.y) < player.radius + this.radius) {
@@ -2086,13 +2228,19 @@ window.onload = () => {
                 }
             }
             applyEffect() {
-                if(this.type === 'nuke'){
+                    if (this.type === 'nuke') {
                     enemies.forEach(e => {
-                        e.takeDamage(10000); // Dano massivo
-                        e.applyKnockback(this.x, this.y, CONFIG.ENEMY_KNOCKBACK_FORCE * 5); // Forte knockback
+                            e.takeDamage(10000);
+                            e.applyKnockback(this.x, this.y, CONFIG.ENEMY_KNOCKBACK_FORCE * 5);
                     });
-                    SoundManager.play('nuke', '8n'); // Passa uma duração para o NoiseSynth
-                    screenShake = { intensity: 15, duration: 30 }; // Grande agitação
+                        SoundManager.play('nuke', '8n');
+                        screenShake = { intensity: 15, duration: 30 };
+                    } else if (this.type === 'heal_orb') {
+                        player.health = Math.min(player.maxHealth, player.health + player.maxHealth * 0.10); // Cura 10%
+                        SoundManager.play('xp', 'A5'); // Som de recolha
+                        for (let i = 0; i < 10; i++) {
+                            particleManager.createParticle(this.x, this.y, 'red', 1.5);
+                        }
                 }
             }
         }
@@ -2201,6 +2349,74 @@ window.onload = () => {
 
                 ctx.restore();
             }
+            }
+
+            class SanctuaryZone extends Entity {
+                constructor(x, y, levelData) {
+                    super(x, y, levelData.radius);
+                    this.duration = levelData.duration;
+                    this.slowFactor = levelData.slowFactor;
+                    this.regenBoost = levelData.regenBoost;
+                    this.animationFrame = 0;
+                    
+                    // Lógica da evolução
+                    this.evolved = levelData.evolved || false;
+                    if (this.evolved) {
+                        this.dotDamage = 10; // Dano de luz por segundo
+                    }
+                }
+
+                update() {
+                    this.duration--;
+                    if (this.duration <= 0) {
+                        this.isDead = true;
+                        return;
+                    }
+
+                    // Efeito no jogador
+                    if (Math.hypot(this.x - player.x, this.y - player.y) < this.radius) {
+                        const baseRegen = player.skills['health_regen'] ? SKILL_DATABASE['health_regen'].levels[player.skills['health_regen'].level - 1].regenPerSecond : 0;
+                        const totalRegen = (baseRegen + this.regenBoost) / 60; // por frame
+                        player.health = Math.min(player.maxHealth, player.health + totalRegen);
+                    }
+
+                    // Efeito nos inimigos
+                    enemies.forEach(enemy => {
+                        if (Math.hypot(this.x - enemy.x, this.y - enemy.y) < this.radius) {
+                            enemy.applySlow(60); 
+
+                            // Lógica da evolução
+                            if (this.evolved && frameCount % 60 === 0) { // Dano a cada segundo
+                                enemy.takeDamage(this.dotDamage * player.damageModifier);
+                                particleManager.createParticle(enemy.x, enemy.y, 'yellow', 1);
+                            }
+                        }
+                    });
+
+                    this.animationFrame++;
+                }
+
+                draw(ctx) {
+                    ctx.save();
+                    ctx.translate(this.x - camera.x, this.y - camera.y);
+
+                    const lifeRatio = this.duration / SKILL_DATABASE['sanctuary'].levels[0].duration;
+                    const pulse = 0.95 + Math.sin(this.animationFrame * 0.05) * 0.05;
+
+                    // Círculo externo (brilho)
+                    ctx.fillStyle = `rgba(255, 255, 150, ${lifeRatio * 0.15})`;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius * pulse, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Círculo interno (sólido)
+                    ctx.fillStyle = `rgba(255, 255, 200, ${lifeRatio * 0.1})`;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius * 0.8 * pulse, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
+                }
         }
 
         class MeteorWarningIndicator extends Entity {
@@ -2517,11 +2733,17 @@ window.onload = () => {
                     typesAdded.add(enemyType);
 
                     const baseCount = 5;
-                    const enemyCount = baseCount + Math.floor(waveNumber * 0.8);
+                        let enemyCount = baseCount + Math.floor(waveNumber * 0.8);
+                        
+                        // Aplica o bónus do Pacto Celestial
+                        if (player.skills['celestial_pact']) {
+                            const levelData = SKILL_DATABASE['celestial_pact'].levels[player.skills['celestial_pact'].level - 1];
+                            enemyCount *= (1 + levelData.enemyBonus);
+                        }
 
                     currentWaveConfig.enemies.push({
                         type: enemyType,
-                        count: enemyCount,
+                            count: Math.floor(enemyCount),
                         spawnInterval: Math.max(20, 100 - waveNumber * 2)
                     });
                 }
@@ -2666,6 +2888,26 @@ window.onload = () => {
                 // Adiciona o raio a uma lista para ser desenhado
                 activeLightningBolts.push(bolt);
         }
+
+            function createSlashEffect(x, y, angle, range, arc) {
+                const numParticles = 15;
+                for (let i = 0; i < numParticles; i++) {
+                    const particleAngle = angle + (i / (numParticles - 1) - 0.5) * arc;
+                    const particleRange = range * 0.6 + Math.random() * (range * 0.4);
+                    
+                    const pX = x + Math.cos(particleAngle) * particleRange;
+                    const pY = y + Math.sin(particleAngle) * particleRange;
+                    
+                    const particle = getFromPool(particleManager.pool);
+                    if (particle) {
+                        particle.init(pX, pY, 'white', 1.5);
+                        const speed = 1.5;
+                        particle.velocity.x = Math.cos(particleAngle) * speed;
+                        particle.velocity.y = Math.sin(particleAngle) * speed;
+                        particleManager.activeParticles.push(particle);
+                    }
+                }
+            }
 
         function handleCollisions() {
             handlePlayerProjectiles(qtree);
@@ -2821,6 +3063,7 @@ window.onload = () => {
             powerUps.forEach(p => p.update());
             activeVortexes.forEach(v => v.update());
             activeStaticFields.forEach(sf => sf.update());
+                activeSanctuaryZones.forEach(s => s.update());
             activeMeteorWarnings.forEach(w => w.update());
 
                 for (let i = activeLightningBolts.length - 1; i >= 0; i--) {
@@ -2839,6 +3082,7 @@ window.onload = () => {
             removeDeadEntities(powerUps);
             removeDeadEntities(activeVortexes);
             removeDeadEntities(activeStaticFields);
+                removeDeadEntities(activeSanctuaryZones);
             removeDeadEntities(activeDamageNumbers);
             removeDeadEntities(activeMeteorWarnings);
 
@@ -2894,8 +3138,9 @@ window.onload = () => {
 
             for (const o of xpOrbPool) { if (o.active) o.draw(ctx); }
             powerUps.forEach(p => p.draw(ctx));
-            activeVortexes.forEach(v => v.draw(ctx)); // CORRIGIDO (estava v.update())
+                activeVortexes.forEach(v => v.draw(ctx));
                 activeStaticFields.forEach(sf => sf.draw(ctx));
+                activeSanctuaryZones.forEach(s => s.draw(ctx));
             activeMeteorWarnings.forEach(w => w.draw(ctx));
 
                 // Desenha os raios
