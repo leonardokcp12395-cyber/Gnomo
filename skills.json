@@ -1,0 +1,67 @@
+{
+    "chain_lightning": { "name": "Relâmpago em Cadeia", "icon": "↯", "type": "projectile", "cooldown": 120, "causesHitStop": true, "levels": [
+        { "desc": "Lança um raio que salta para 2 inimigos.", "damage": 25, "chains": 2, "chainRadius": 150 },
+        { "desc": "O raio salta para 3 inimigos.", "damage": 30, "chains": 3, "chainRadius": 160 },
+        { "desc": "Aumenta o dano e o número de saltos.", "damage": 35, "chains": 4, "chainRadius": 170 },
+        { "desc": "Aumenta ainda mais o dano e os saltos.", "damage": 40, "chains": 5, "chainRadius": 180 },
+        { "desc": "O raio é devastador e salta massivamente.", "damage": 50, "chains": 6, "chainRadius": 200 }
+    ]},
+    "divine_lance": { "name": "Lança Divina", "icon": "↑", "type": "projectile", "cooldown": 50, "levels": [
+        { "desc": "Dispara uma lança perfurante.", "count": 1, "damage": 10, "pierce": 2, "speed": 7 },
+        { "desc": "Dispara duas lanças.", "count": 2, "damage": 12, "pierce": 2, "speed": 7 },
+        { "desc": "Aumenta o dano e a perfuração.", "count": 2, "damage": 15, "pierce": 3, "speed": 8 },
+        { "desc": "Dispara três lanças.", "count": 3, "damage": 15, "pierce": 3, "speed": 8 },
+        { "desc": "Lanças mais rápidas e fortes.", "count": 3, "damage": 20, "pierce": 4, "speed": 9 }
+    ]},
+    "orbital_shield": { "name": "Escudo Orbital", "icon": "O", "type": "orbital", "cooldown": 0, "levels": [
+        { "desc": "Um orbe sagrado gira ao seu redor.", "count": 1, "damage": 5, "radius": 70, "speed": 0.05 },
+        { "desc": "Adiciona um segundo orbe.", "count": 2, "damage": 8, "radius": 75, "speed": 0.05 },
+        { "desc": "Aumenta o dano dos orbes.", "count": 2, "damage": 15, "radius": 80, "speed": 0.05 },
+        { "desc": "Adiciona um terceiro orbe.", "count": 3, "damage": 15, "radius": 85, "speed": 0.06 },
+        { "desc": "Orbes mais rápidos e fortes.", "count": 3, "damage": 20, "radius": 90, "speed": 0.07 }
+    ]},
+    "vortex": { "name": "Vórtice Sagrado", "icon": "V", "type": "aura", "cooldown": 400, "levels": [
+        { "desc": "Cria um vórtice que puxa inimigos.", "radius": 150, "duration": 120, "force": 1.5, "damage": 1 },
+        { "desc": "Aumenta a força de atração.", "radius": 160, "duration": 120, "force": 2.0, "damage": 1 },
+        { "desc": "Aumenta o raio do vórtice.", "radius": 200, "duration": 150, "force": 2.0, "damage": 2 },
+        { "desc": "Vórtice mais duradouro e forte.", "radius": 220, "duration": 180, "force": 2.5, "damage": 2 }
+    ]},
+    "magnet": { "name": "Íman Divino", "icon": "M", "type": "passive", "levels": [
+        { "desc": "Aumenta o raio de recolha de XP em 25%.", "collectRadiusBonus": 0.25 },
+        { "desc": "Aumenta o raio de recolha de XP em 50%.", "collectRadiusBonus": 0.50 },
+        { "desc": "Aumenta o raio de recolha de XP em 75%.", "collectRadiusBonus": 0.75 }
+    ]},
+    "heal": { "name": "Cura Divina", "icon": "+", "type": "utility", "desc": "Restaura 25% da sua vida máxima.", "instant": true },
+    "health_regen": { "name": "Regeneração Divina", "icon": "♥", "type": "passive", "levels": [
+        { "desc": "Regenera 0.5 de vida por segundo.", "regenPerSecond": 0.5 },
+        { "desc": "Regenera 1 de vida por segundo.", "regenPerSecond": 1 },
+        { "desc": "Regenera 1.5 de vida por segundo.", "regenPerSecond": 1.5 },
+        { "desc": "Regenera 2 de vida por segundo.", "regenPerSecond": 2 }
+    ]},
+    "particle_burst": { "name": "Explosão de Partículas", "icon": "✹", "type": "aura", "cooldown": 240, "levels": [
+        { "desc": "Liberta uma explosão de partículas que causa 10 de dano.", "radius": 80, "damage": 10, "particleCount": 30 },
+        { "desc": "Aumenta o raio e o dano da explosão.", "radius": 100, "damage": 15, "particleCount": 40 },
+        { "desc": "Aumenta ainda mais o dano e as partículas.", "radius": 120, "damage": 25, "particleCount": 50 }
+    ]},
+    "dash": { "name": "Carga Astral", "icon": "»", "type": "utility", "cooldown": 60, "levels": [
+        { "desc": "Realiza uma esquiva rápida na direção do movimento (cooldown: 1s).", "duration": 10, "force": 15 }
+    ]},
+    "double_jump": { "name": "Salto Duplo", "icon": "▲", "type": "passive", "levels": [
+        { "desc": "Permite um segundo salto no ar.", "jumps": 2 }
+    ]},
+    "celestial_ray": { "name": "Raio Celestial", "icon": "→", "type": "projectile", "cooldown": 90, "causesHitStop": true, "levels": [
+        { "desc": "Dispara um raio poderoso na última direção de movimento.", "damage": 30, "speed": 10, "width": 10, "length": 150, "pierce": 5 }
+    ]},
+    "static_field": { "name": "Campo Estático", "icon": "⚡", "type": "aura", "cooldown": 300, "levels": [
+        { "desc": "Cria um campo que abranda inimigos em 50%.", "radius": 100, "duration": 180, "slowFactor": 0.5 }
+    ]},
+    "black_hole": { "name": "Buraco Negro", "icon": "⚫", "type": "utility", "cooldown": 900, "levels": [
+        { "desc": "Invoca um buraco negro que destrói todos os inimigos no ecrã.", "damage": 99999 }
+    ]},
+    "aegis_shield": { "name": "Égide Divina", "icon": "🛡️", "type": "utility", "cooldown": 600, "levels": [
+        { "desc": "Cria um escudo temporário que absorve um golpe.", "duration": 300 }
+    ]},
+    "scorched_earth": { "name": "Rastro Ardente", "icon": "🔥", "type": "passive", "levels": [
+        { "desc": "Deixa um rasto de chamas enquanto dá um dash, causando dano.", "damagePerFrame": 0.5 }
+    ]}
+}
