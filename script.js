@@ -738,7 +738,6 @@ window.onload = () => {
                 this.baseHealth = characterData.baseHealth + (healthUpgradeLevel > 0 ? PERMANENT_UPGRADES.max_health.levels[healthUpgradeLevel - 1].effect : 0);
                 this.damageModifier = 1 + (damageUpgradeLevel > 0 ? PERMANENT_UPGRADES.damage_boost.levels[damageUpgradeLevel - 1].effect : 0);
                     this.xpModifier = 1; // Will be calculated by recalculateStatModifiers
-                    this.recalculateStatModifiers();
 
                 this.maxHealth = this.baseHealth;
                 this.health = this.maxHealth;
@@ -747,6 +746,7 @@ window.onload = () => {
                 this.level = 1;
                 this.xpToNextLevel = CONFIG.XP_TO_NEXT_LEVEL_BASE;
                 this.skills = {};
+                    this.recalculateStatModifiers();
                 this.collectRadius = CONFIG.XP_ORB_ATTRACTION_RADIUS;
                 this.facingRight = true;
                 this.hitTimer = 0;
