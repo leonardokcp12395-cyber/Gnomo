@@ -8,6 +8,7 @@ let enemies = [];
 let activeVortexes = [];
 let powerUps = [];
 let activeStaticFields = []; // Novo array para campos estáticos
+let activeLightningBolts = []; // Array para os raios
 let activeDamageNumbers = [];
 // ALTERAÇÃO 4b: Partículas de Ambiente
 let ambientParticles = [];
@@ -117,7 +118,7 @@ window.onload = () => {
             ORB_HIT_COOLDOWN_FRAMES: 12, // Cooldown para orbes atingirem o mesmo inimigo
             TEMPORARY_MESSAGE_DURATION: 120, // Duração das mensagens temporárias em frames (2 segundos)
             // ALTERAÇÃO 1: Mundo Expandido
-            WORLD_BOUNDS: { width: 8000, height: 2000 } // Um mundo com 8000px de largura
+                WORLD_BOUNDS: { width: 2400, height: 1600 } // Arena Fechada
         };
 
         // --- BASE DE DADOS DE HABILIDADES ---
@@ -834,6 +835,10 @@ window.onload = () => {
                 // Atualiza o alvo da câmara para a posição do jogador
                 camera.targetX = this.x - canvas.width / 2;
                 camera.targetY = this.y - canvas.height / 2;
+                    
+                    // Garante que o jogador permaneça dentro dos limites do mundo (Arena Fechada)
+                    const halfWorldWidth = CONFIG.WORLD_BOUNDS.width / 2;
+                    this.x = Math.max(-halfWorldWidth + this.radius, Math.min(this.x, halfWorldWidth - this.radius));
             }
 
             handleMovement() {
@@ -1286,58 +1291,47 @@ window.onload = () => {
                 this.explodesOnDeath = false; // Propriedade para Ceifador/Bomber
 
                 switch(type) {
-                    // ALTERAÇÃO 3: Novo Inimigo - Ceifador
                     case 'reaper':
-                        this.radius = 10; this.speed = 4.0 + (gameTime / 120) + (waveNumber * 0.02);
-                        this.health = 15 + Math.floor(gameTime / 20) * 2 + waveNumber; this.color = '#7DF9FF'; // Ciano pálido
-                        this.shape = 'diamond'; this.damage = 30; // Dano alto da explosão
-                        this.xpValue = 15;
-                        this.explodesOnDeath = true;
+                            this.speed = Math.min(6.0, 4.0 + (gameTime / 180) + (waveNumber * 0.015));
+                            this.radius = 10; this.health = 15 + Math.floor(gameTime / 20) * 2 + waveNumber; this.color = '#7DF9FF';
+                            this.shape = 'diamond'; this.damage = 30; this.xpValue = 15; this.explodesOnDeath = true;
                         break;
                     case 'tank':
-                        this.radius = 18; this.speed = 1.2 + (gameTime / 150) + (waveNumber * 0.005);
-                        this.health = 70 + Math.floor(gameTime / 10) * 7 + (waveNumber * 3); this.color = '#FFA500';
+                            this.speed = Math.min(2.0, 1.2 + (gameTime / 200) + (waveNumber * 0.004));
+                            this.radius = 18; this.health = 70 + Math.floor(gameTime / 10) * 7 + (waveNumber * 3); this.color = '#FFA500';
                         this.shape = 'square'; this.damage = 12; this.xpValue = 40;
                         break;
                     case 'speeder':
-                        this.radius = 8; this.speed = 3.5 + (gameTime / 60) + (waveNumber * 0.015);
-                        this.health = 12 + Math.floor(gameTime / 15) * 2 + waveNumber; this.color = '#FFFF00';
+                            this.speed = Math.min(5.5, 3.5 + (gameTime / 100) + (waveNumber * 0.012));
+                            this.radius = 8; this.health = 12 + Math.floor(gameTime / 15) * 2 + waveNumber; this.color = '#FFFF00';
                         this.shape = 'triangle'; this.damage = 7; this.xpValue = 12;
                         break;
                     case 'bomber':
-                        this.radius = 12; this.speed = 1.5 + (gameTime / 180) + (waveNumber * 0.008);
-                        this.health = 45 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#9400D3'; // Roxo
-                        this.shape = 'pentagon'; this.damage = 9; this.xpValue = 25;
-                        this.explodesOnDeath = true; // Bomber também explode
+                            this.speed = Math.min(2.5, 1.5 + (gameTime / 220) + (waveNumber * 0.006));
+                            this.radius = 12; this.health = 45 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#9400D3';
+                            this.shape = 'pentagon'; this.damage = 9; this.xpValue = 25; this.explodesOnDeath = true;
                         break;
                     case 'shooter':
-                        this.radius = 15; this.speed = 0.8 + (gameTime / 220) + (waveNumber * 0.004);
-                        this.health = 35 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#FF00FF'; // Magenta
-                        this.shape = 'star'; this.damage = 4; this.xpValue = 35;
-                        this.attackCooldown = 150; // Ataca a cada 2.5 segundos
-                        this.attackTimer = this.attackCooldown;
-                        this.projectileSpeed = 3.5;
-                        this.projectileDamage = 8;
+                            this.speed = Math.min(1.5, 0.8 + (gameTime / 280) + (waveNumber * 0.003));
+                            this.radius = 15; this.health = 35 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#FF00FF';
+                            this.shape = 'star'; this.damage = 4; this.xpValue = 35; this.attackCooldown = 150;
+                            this.attackTimer = this.attackCooldown; this.projectileSpeed = 3.5; this.projectileDamage = 8;
                         break;
                     case 'healer':
-                        this.radius = 14; this.speed = 0.7 + (gameTime / 250) + (waveNumber * 0.003);
-                        this.health = 60 + Math.floor(gameTime / 10) * 6 + (waveNumber * 3); this.color = '#00FF00'; // Verde
-                        this.shape = 'cross'; this.damage = 0; this.xpValue = 50;
-                        this.healCooldown = 180; // Cura a cada 3 segundos
-                        this.healTimer = this.healCooldown;
-                        this.healAmount = 5 + Math.floor(gameTime / 20);
-                        this.healRadius = 100;
+                            this.speed = Math.min(1.2, 0.7 + (gameTime / 300) + (waveNumber * 0.002));
+                            this.radius = 14; this.health = 60 + Math.floor(gameTime / 10) * 6 + (waveNumber * 3); this.color = '#00FF00';
+                            this.shape = 'cross'; this.damage = 0; this.xpValue = 50; this.healCooldown = 180;
+                            this.healTimer = this.healCooldown; this.healAmount = 5 + Math.floor(gameTime / 20); this.healRadius = 100;
                         break;
                     case 'summoner':
-                        this.radius = 20; this.speed = 0.6 + (gameTime / 300) + (waveNumber * 0.002);
-                        this.health = 80 + Math.floor(gameTime / 10) * 8 + (waveNumber * 4); this.color = '#8B4513'; // Marrom
-                        this.shape = 'pyramid'; this.damage = 0; this.xpValue = 70;
-                        this.summonCooldown = 240; // Invoca a cada 4 segundos
+                            this.speed = Math.min(1.0, 0.6 + (gameTime / 350) + (waveNumber * 0.001));
+                            this.radius = 20; this.health = 80 + Math.floor(gameTime / 10) * 8 + (waveNumber * 4); this.color = '#8B4513';
+                            this.shape = 'pyramid'; this.damage = 0; this.xpValue = 70; this.summonCooldown = 240;
                         this.summonTimer = this.summonCooldown;
                         break;
                     default: // chaser
-                        this.radius = 12; this.speed = 2.2 + (gameTime / 100) + (waveNumber * 0.01);
-                        this.health = 25 + Math.floor(gameTime / 10) * 3 + (waveNumber * 1.5); this.color = '#FF4D4D';
+                            this.speed = Math.min(4.0, 2.2 + (gameTime / 150) + (waveNumber * 0.008));
+                            this.radius = 12; this.health = 25 + Math.floor(gameTime / 10) * 3 + (waveNumber * 1.5); this.color = '#FF4D4D';
                         this.shape = 'circle'; this.damage = 8; this.xpValue = 20;
                         break;
                 }
@@ -1520,12 +1514,11 @@ window.onload = () => {
                     }
                 }
 
-                // Verificação de segurança para remover inimigos perdidos
-                const worldEdge = CONFIG.WORLD_BOUNDS.width / 2 + 200;
-                if (this.x < -worldEdge || this.x > worldEdge) {
-                    this.isDead = true;
-                    waveEnemiesRemaining--; // Garante que a contagem da onda seja corrigida
-                }
+                    // Garante que os inimigos permaneçam dentro dos limites do mundo (Arena Fechada)
+                    const halfWorldWidth = CONFIG.WORLD_BOUNDS.width / 2;
+                    const halfWorldHeight = CONFIG.WORLD_BOUNDS.height / 2;
+                    this.x = Math.max(-halfWorldWidth + this.radius, Math.min(this.x, halfWorldWidth - this.radius));
+                    this.y = Math.max(-halfWorldHeight + this.radius, Math.min(this.y, halfWorldHeight - this.radius));
             }
 
             takeDamage(amount) {
@@ -1606,7 +1599,7 @@ window.onload = () => {
                 super(x, y, 40); // Raio grande
                 this.maxHealth = 1000 + (waveNumber * 150);
                 this.health = this.maxHealth;
-                this.speed = 0.5 + (waveNumber * 0.02);
+                    this.speed = 1.2 + (waveNumber * 0.02); // Aumentada a velocidade base
                 this.damage = 25;
                 this.xpValue = 500;
                 this.color = '#8A2BE2'; // Roxo azulado
@@ -1746,9 +1739,7 @@ window.onload = () => {
             }
 
             applyKnockback(sourceX, sourceY, force) {
-                const angle = Math.atan2(this.y - sourceY, this.x - sourceX);
-                this.knockbackVelocity.x = Math.cos(angle) * force;
-                this.knockbackVelocity.y = Math.sin(angle) * force;
+                    // Os Bosses são imunes a knockback.
             }
         }
 
@@ -2580,6 +2571,12 @@ window.onload = () => {
                         else if (spawnSide === 1) { x = camX + camW + spawnMargin; y = camY + Math.random() * camH; }
                         else if (spawnSide === 2) { x = camX + Math.random() * camW; y = camY - spawnMargin; }
                         else { x = camX + Math.random() * camW; y = camY + camH + spawnMargin; }
+                            
+                            // Garante que o spawn ocorra dentro dos limites do mundo
+                            const halfWorldWidth = CONFIG.WORLD_BOUNDS.width / 2;
+                            const halfWorldHeight = CONFIG.WORLD_BOUNDS.height / 2;
+                            x = Math.max(-halfWorldWidth, Math.min(x, halfWorldWidth));
+                            y = Math.max(-halfWorldHeight, Math.min(y, halfWorldHeight));
 
                         const isElite = Math.random() < currentWaveConfig.eliteChance;
                         enemies.push(new Enemy(x, y, enemyConfig.type, isElite));
@@ -2592,7 +2589,6 @@ window.onload = () => {
         }
 
         function chainLightningEffect(source, initialTarget, levelData) {
-            console.log("DEBUG: chainLightningEffect ativado."); // DEBUG
             if (SKILL_DATABASE['chain_lightning'].causesHitStop) {
                 hitStopTimer = 4; // Ativa o Hit Stop
             }
@@ -2606,7 +2602,6 @@ window.onload = () => {
 
                 // Causa dano e cria o efeito visual
                 currentTarget.takeDamage(levelData.damage * player.damageModifier);
-                console.log(`DEBUG: Criando raio para ${currentTarget.type} em ${Math.round(currentTarget.x)},${Math.round(currentTarget.y)}`); // DEBUG
                 createLightningBolt(lastPosition, currentTarget);
 
                 lastPosition = { x: currentTarget.x, y: currentTarget.y };
@@ -2630,18 +2625,40 @@ window.onload = () => {
         }
 
         function createLightningBolt(startPos, endPos) {
-            console.log(`DEBUG: createLightningBolt de ${startPos.x},${startPos.y} para ${endPos.x},${endPos.y}`); // DEBUG
-            // Cria partículas para simular o raio
+                // Esta função será desenhada diretamente no canvas principal durante o loop de desenho,
+                // por isso precisamos guardar os seus pontos em uma array global temporária.
+                const bolt = {
+                    points: [],
+                    life: 5 // Duração do raio em frames
+                };
+
             const dx = endPos.x - startPos.x;
             const dy = endPos.y - startPos.y;
-            const dist = Math.hypot(dx, dy);
-            const segments = Math.floor(dist / 20); // Drasticamente menos partículas para performance
-            for (let i = 0; i < segments; i++) {
-                const t = i / segments;
-                const x = startPos.x + dx * t + (Math.random() - 0.5) * 10;
-                const y = startPos.y + dy * t + (Math.random() - 0.5) * 10;
-                particleManager.createParticle(x, y, '#E0FFFF', 2.0);
+                const distance = Math.hypot(dx, dy);
+                const angle = Math.atan2(dy, dx);
+
+                const segmentLength = 15;
+                const numSegments = Math.ceil(distance / segmentLength);
+                
+                bolt.points.push({x: startPos.x, y: startPos.y});
+
+                for (let i = 1; i < numSegments; i++) {
+                    const t = i / numSegments;
+                    const x = startPos.x + dx * t;
+                    const y = startPos.y + dy * t;
+                    
+                    // Adiciona jitter (tremor) perpendicular ao raio
+                    const jitter = (Math.random() - 0.5) * 15;
+                    const jitterX = x + Math.cos(angle + Math.PI / 2) * jitter;
+                    const jitterY = y + Math.sin(angle + Math.PI / 2) * jitter;
+                    
+                    bolt.points.push({x: jitterX, y: jitterY});
             }
+                
+                bolt.points.push({x: endPos.x, y: endPos.y});
+                
+                // Adiciona o raio a uma lista para ser desenhado
+                activeLightningBolts.push(bolt);
         }
 
         function handleCollisions() {
@@ -2800,6 +2817,14 @@ window.onload = () => {
             activeStaticFields.forEach(sf => sf.update());
             activeMeteorWarnings.forEach(w => w.update());
 
+                for (let i = activeLightningBolts.length - 1; i >= 0; i--) {
+                    const bolt = activeLightningBolts[i];
+                    bolt.life--;
+                    if (bolt.life <= 0) {
+                        activeLightningBolts.splice(i, 1);
+                    }
+                }
+
             spawnEnemies();
             handleCollisions();
 
@@ -2864,8 +2889,27 @@ window.onload = () => {
             for (const o of xpOrbPool) { if (o.active) o.draw(ctx); }
             powerUps.forEach(p => p.draw(ctx));
             activeVortexes.forEach(v => v.draw(ctx)); // CORRIGIDO (estava v.update())
-            activeStaticFields.forEach(sf => sf.draw(ctx)); // CORRIGIDO (estava v.update())
+                activeStaticFields.forEach(sf => sf.draw(ctx));
             activeMeteorWarnings.forEach(w => w.draw(ctx));
+
+                // Desenha os raios
+                ctx.save();
+                ctx.translate(-camera.x, -camera.y);
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#00FFFF';
+                ctx.shadowBlur = 10;
+                activeLightningBolts.forEach(bolt => {
+                    ctx.globalAlpha = bolt.life / 5.0; // Efeito de fade out
+                    ctx.beginPath();
+                    ctx.moveTo(bolt.points[0].x, bolt.points[0].y);
+                    for (let i = 1; i < bolt.points.length; i++) {
+                        ctx.lineTo(bolt.points[i].x, bolt.points[i].y);
+                    }
+                    ctx.stroke();
+                });
+                ctx.restore();
+
             enemies.forEach(e => e.draw(ctx));
             for (const p of projectilePool) { if (p.active) p.draw(ctx); }
             for (const p of enemyProjectilePool) { if (p.active) p.draw(ctx); }
