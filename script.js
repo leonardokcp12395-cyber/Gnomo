@@ -56,14 +56,27 @@ let playerUpgrades = {};
 let playerAchievements = {};
 
 function loadPermanentData() {
-    playerGems = parseInt(localStorage.getItem('playerGems') || '0');
-    playerUpgrades = JSON.parse(localStorage.getItem('playerUpgrades') || '{}');
-    playerAchievements = JSON.parse(localStorage.getItem('playerAchievements') || '{"unlocked":{},"stats":{"totalKills":0}}');
+    try {
+        playerGems = parseInt(localStorage.getItem('playerGems') || '0');
+        const loadedUpgrades = JSON.parse(localStorage.getItem('playerUpgrades') || '{}');
+        playerUpgrades = loadedUpgrades;
+        const loadedAchievements = JSON.parse(localStorage.getItem('playerAchievements') || '{"unlocked":{},"stats":{"totalKills":0}}');
+        playerAchievements = loadedAchievements;
+    } catch (e) {
+        console.error("Error loading data from localStorage. Resetting to default.", e);
+        playerGems = 0;
+        playerUpgrades = {};
+        playerAchievements = {"unlocked":{},"stats":{"totalKills":0}};
+        localStorage.removeItem('playerUpgrades');
+        localStorage.removeItem('playerAchievements');
+        localStorage.removeItem('playerGems');
+    }
     
-    // Inicializa se não existir
+    // Validate loaded data
     for(const key in PERMANENT_UPGRADES) {
-        if (playerUpgrades[key] === undefined || playerUpgrades[key] === null) {
-            playerUpgrades[key] = 0; // Nível 0
+        const upgradeData = PERMANENT_UPGRADES[key];
+        if (playerUpgrades[key] === undefined || playerUpgrades[key] === null || typeof playerUpgrades[key] !== 'number' || playerUpgrades[key] < 0 || playerUpgrades[key] > upgradeData.levels.length) {
+            playerUpgrades[key] = 0; // Reset to level 0 if data is invalid
         }
     }
 }
