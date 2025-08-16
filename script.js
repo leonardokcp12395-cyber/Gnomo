@@ -243,6 +243,18 @@ let activeChests = []; // Baús de recompensa
                     baseSkill: 'orbital_shield',
                     passiveReq: 'static_field',
                     description: "Os orbes agora abrandam inimigos que tocam."
+                },
+                'magnetic_tempest': {
+                    name: "Tempestade Magnética",
+                    baseSkill: 'chain_lightning',
+                    passiveReq: 'magnet',
+                    description: "O relâmpago agora suga instantaneamente a experiência dos inimigos atingidos."
+                },
+                'infernal_vortex': {
+                    name: "Vórtice Infernal",
+                    baseSkill: 'vortex',
+                    passiveReq: 'scorched_earth',
+                    description: "O vórtice agora queima inimigos presos, causando dano contínuo."
                 }
             };
 
@@ -635,12 +647,11 @@ let activeChests = []; // Baús de recompensa
                 collect() {
                     if (this.isDead) return; // Previne coleta dupla
 
-                    // Recompensa: Sobe de nível instantaneamente
-                    if (player.xp < player.xpToNextLevel) {
-                        player.addXp(player.xpToNextLevel - player.xp);
-                    } else {
-                        player.addXp(1); // Garante que o level up ocorra mesmo se a barra já estiver cheia
-                    }
+                    // Recompensa: Sobe de nível instantaneamente de forma segura
+                    player.level++;
+                    player.xp = 0; // Reseta o XP para o novo nível
+                    player.xpToNextLevel = Math.floor(player.xpToNextLevel * CONFIG.XP_TO_NEXT_LEVEL_MULTIPLIER);
+                    setGameState('levelUp'); // Aciona diretamente a tela de level up
                     
                     // Feedback visual e sonoro
                     showTemporaryMessage("BAÚ DE TESOURO!", "gold");
@@ -1242,7 +1253,7 @@ let activeChests = []; // Baús de recompensa
                         } else if (skillData.type === 'aura' && skillId === 'vortex') {
                             // Aplica o modificador de dano do jogador
                             const vortexDamage = levelData.damage * this.damageModifier;
-                            activeVortexes.push(new Vortex(this.x, this.y, { ...levelData, damage: vortexDamage }));
+                            activeVortexes.push(new Vortex(this.x, this.y, { ...levelData, damage: vortexDamage, evolved: skillState.evolved }));
                             skillState.timer = skillData.cooldown;
                         } else if (skillData.type === 'aura' && skillId === 'particle_burst') { // Nova habilidade
                             SoundManager.play('particleBurst', '8n'); // Passa uma duração para o NoiseSynth
@@ -2197,35 +2208,45 @@ let activeChests = []; // Baús de recompensa
                     this.isExplosion = levelData.isExplosion || false;
                     this.animationFrame = 0;
                     this.enemiesHitByExplosion = new Set(); // Armazena inimigos atingidos pela explosão
+                    
+                    // Lógica da evolução Vórtice Infernal
+                    this.evolved = levelData.evolved || false;
+                    if (this.evolved) {
+                        this.dotDamage = 7; // Dano por tick
+                    }
                 }
 
                 update() {
                     this.duration--;
                     if (this.duration <= 0) {
                         this.isDead = true;
-                        // Limpeza: Ao morrer, remove a si mesmo do "hitBy" dos inimigos
                         this.enemiesHitByExplosion.forEach(enemy => {
                              if(enemy.hitBy) enemy.hitBy.delete(this);
                         });
-                        return; // Para a execução aqui
+                        return;
                     }
 
-                    // A lógica de puxar/danificar inimigos continua aqui
                     enemies.forEach(enemy => {
                         const dist = Math.hypot(this.x - enemy.x, this.y - enemy.y);
                         if(dist < this.maxRadius){
                             if(this.isExplosion){
                                 if(!enemy.hitBy.has(this)){
-                                    enemy.takeDamage(this.damage * player.damageModifier); // Explosões também escalam com dano do jogador
+                                    enemy.takeDamage(this.damage * player.damageModifier);
                                     enemy.applyKnockback(this.x, this.y, CONFIG.ENEMY_KNOCKBACK_FORCE * 2);
-                                    enemy.hitBy.add(this); // Adiciona este vórtice ao conjunto do inimigo
-                                    this.enemiesHitByExplosion.add(enemy); // Lembra quem foi atingido
+                                    enemy.hitBy.add(this);
+                                    this.enemiesHitByExplosion.add(enemy);
                                 }
                             } else {
                                 const angle = Math.atan2(this.y - enemy.y, this.x - enemy.x);
                                 enemy.x += Math.cos(angle) * this.force;
                                 enemy.y += Math.sin(angle) * this.force;
                                 if(frameCount % 60 === 0) enemy.takeDamage(this.damage * player.damageModifier);
+                                
+                                // Lógica da evolução Vórtice Infernal
+                                if (this.evolved && frameCount % 30 === 0) { // Tick de dano a cada 0.5s
+                                    enemy.takeDamage(this.dotDamage * player.damageModifier);
+                                    particleManager.createParticle(enemy.x, enemy.y, 'orange', 1.5);
+                                }
                             }
                         }
                     });
@@ -2241,10 +2262,20 @@ let activeChests = []; // Baús de recompensa
 
                     ctx.rotate(this.animationFrame * 0.05);
 
+                    // Efeito base do Vórtice
                     ctx.fillStyle = `rgba(150, 0, 255, ${this.isExplosion ? lifeRatio * 0.8 : 0.2})`;
                     ctx.beginPath();
                     ctx.arc(0, 0, currentRadius, 0, Math.PI * 2);
                     ctx.fill();
+
+                    // Lógica da evolução Vórtice Infernal (efeito visual)
+                    if (this.evolved && !this.isExplosion) {
+                        const fireAlpha = 0.1 + (Math.sin(this.animationFrame * 0.1) * 0.05);
+                        ctx.fillStyle = `rgba(255, 100, 0, ${fireAlpha})`;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, currentRadius * (0.8 + Math.sin(this.animationFrame * 0.2) * 0.1), 0, Math.PI * 2);
+                        ctx.fill();
+                    }
 
                     ctx.fillStyle = `rgba(100, 0, 200, ${this.isExplosion ? lifeRatio * 0.6 : 0.1})`;
                     ctx.beginPath();
@@ -2596,7 +2627,7 @@ let activeChests = []; // Baús de recompensa
                     const enemyTypes = ['chaser', 'speeder', 'tank', 'shooter', 'bomber', 'healer', 'summoner', 'reaper'];
                     const typesInThisWave = Math.min(2 + Math.floor(waveNumber / 7), 5);
 
-                    currentWaveConfig = { enemies: [], eliteChance: Math.min(0.05 + (waveNumber - WAVE_CONFIGS.length) * 0.01, 0.25) };
+                    currentWaveConfig = { enemies: [], eliteChance: Math.min(0.05 + (waveNumber - WAVE_CONFIGS.length) * 0.004, 0.20) };
 
                     let typesAdded = new Set();
                     for(let i = 0; i < typesInThisWave; i++) {
@@ -2679,10 +2710,12 @@ let activeChests = []; // Baús de recompensa
             }
 
             function chainLightningEffect(source, initialTarget, levelData) {
-                console.log("DEBUG: chainLightningEffect ativado."); // DEBUG
                 if (SKILL_DATABASE['chain_lightning'].causesHitStop) {
                     hitStopTimer = 4; // Ativa o Hit Stop
                 }
+
+                const skillState = player.skills['chain_lightning'];
+                const isEvolved = skillState && skillState.evolved;
 
                 let currentTarget = initialTarget;
                 let targetsHit = new Set([currentTarget]);
@@ -2693,8 +2726,16 @@ let activeChests = []; // Baús de recompensa
 
                     // Causa dano e cria o efeito visual
                     currentTarget.takeDamage(levelData.damage * player.damageModifier);
-                    console.log(`DEBUG: Criando raio para ${currentTarget.type} em ${Math.round(currentTarget.x)},${Math.round(currentTarget.y)}`); // DEBUG
                     createLightningBolt(lastPosition, currentTarget);
+
+                    // Lógica da evolução Tempestade Magnética
+                    if (isEvolved && currentTarget.xpValue > 0) {
+                        player.addXp(currentTarget.xpValue);
+                        for (let k = 0; k < 3; k++) { // Efeito visual de XP absorvido
+                           particleManager.createParticle(currentTarget.x, currentTarget.y, 'yellow', 1.2);
+                        }
+                        currentTarget.xpValue = 0; // Previne que o orbe de XP seja dropado na morte
+                    }
 
                     lastPosition = { x: currentTarget.x, y: currentTarget.y };
                     let nextTarget = null;
@@ -3610,6 +3651,9 @@ let activeChests = []; // Baús de recompensa
 
             setupEventListeners();
             setGameState('menu');
+
+            // Expor a função para testes com Playwright
+            window.setGameState = setGameState;
 
             // Inicia o game loop principal
             let initialTime = performance.now();
