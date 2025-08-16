@@ -2372,16 +2372,16 @@ window.onload = () => {
             platforms = [];
             const groundLevel = canvas.height * (1 - CONFIG.GROUND_HEIGHT_PERCENT);
 
-            // O chão principal, estendido para o novo tamanho do mundo
+                // O chão principal, agora do tamanho exato da arena.
             platforms.push(new Platform(
-                -CONFIG.WORLD_BOUNDS.width,
+                    -CONFIG.WORLD_BOUNDS.width / 2,
                 groundLevel,
-                CONFIG.WORLD_BOUNDS.width * 2,
+                    CONFIG.WORLD_BOUNDS.width,
                 CONFIG.WORLD_BOUNDS.height
             ));
 
             // Geração de plataformas flutuantes
-            const platformCount = 35; // Aumentado para preencher o mundo maior
+                const platformCount = 12; // Reduzido para a arena menor
             const minGapX = 50;
             const minGapY = 40;
             let attempts = 0;
