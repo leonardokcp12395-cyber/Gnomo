@@ -493,3 +493,80 @@
             60% { clip-path: inset(15% 0 80% 0); }
             80% { clip-path: inset(70% 0 20% 0); }
         }
+
+/* --- ESTILOS DA NOVA TELA DE LEVEL UP --- */
+#level-up-screen {
+    max-width: 850px; /* Aumentar a largura máxima para acomodar as colunas */
+}
+
+.level-up-container {
+    display: flex;
+    flex-direction: row;
+    gap: 25px;
+    width: 100%;
+}
+
+.current-skills-column {
+    flex: 1;
+    border-right: 2px solid rgba(0, 255, 255, 0.5);
+    padding-right: 25px;
+    min-width: 250px;
+}
+
+.upgrade-options-column {
+    flex: 1.5; /* Dar mais espaço para as opções de upgrade */
+}
+
+.skills-box {
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.skills-box h4 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: #FFF;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.7);
+    padding-bottom: 8px;
+    font-size: 1.2em;
+    letter-spacing: 1px;
+}
+
+.current-skills-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.current-skill-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(42, 42, 42, 0.7);
+    padding: 8px;
+    border-radius: 5px;
+    font-size: 1.1em;
+}
+
+.current-skill-item .icon {
+    font-size: 1.6em;
+    width: 35px;
+    text-align: center;
+    color: #00FFFF;
+}
+
+.current-skill-item .name {
+    font-weight: bold;
+    flex-grow: 1;
+}
+
+.current-skill-item .level {
+    margin-left: auto;
+    color: #aaa;
+    font-weight: bold;
+    padding: 2px 6px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 4px;
+}
