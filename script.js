@@ -11,6 +11,7 @@ let activeStaticFields = []; // Novo array para campos estáticos
 let activeSanctuaryZones = []; // Novo array para Santuários
 let activeLightningBolts = []; // Array para os raios
 let activeDamageNumbers = [];
+let activeChests = []; // Baús de recompensa
 // ALTERAÇÃO 4b: Partículas de Ambiente
 let ambientParticles = [];
 
