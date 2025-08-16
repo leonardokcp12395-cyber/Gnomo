@@ -460,64 +460,6 @@
             }
         }
 
-        /* --- ESTILOS DO MENU MELHORADO --- */
-        #main-menu {
-            border: none;
-            background: transparent;
-            box-shadow: none;
-            text-align: center;
-        }
-        .title-container {
-            position: relative;
-            margin-bottom: 40px;
-        }
-        .title-container h1 {
-            font-size: 4em;
-            margin: 0;
-            color: #FFF;
-            text-transform: uppercase;
-            animation: glow 2s ease-in-out infinite alternate;
-        }
-        .title-container h1.celestial-title {
-            color: #00FFFF;
-            animation-delay: 0.2s;
-        }
-
-        .menu-button-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            width: 100%;
-            margin-top: 25px;
-        }
-
-        .menu-button-grid .ui-button {
-            width: 100%;
-            margin: 0;
-        }
-
-        .menu-button-grid #play-button {
-            grid-column: 1 / -1; /* Ocupa as duas colunas */
-        }
-
-        @keyframes glow {
-            from { text-shadow: 0 0 10px #FFF, 0 0 20px #FFF, 0 0 30px #00FFFF; }
-            to { text-shadow: 0 0 20px #FFF, 0 0 30px #00FFFF, 0 0 40px #00FFFF; }
-        }
-        @keyframes glitch-anim-1 {
-            0%, 100% { clip-path: inset(45% 0 50% 0); }
-            20% { clip-path: inset(10% 0 85% 0); }
-            40% { clip-path: inset(60% 0 30% 0); }
-            60% { clip-path: inset(25% 0 70% 0); }
-            80% { clip-path: inset(80% 0 10% 0); }
-        }
-        @keyframes glitch-anim-2 {
-            0%, 100% { clip-path: inset(5% 0 90% 0); }
-            20% { clip-path: inset(95% 0 2% 0); }
-            40% { clip-path: inset(40% 0 55% 0); }
-            60% { clip-path: inset(15% 0 80% 0); }
-            80% { clip-path: inset(70% 0 20% 0); }
-        }
     </style>
 </head>
 <body>
@@ -528,19 +470,14 @@
 
         <div id="ui-layer" class="ui-layer">
             <div id="main-menu" class="ui-panel hidden">
-                <div class="title-container">
-                    <h1 data-text="Sobrevivente">Sobrevivente</h1>
-                    <h1 data-text="Celestial" class="celestial-title">Celestial</h1>
-                </div>
+                <h1>Sobrevivente Celestial</h1>
                 <p>Gemas: <strong id="gem-counter">0</strong></p>
-                <div class="menu-button-grid">
-                    <button id="play-button" class="ui-button">Iniciar Jogo</button>
-                    <button id="upgrades-button" class="ui-button">Melhorias</button>
-                    <button id="achievements-button" class="ui-button">Conquistas</button>
-                    <button id="guide-button" class="ui-button">Como Jogar</button>
-                    <button id="rank-button" class="ui-button">Rank Global</button>
-                    <button id="fullscreen-button" class="ui-button">Ecrã Inteiro</button>
-                </div>
+                <button id="play-button" class="ui-button">Iniciar Jogo</button>
+                <button id="upgrades-button" class="ui-button">Melhorias</button>
+                <button id="achievements-button" class="ui-button">Conquistas</button>
+                <button id="guide-button" class="ui-button">Como Jogar</button>
+                <button id="rank-button" class="ui-button">Rank Global</button>
+                <button id="fullscreen-button" class="ui-button">Ecrã Inteiro</button>
             </div>
 
             <div id="character-select-screen" class="ui-panel hidden">
@@ -728,7 +665,7 @@
             // --- CONFIGURAÇÕES GLOBAIS DO JOGO ---
             const CONFIG = {
                 PLAYER_HEALTH: 120, // Aumentado para diminuir a dificuldade
-                PLAYER_SPEED: 3,
+                PLAYER_SPEED: 4, // Aumentado para uma sensação mais frenética
                 PLAYER_JUMP_FORCE: -10, // Força do salto (negativo para subir)
                 PLAYER_DASH_FORCE: 15, // Força do dash
                 PLAYER_DASH_DURATION: 10, // Duração do dash em frames
@@ -1155,6 +1092,8 @@
                     this.radius = radius;
                     this.isDead = false; // Usado para filtragem, ativo para agrupamento
                     this.active = true; // Para agrupamento de objetos
+                    this.velocityY = 0;
+                    this.onGround = false;
                 }
                 draw(ctx) {}
                 update() {}
@@ -1164,6 +1103,38 @@
                     this.y = 0;
                     this.radius = 0;
                     this.isDead = false;
+                }
+
+                moveAndCollide(dx, dy) {
+                    const wasOnGround = this.onGround;
+                    const steps = Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)));
+                    if (steps === 0) return;
+
+                    const stepX = dx / steps;
+                    const stepY = dy / steps;
+
+                    for (let i = 0; i < steps; i++) {
+                        this.x += stepX;
+                        // (Colisão horizontal com paredes iria aqui)
+
+                        this.y += stepY;
+                        let collided = false;
+                        for (const p of platforms) {
+                            if (this.x + this.radius > p.x && this.x - this.radius < p.x + p.width && this.y + this.radius > p.y && this.y - this.radius < p.y + p.height) {
+                                if (stepY >= 0 && (this.y - stepY) + this.radius <= p.y) {
+                                    this.y = p.y - this.radius;
+                                    this.velocityY = 0;
+                                    collided = true;
+                                    this.onGround = true;
+                                    // Hook genérico de aterrissagem
+                                    if (!wasOnGround && typeof this.onLanding === 'function') {
+                                        this.onLanding();
+                                    }
+                                }
+                            }
+                        }
+                        if (!collided) this.onGround = false;
+                    }
                 }
             }
 
@@ -1321,28 +1292,26 @@
                     this.isDashing = false;
                     this.dashTimer = 0;
                     this.dashCooldown = 0;
-                    this.lastMoveDirection = { x: 1, y: 0 }; // Para Raio Celestial
-                    this.squashStretchTimer = 0; // Para animação de squash
+                    this.lastMoveDirection = { x: 1, y: 0 };
+                    this.squashStretchTimer = 0;
                     this.x = canvas.width / 2;
                     this.y = canvas.height * (1 - CONFIG.GROUND_HEIGHT_PERCENT) - this.radius;
-                    this.onGround = true;
-                    this.shielded = false; // Para a habilidade Égide Divina
-                    this.shieldTimer = 0; // Duração do escudo
-                    this.invincibilityTimer = 0; // Para I-Frames
-                    this.knockbackVelocity = { x: 0, y: 0 }; // Para knockback
+                    this.shielded = false;
+                    this.shieldTimer = 0;
+                    this.invincibilityTimer = 0;
+                    this.knockbackVelocity = { x: 0, y: 0 };
+                    this.jumpsAvailable = 1;
                 }
 
                 draw(ctx) {
-                    // Adiciona efeito de piscar para I-Frames
                     if (this.invincibilityTimer > 0 && frameCount % 8 < 4) {
                         this.animationFrame++;
-                        return; // Pula o desenho, criando o efeito de piscar
+                        return;
                     }
 
                     ctx.save();
                     ctx.translate(this.x - camera.x, this.y - camera.y);
 
-                    // Squash and Stretch
                     let scaleX = 1;
                     let scaleY = 1;
                     if (this.squashStretchTimer > 0) {
@@ -1353,32 +1322,6 @@
                     }
                     ctx.scale(this.facingRight ? scaleX : -scaleX, scaleY);
 
-                    // --- LÓGICA DO CONTORNO ---
-                    const contourColor = this.invincibilityTimer > 0 ? 'gold' : 'white';
-                    ctx.strokeStyle = contourColor;
-                    ctx.lineWidth = 3; // Reduzido para melhor performance
-                    ctx.lineJoin = 'round'; // Para cantos mais suaves
-
-                    ctx.beginPath();
-                    // Corpo
-                    ctx.moveTo(0, -this.radius * 1.5);
-                    ctx.lineTo(this.radius * 1.2, this.radius * 0.8);
-                    ctx.lineTo(-this.radius * 1.2, this.radius * 0.8);
-                    ctx.closePath();
-                    // Asa Direita
-                    ctx.moveTo(this.radius * 0.8, -this.radius * 0.5);
-                    ctx.quadraticCurveTo(this.radius * 2, -this.radius * 1.5, this.radius * 1.5, this.radius * 0.5);
-                    ctx.lineTo(this.radius * 0.8, this.radius * 0.8);
-                    ctx.closePath();
-                    // Asa Esquerda
-                    ctx.moveTo(-this.radius * 0.8, -this.radius * 0.5);
-                    ctx.quadraticCurveTo(-this.radius * 2, -this.radius * 1.5, -this.radius * 1.5, this.radius * 0.5);
-                    ctx.lineTo(-this.radius * 0.8, this.radius * 0.8);
-                    ctx.closePath();
-                    ctx.stroke();
-
-
-                    // --- LÓGICA DE DESENHO ORIGINAL ---
                     if (this.hitTimer > 0) {
                         ctx.fillStyle = 'red';
                         this.hitTimer--;
@@ -1396,6 +1339,15 @@
                     ctx.strokeStyle = 'cyan';
                     ctx.lineWidth = 2;
                     ctx.stroke();
+
+                    // Detalhe "cockpit"
+                    ctx.fillStyle = '#00FFFF';
+                    ctx.beginPath();
+                    ctx.moveTo(0, -this.radius * 0.5);
+                    ctx.lineTo(this.radius * 0.4, this.radius * 0.2);
+                    ctx.lineTo(-this.radius * 0.4, this.radius * 0.2);
+                    ctx.closePath();
+                    ctx.fill();
 
                     // Asas
                     ctx.beginPath();
@@ -1428,92 +1380,112 @@
                 }
 
                 update() {
-                    // Decrementa o temporizador de invencibilidade
                     if (this.invincibilityTimer > 0) {
                         this.invincibilityTimer--;
                     }
 
                     this.handleMovement();
-                    this.applyGravity(); // Aplica gravidade ao jogador
+                    this.applyGravity();
                     this.updateSkills();
 
-                    // Aplica regeneração de vida se a habilidade estiver ativa
-                    if (this.skills['health_regen']) {
-                        const regenLevelData = SKILL_DATABASE['health_regen'].levels[this.skills['health_regen'].level - 1];
-                        this.health = Math.min(this.maxHealth, this.health + regenLevelData.regenPerSecond / 60); // Regeneração por frame
+                    if (platforms.length > 0 && this.y > platforms[0].y + 400) {
+                        this.takeDamage(9999);
                     }
 
-                    // Atualiza o alvo da câmara para a posição do jogador
+                    if (this.skills['health_regen']) {
+                        const regenLevelData = SKILL_DATABASE['health_regen'].levels[this.skills['health_regen'].level - 1];
+                        this.health = Math.min(this.maxHealth, this.health + regenLevelData.regenPerSecond / 60);
+                    }
+
                     camera.targetX = this.x - canvas.width / 2;
                     camera.targetY = this.y - canvas.height / 2;
                 }
 
                 handleMovement() {
-                    // Aplica knockback primeiro
-                    this.x += this.knockbackVelocity.x;
-                    this.y += this.knockbackVelocity.y;
-                    this.knockbackVelocity.x *= 0.9; // Atrito
+                    this.moveAndCollide(this.knockbackVelocity.x, this.knockbackVelocity.y);
+                    this.knockbackVelocity.x *= 0.9;
                     this.knockbackVelocity.y *= 0.9;
-                    if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 0.1) {
-                        this.knockbackVelocity.x = 0;
-                        this.knockbackVelocity.y = 0;
-                    }
 
                     if (this.isDashing) {
-                        this.x += this.dashDirection.x * CONFIG.PLAYER_DASH_FORCE;
-                        this.y += this.dashDirection.y * CONFIG.PLAYER_DASH_FORCE;
+                        this.moveAndCollide(this.dashDirection.x * CONFIG.PLAYER_DASH_FORCE, this.dashDirection.y * CONFIG.PLAYER_DASH_FORCE);
                         this.dashTimer--;
-                        if (this.dashTimer <= 0) {
-                            this.isDashing = false;
-                        }
-                        return; // Pára outros movimentos durante o dash
+                        if (this.dashTimer <= 0) this.isDashing = false;
+                        return;
                     }
 
                     let dx = 0;
-                    let dy_input = 0; // Input vertical separado
-
+                    let dy_input = 0;
                     if (isMobile) {
                         dx = movementVector.x;
                         dy_input = movementVector.y;
                     } else {
                         dx = (keys['d'] || keys['ArrowRight']) ? 1 : ((keys['a'] || keys['ArrowLeft']) ? -1 : 0);
-                        dy_input = (keys['s'] || keys['ArrowDown']) ? 1 : ((keys['w'] || keys['ArrowUp']) ? -1 : 0); // Para direção do dash
+                        dy_input = (keys['s'] || keys['ArrowDown']) ? 1 : ((keys['w'] || keys['ArrowUp']) ? -1 : 0);
                     }
 
-                    // Guarda a última direção de movimento se houver input
                     if (dx !== 0 || dy_input !== 0) {
                         const magnitude = Math.hypot(dx, dy_input);
                         this.lastMoveDirection = { x: dx / magnitude, y: dy_input / magnitude };
                     }
-                    if (dx !== 0) {
-                        this.facingRight = dx > 0;
-                    }
+                    if (dx !== 0) this.facingRight = dx > 0;
 
-                    // Aplica o movimento horizontal (apenas se não estiver a sofrer knockback forte)
-                    if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 1) {
-                        this.x += dx * this.speed;
-                    }
+                    this.moveAndCollide(dx * this.speed, 0);
 
-                    // Lógica de Salto unificada
                     const jumpPressed = isMobile ? (movementVector.y < -0.5) : (keys['w'] || keys['ArrowUp'] || keys[' ']);
                     if (jumpPressed && this.jumpsAvailable > 0) {
-                        const isFirstJump = this.onGround || this.jumpsAvailable === (this.skills['double_jump'] ? 2 : 1);
-                        this.velocityY = isFirstJump ? CONFIG.PLAYER_JUMP_FORCE : CONFIG.PLAYER_DOUBLE_JUMP_FORCE;
+                        this.velocityY = (this.onGround || this.jumpsAvailable === (this.skills['double_jump'] ? 2 : 1)) ? CONFIG.PLAYER_JUMP_FORCE : CONFIG.PLAYER_DOUBLE_JUMP_FORCE;
                         this.jumpsAvailable--;
                         this.onGround = false;
                         if (!isMobile) keys['w'] = keys['ArrowUp'] = keys[' '] = false;
                     }
 
-                    // Ativar Dash no PC
                     if (!isMobile && keys['shift']) {
                         this.dash();
-                        keys['shift'] = false; // Previne múltiplos dashes com uma tecla premida
+                        keys['shift'] = false;
                     }
 
-                    // Gestão do Cooldown do Dash
                     if (this.dashCooldown > 0) {
                         this.dashCooldown--;
                     }
+                }
+
+                moveAndCollide(dx, dy) {
+                    const wasOnGround = this.onGround;
+                    const steps = Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)));
+                    if (steps === 0) return;
+
+                    const stepX = dx / steps;
+                    const stepY = dy / steps;
+
+                    for (let i = 0; i < steps; i++) {
+                        this.x += stepX;
+                        // (Colisão horizontal com paredes iria aqui)
+
+                        this.y += stepY;
+                        let collided = false;
+                        for (const p of platforms) {
+                            if (this.x + this.radius > p.x && this.x - this.radius < p.x + p.width && this.y + this.radius > p.y && this.y - this.radius < p.y + p.height) {
+                                if (stepY > 0 && (this.y - stepY) + this.radius <= p.y) {
+                                    this.y = p.y - this.radius;
+                                    this.velocityY = 0;
+                                    this.onGround = true;
+                                    if (!wasOnGround) {
+                                        this.jumpsAvailable = (this.skills['double_jump'] ? 2 : 1);
+                                        this.squashStretchTimer = CONFIG.PLAYER_LANDING_SQUASH_DURATION;
+                                        SoundManager.play('land', '16n');
+                                    }
+                                }
+                                collided = true;
+                                break;
+                            }
+                        }
+                        if (!collided) this.onGround = false;
+                    }
+                }
+
+                applyGravity() {
+                    this.velocityY += CONFIG.GRAVITY;
+                    this.moveAndCollide(0, this.velocityY);
                 }
 
                 dash() {
@@ -1874,39 +1846,39 @@
                     switch(type) {
                         // ALTERAÇÃO 3: Novo Inimigo - Ceifador
                         case 'reaper':
-                            this.radius = 10; this.speed = 3.2 + (gameTime / 150) + (waveNumber * 0.02);
+                            this.radius = 10; this.speed = 4.5 + (gameTime / 100) + (waveNumber * 0.025); // Mais rápido
                             this.health = 15 + Math.floor(gameTime / 20) * 2 + waveNumber; this.color = '#7DF9FF'; // Ciano pálido
                             this.shape = 'diamond'; this.damage = 30; // Dano alto da explosão
                             this.xpValue = 15;
                             this.explodesOnDeath = true;
                             break;
                         case 'tank':
-                            this.radius = 18; this.speed = 0.9 + (gameTime / 180) + (waveNumber * 0.005);
+                            this.radius = 18; this.speed = 1.5 + (gameTime / 120) + (waveNumber * 0.008); // Mais rápido
                             this.health = 70 + Math.floor(gameTime / 10) * 7 + (waveNumber * 3); this.color = '#FFA500';
                             this.shape = 'square'; this.damage = 12; this.xpValue = 40;
                             break;
                         case 'speeder':
-                            this.radius = 8; this.speed = 2.8 + (gameTime / 80) + (waveNumber * 0.015);
+                            this.radius = 8; this.speed = 4.0 + (gameTime / 50) + (waveNumber * 0.02); // Mais rápido
                             this.health = 12 + Math.floor(gameTime / 15) * 2 + waveNumber; this.color = '#FFFF00';
                             this.shape = 'triangle'; this.damage = 7; this.xpValue = 12;
                             break;
                         case 'bomber':
-                            this.radius = 12; this.speed = 1.2 + (gameTime / 200) + (waveNumber * 0.008);
+                            this.radius = 12; this.speed = 1.8 + (gameTime / 150) + (waveNumber * 0.01); // Mais rápido
                             this.health = 45 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#9400D3'; // Roxo
                             this.shape = 'pentagon'; this.damage = 9; this.xpValue = 25;
                             this.explodesOnDeath = true; // Bomber também explode
                             break;
                         case 'shooter':
-                            this.radius = 15; this.speed = 0.6 + (gameTime / 250) + (waveNumber * 0.004);
+                            this.radius = 15; this.speed = 1.0 + (gameTime / 200) + (waveNumber * 0.005); // Mais rápido
                             this.health = 35 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#FF00FF'; // Magenta
                             this.shape = 'star'; this.damage = 4; this.xpValue = 35;
-                            this.attackCooldown = 150; // Ataca a cada 2.5 segundos
+                            this.attackCooldown = 140; // Ataca um pouco mais rápido
                             this.attackTimer = this.attackCooldown;
-                            this.projectileSpeed = 3.5;
+                            this.projectileSpeed = 4.0; // Projéteis mais rápidos
                             this.projectileDamage = 8;
                             break;
                         case 'healer':
-                            this.radius = 14; this.speed = 0.5 + (gameTime / 280) + (waveNumber * 0.003);
+                            this.radius = 14; this.speed = 0.9 + (gameTime / 220) + (waveNumber * 0.004); // Mais rápido
                             this.health = 60 + Math.floor(gameTime / 10) * 6 + (waveNumber * 3); this.color = '#00FF00'; // Verde
                             this.shape = 'cross'; this.damage = 0; this.xpValue = 50;
                             this.healCooldown = 180; // Cura a cada 3 segundos
@@ -1915,14 +1887,14 @@
                             this.healRadius = 100;
                             break;
                         case 'summoner':
-                            this.radius = 20; this.speed = 0.4 + (gameTime / 320) + (waveNumber * 0.002);
+                            this.radius = 20; this.speed = 0.8 + (gameTime / 250) + (waveNumber * 0.003); // Mais rápido
                             this.health = 80 + Math.floor(gameTime / 10) * 8 + (waveNumber * 4); this.color = '#8B4513'; // Marrom
                             this.shape = 'pyramid'; this.damage = 0; this.xpValue = 70;
-                            this.summonCooldown = 240; // Invoca a cada 4 segundos
+                            this.summonCooldown = 220; // Invoca um pouco mais rápido
                             this.summonTimer = this.summonCooldown;
                             break;
                         default: // chaser
-                            this.radius = 12; this.speed = 1.7 + (gameTime / 120) + (waveNumber * 0.01);
+                            this.radius = 12; this.speed = 2.8 + (gameTime / 80) + (waveNumber * 0.015); // Mais rápido
                             this.health = 25 + Math.floor(gameTime / 10) * 3 + (waveNumber * 1.5); this.color = '#FF4D4D';
                             this.shape = 'circle'; this.damage = 8; this.xpValue = 20;
                             break;
@@ -1960,9 +1932,8 @@
                     // ctx.shadowBlur = pulse;
 
                     ctx.beginPath();
-                    if (this.shape === 'square') {
+                    if (this.shape === 'square') { // Tanque
                         ctx.rect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
-                    // ALTERAÇÃO 3: Desenho do Ceifador
                     } else if (this.shape === 'diamond') {
                         ctx.moveTo(0, -this.radius);
                         ctx.lineTo(this.radius * 0.7, 0);
@@ -1995,7 +1966,7 @@
                         ctx.lineTo(this.radius, this.radius);
                         ctx.lineTo(-this.radius, this.radius);
                         ctx.closePath();
-                    } else {
+                    } else { // Círculo (Chaser)
                         ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                     }
                     ctx.closePath();
@@ -2028,14 +1999,9 @@
                     if (this.slowedTimer > 0) this.slowedTimer--;
 
                     // Aplica knockback primeiro
-                    this.x += this.knockbackVelocity.x;
-                    this.y += this.knockbackVelocity.y;
-                    this.knockbackVelocity.x *= 0.9; // Reduz o knockback
+                    this.moveAndCollide(this.knockbackVelocity.x, this.knockbackVelocity.y);
+                    this.knockbackVelocity.x *= 0.9;
                     this.knockbackVelocity.y *= 0.9;
-                    if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 0.1) {
-                        this.knockbackVelocity.x = 0;
-                        this.knockbackVelocity.y = 0;
-                    }
 
                     // Decrementa o cooldown de acerto por orbe
                     if (this.orbHitCooldown > 0) {
@@ -2049,7 +2015,7 @@
                         return; // Para de se mover
                     }
 
-                    // Inimigos voadores movem-se em direção ao jogador em X e Y, a menos que estejam em knockback forte
+                    // Inimigos voadores movem-se em direção ao jogador em X e Y
                     if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 5) { // Só se move se o knockback for pequeno
                         const angle = Math.atan2(player.y - this.y, player.x - this.x);
                         let currentSpeed = this.speed;
@@ -2312,10 +2278,19 @@
                         particleManager.createParticle(this.x, this.y, this.color, 2.5); // <<<<<<< MUDANÇA 1
                     }
                     if (this.health <= 0) {
+                        console.log("--- BOSS DERROTADO ---"); // DEBUG
                         this.isDead = true;
                         getFromPool(xpOrbPool, this.x, this.y, this.xpValue);
                         score.kills++;
                         waveEnemiesRemaining--; // Conta o boss como 1 inimigo para a onda
+                        console.log(`Boss morreu. waveEnemiesRemaining é agora ${waveEnemiesRemaining}`); // DEBUG
+
+                        // CORREÇÃO: Força o início do cooldown para a próxima onda
+                        if (waveEnemiesRemaining <= 0) {
+                            waveCooldownTimer = 180;
+                            console.log("Morte do chefe acionou o cooldown da próxima onda.");
+                        }
+
                         showTemporaryMessage("BOSS DERROTADO!", "gold");
                         screenShake = { intensity: 20, duration: 60 };
                         // Partículas de morte do boss
@@ -2625,7 +2600,7 @@
                     this.velocity.y *= this.friction;
                     this.x += this.velocity.x;
                     this.y += this.velocity.y;
-                    this.alpha -= 0.05; // Desaparece mais rapidamente para otimização
+                    this.alpha -= 0.02; // Desaparece mais lentamente para ser visível
                     if (this.alpha <= 0) {
                         this.isDead = true;
                         releaseToPool(this); // Libertar para o agrupamento
@@ -3068,6 +3043,7 @@
 
             function startNextWave() {
                 waveNumber++;
+                console.log(`--- Iniciando Onda ${waveNumber} ---`); // DEBUG
 
                 // A CADA 5 ONDAS, UMA ONDA DE BOSS
                 if (waveNumber > 0 && waveNumber % 5 === 0) {
@@ -3129,14 +3105,17 @@
 
             // <<<<<<< MUDANÇA 3: LÓGICA DE SPAWN REFEITA
             function spawnEnemies() {
+                // console.log(`spawnEnemies check: waveEnemiesRemaining=${waveEnemiesRemaining}, enemies.length=${enemies.length}`); // DEBUG intensivo
                 // Lógica de pausa entre ondas
                 if (waveEnemiesRemaining <= 0 && enemies.length === 0) {
                     if (waveCooldownTimer <= 0) {
                         waveCooldownTimer = 180; // 3 segundos de pausa entre ondas
                         showTemporaryMessage("PAUSA ENTRE ONDAS", "white");
+                        console.log("Iniciando cooldown entre ondas."); // DEBUG
                     } else {
                         waveCooldownTimer--;
                         if (waveCooldownTimer <= 0) {
+                            console.log("Cooldown finalizado. Chamando startNextWave."); // DEBUG
                             startNextWave();
                         }
                     }
@@ -3173,6 +3152,7 @@
             }
 
             function chainLightningEffect(source, initialTarget, levelData) {
+                console.log("DEBUG: chainLightningEffect ativado."); // DEBUG
                 if (SKILL_DATABASE['chain_lightning'].causesHitStop) {
                     hitStopTimer = 4; // Ativa o Hit Stop
                 }
@@ -3186,15 +3166,24 @@
 
                     // Causa dano e cria o efeito visual
                     currentTarget.takeDamage(levelData.damage * player.damageModifier);
+                    console.log(`DEBUG: Criando raio para ${currentTarget.type} em ${Math.round(currentTarget.x)},${Math.round(currentTarget.y)}`); // DEBUG
                     createLightningBolt(lastPosition, currentTarget);
 
                     lastPosition = { x: currentTarget.x, y: currentTarget.y };
                     let nextTarget = null;
                     let nearestDistSq = Infinity;
 
-                    // Encontra o próximo alvo mais próximo que ainda não foi atingido
+                    const screenLeft = camera.x;
+                    const screenRight = camera.x + canvas.width;
+                    const screenTop = camera.y;
+                    const screenBottom = camera.y + canvas.height;
+
+                    // Encontra o próximo alvo mais próximo que ainda não foi atingido E está na tela
                     for (const enemy of enemies) {
-                        if (!targetsHit.has(enemy) && !enemy.isDead) {
+                        const isOnScreen = enemy.x > screenLeft - 50 && enemy.x < screenRight + 50 &&
+                                           enemy.y > screenTop - 50 && enemy.y < screenBottom + 50;
+
+                        if (!targetsHit.has(enemy) && !enemy.isDead && isOnScreen) {
                             const distSq = Math.hypot(currentTarget.x - enemy.x, currentTarget.y - enemy.y);
                             if (distSq < levelData.chainRadius * levelData.chainRadius && distSq < nearestDistSq) {
                                 nearestDistSq = distSq;
@@ -3209,17 +3198,17 @@
             }
 
             function createLightningBolt(startPos, endPos) {
+                console.log(`DEBUG: createLightningBolt de ${startPos.x},${startPos.y} para ${endPos.x},${endPos.y}`); // DEBUG
                 // Cria partículas para simular o raio
                 const dx = endPos.x - startPos.x;
                 const dy = endPos.y - startPos.y;
                 const dist = Math.hypot(dx, dy);
-                const segments = Math.floor(dist / 8); // Mais segmentos para mais partículas
+                const segments = Math.floor(dist / 20); // Drasticamente menos partículas para performance
                 for (let i = 0; i < segments; i++) {
                     const t = i / segments;
-                    const x = startPos.x + dx * t + (Math.random() - 0.5) * 15; // Mais dispersão
-                    const y = startPos.y + dy * t + (Math.random() - 0.5) * 15;
-                    // Partículas maiores e mais brilhantes
-                    particleManager.createParticle(x, y, '#E0FFFF', 2.5);
+                    const x = startPos.x + dx * t + (Math.random() - 0.5) * 10;
+                    const y = startPos.y + dy * t + (Math.random() - 0.5) * 10;
+                    particleManager.createParticle(x, y, '#E0FFFF', 2.0);
                 }
             }
 
@@ -3617,7 +3606,7 @@
                 } else if (newState === 'paused') {
                     ui.pauseMenu.classList.remove('hidden');
                 } else if (newState === 'gameOver') {
-                    const finalTimeInSeconds = Math.floor(gameTime / (1000.0 / 60.0));
+                    const finalTimeInSeconds = Math.floor(gameTime);
                     document.getElementById('final-time').innerText = formatTime(finalTimeInSeconds);
                     document.getElementById('final-kills').innerText = score.kills;
                     checkAchievements('survivalTime', finalTimeInSeconds);
@@ -3643,18 +3632,29 @@
                 }
             }
 
+            let lastEventName = '';
+            let lastEventTime = -1;
+
             function updateEventHUD() {
                 const eventDisplay = document.getElementById('event-display');
-                if (eventManager.currentEvent) {
-                    const eventNameEl = document.getElementById('event-name');
-                    const eventTimerEl = document.getElementById('event-timer');
-                    const remainingSeconds = Math.ceil(eventManager.eventTimer / 60);
+                const currentEventName = eventManager.currentEvent ? EVENTS[eventManager.currentEvent].name : '';
 
-                    eventDisplay.classList.remove('hidden');
-                    eventNameEl.textContent = EVENTS[eventManager.currentEvent].name;
-                    eventTimerEl.textContent = `${remainingSeconds}s`;
-                } else {
-                    eventDisplay.classList.add('hidden');
+                if (currentEventName !== lastEventName) {
+                    if (currentEventName) {
+                        document.getElementById('event-name').textContent = currentEventName;
+                        eventDisplay.classList.remove('hidden');
+                    } else {
+                        eventDisplay.classList.add('hidden');
+                    }
+                    lastEventName = currentEventName;
+                }
+
+                if (eventManager.currentEvent) {
+                    const remainingSeconds = Math.ceil(eventManager.eventTimer / 60);
+                    if (remainingSeconds !== lastEventTime) {
+                        document.getElementById('event-timer').textContent = `${remainingSeconds}s`;
+                        lastEventTime = remainingSeconds;
+                    }
                 }
             }
 
@@ -3668,9 +3668,8 @@
                         ui.dashButtonMobile.classList.toggle('on-cooldown', player.dashCooldown > 0);
                     }
                 }
-                // Converte o tempo do jogo de "delta-time-frames" para segundos
-                const gameTimeInSeconds = gameTime / (1000.0 / 60.0);
-                document.getElementById('timer').innerText = formatTime(Math.floor(gameTimeInSeconds));
+                // O gameTime já está em segundos, basta arredondar.
+                document.getElementById('timer').innerText = formatTime(Math.floor(gameTime));
 
                 updateEventHUD();
                 updateSkillsHUD();
