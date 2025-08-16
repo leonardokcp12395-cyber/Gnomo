@@ -1,0 +1,20 @@
+{
+    "TOTAL_KILLS_100": {
+        "name": "Caçador de Iniciantes",
+        "description": "Derrote 100 inimigos no total.",
+        "condition": { "type": "totalKills", "value": 100 },
+        "reward": { "type": "gems", "amount": 50 }
+    },
+    "TOTAL_KILLS_1000": {
+        "name": "Matador de Legiões",
+        "description": "Derrote 1.000 inimigos no total.",
+        "condition": { "type": "totalKills", "value": 1000 },
+        "reward": { "type": "gems", "amount": 200 }
+    },
+    "SURVIVE_15_MINUTES": {
+        "name": "Sobrevivente Tenaz",
+        "description": "Sobreviva por 15 minutos em uma única partida.",
+        "condition": { "type": "survivalTime", "value": 900 },
+        "reward": { "type": "gems", "amount": 150 }
+    }
+}

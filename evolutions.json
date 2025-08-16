@@ -1,0 +1,14 @@
+{
+    "firmament_lances": {
+        "name": "Lanças do Firmamento",
+        "baseSkill": "divine_lance",
+        "passiveReq": "health_regen",
+        "description": "As lanças agora curam o jogador numa pequena percentagem do dano causado."
+    },
+    "stasis_aura": {
+        "name": "Aura da Stasis",
+        "baseSkill": "orbital_shield",
+        "passiveReq": "static_field",
+        "description": "Os orbes agora abrandam inimigos que tocam."
+    }
+}
