@@ -645,11 +645,13 @@ window.onload = () => {
             constructor() {
                 super();
             }
-            init(x, y, amount) {
+            init(x, y, amount, color = '#FFF') { // Adicionado parâmetro de cor
                 super.reset();
                 this.x = x;
                 this.y = y;
-                this.amount = Math.round(amount); // Arredonda para um número inteiro
+                // Modificado para aceitar texto ou número
+                this.amount = typeof amount === 'number' ? Math.round(amount) : amount;
+                this.color = color;
                 this.alpha = 1;
                 this.velocityY = -2; // Movimento para cima
                 this.life = 60; // Duração em frames (1 segundo)
@@ -669,12 +671,12 @@ window.onload = () => {
                 ctx.save();
                 ctx.translate(this.x - camera.x, this.y - camera.y);
                 ctx.globalAlpha = this.alpha;
-                ctx.fillStyle = '#FFF';
+                ctx.fillStyle = this.color; // Usa a cor da instância
                 ctx.font = 'bold 20px "Courier New", Courier, monospace';
                 ctx.textAlign = 'center';
-                // OTIMIZAÇÃO: shadowBlur removido para desempenho
-                // ctx.shadowColor = 'orange';
-                // ctx.shadowBlur = 5;
+                // Adiciona uma sombra sutil para legibilidade
+                ctx.shadowColor = 'black';
+                ctx.shadowBlur = 2;
                 ctx.fillText(this.amount, 0, 0);
                 ctx.restore();
             }
@@ -766,6 +768,8 @@ window.onload = () => {
                 this.shieldTimer = 0; // Duração do escudo
                 this.invincibilityTimer = 0; // Para I-Frames
                 this.knockbackVelocity = { x: 0, y: 0 }; // Para knockback
+                this.coyoteTimer = 0; // Para "Coyote Time"
+                this.jumpBufferTimer = 0; // Para "Jump Buffering"
             }
 
             draw(ctx) {
@@ -878,6 +882,14 @@ window.onload = () => {
                 if (this.invincibilityTimer > 0) {
                     this.invincibilityTimer--;
                 }
+                // Decrementa o Coyote Timer
+                if (this.coyoteTimer > 0) {
+                    this.coyoteTimer--;
+                }
+                // Decrementa o Jump Buffer Timer
+                if (this.jumpBufferTimer > 0) {
+                    this.jumpBufferTimer--;
+                }
 
                 this.handleMovement();
                 this.applyGravity(); // Aplica gravidade ao jogador
@@ -945,12 +957,23 @@ window.onload = () => {
 
                 // 4. Lida com saltos e ativação de dash
                 const jumpPressed = isMobile ? (movementVector.y < -0.5) : (keys['w'] || keys['ArrowUp'] || keys[' ']);
-                if (jumpPressed && this.jumpsAvailable > 0) {
-                    this.velocityY = (this.onGround || this.jumpsAvailable === (this.skills['double_jump'] ? 2 : 1)) ? CONFIG.PLAYER_JUMP_FORCE : CONFIG.PLAYER_DOUBLE_JUMP_FORCE;
-                    this.jumpsAvailable--;
-                    this.onGround = false;
-                    if (!isMobile) keys['w'] = keys['ArrowUp'] = keys[' '] = false;
+                if (jumpPressed) {
+                    if (this.jumpsAvailable > 0 && (this.onGround || this.coyoteTimer > 0)) {
+                        this.velocityY = CONFIG.PLAYER_JUMP_FORCE;
+                        this.jumpsAvailable--;
+                        this.onGround = false;
+                        this.coyoteTimer = 0; // Consome o coyote time
+                        this.jumpBufferTimer = 0; // Consome o buffer também
+                        if (!isMobile) keys['w'] = keys['ArrowUp'] = keys[' '] = false;
+                    } else if (this.jumpsAvailable > 0 && !this.onGround && this.skills['double_jump']) {
+                        this.velocityY = CONFIG.PLAYER_DOUBLE_JUMP_FORCE;
+                        this.jumpsAvailable--;
+                    } else {
+                        // Se não pode pular agora, guarda a intenção no buffer
+                        this.jumpBufferTimer = 10; // 10 frames de buffer
+                    }
                 }
+
 
                 if (!isMobile && keys['shift']) {
                     this.dash();
@@ -1063,12 +1086,26 @@ window.onload = () => {
                             this.jumpsAvailable = (this.skills['double_jump'] ? SKILL_DATABASE['double_jump'].levels[0].jumps : 1);
                             this.squashStretchTimer = CONFIG.PLAYER_LANDING_SQUASH_DURATION;
                             SoundManager.play('land', '16n');
+
+                            // Lógica do Jump Buffering: se há um pulo no buffer, executa-o
+                            if (this.jumpBufferTimer > 0) {
+                                this.velocityY = CONFIG.PLAYER_JUMP_FORCE;
+                                this.jumpsAvailable--;
+                                this.onGround = false;
+                                this.coyoteTimer = 0;
+                                this.jumpBufferTimer = 0;
+                            }
                         }
                         break; // Encontrou uma plataforma, não precisa de verificar as outras
                     }
                 }
 
                 this.y = newY; // Aplica a posição final (corrigida ou não)
+
+                // Lógica do Coyote Time: se estava no chão e agora não está, ativa o temporizador
+                if (wasOnGround && !this.onGround) {
+                    this.coyoteTimer = 10; // Concede 10 frames de tempo de coyote
+                }
 
                 // --- SEÇÃO DE SEGURANÇA (Safety Net) ---
                 // Garante que o jogador morre se cair muito para fora do mundo
@@ -1715,7 +1752,14 @@ window.onload = () => {
                     if (this.isElite) { // Larga gemas se for inimigo de elite
                         const gemsDropped = Math.floor(Math.random() * 3) + 1; // 1 a 3 gemas
                         playerGems += gemsDropped;
-                        showTemporaryMessage(`+${gemsDropped} Gemas!`, 'violet');
+                        // A mensagem temporária foi removida para dar lugar ao texto flutuante
+                        // showTemporaryMessage(`+${gemsDropped} Gemas!`, 'violet');
+                        
+                        // --- INÍCIO DA MODIFICAÇÃO: Feedback de Coleta de Gemas ---
+                        const gemText = `+${gemsDropped} Gemas!`;
+                        activeDamageNumbers.push(getFromPool(damageNumberPool, this.x, this.y - 15, gemText, '#DA70D6')); // Cor violeta
+                        // --- FIM DA MODIFICAÇÃO ---
+
                         savePermanentData(); // Salva os dados permanentes
                     }
 
@@ -3372,7 +3416,6 @@ window.onload = () => {
                 ui.achievementsScreen.classList.remove('hidden');
             }
         }
-        window.setGameState = setGameState; // Expose for testing
 
         let lastEventName = '';
         let lastEventTime = -1;
@@ -3501,10 +3544,28 @@ window.onload = () => {
                     const card = document.createElement('div');
                     card.className = 'skill-card';
                     const currentLevel = player.skills[skillId]?.level || 0;
+                    const nextLevel = currentLevel; // The level we are about to get
+                    
                     let levelText = skill.type !== 'utility' || (skill.levels && skill.levels.length > 1) ? ` (Nível ${currentLevel + 1})` : '';
-                    let descText = skill.desc || (skill.levels && skill.levels[currentLevel] ? skill.levels[currentLevel].desc : '');
+                    let descText = skill.desc || (skill.levels && skill.levels[nextLevel] ? skill.levels[nextLevel].desc : '');
 
-                    card.innerHTML = `<h3>${skill.name}${levelText}</h3><p>${descText}</p>`;
+                    // --- INÍCIO DA MODIFICAÇÃO: Adicionar estatísticas detalhadas ---
+                    let statsHTML = '<div class="skill-stats">';
+                    if (skill.levels && skill.levels[nextLevel]) {
+                        const levelData = skill.levels[nextLevel];
+                        if (levelData.damage) statsHTML += `<span><strong>Dano:</strong> ${levelData.damage}</span>`;
+                        if (levelData.count) statsHTML += `<span><strong>Projéteis:</strong> ${levelData.count}</span>`;
+                        if (levelData.pierce) statsHTML += `<span><strong>Perfuração:</strong> ${levelData.pierce}</span>`;
+                        if (levelData.radius) statsHTML += `<span><strong>Raio:</strong> ${levelData.radius}</span>`;
+                        if (levelData.duration) statsHTML += `<span><strong>Duração:</strong> ${(levelData.duration / 60).toFixed(1)}s</span>`;
+                        if (levelData.cooldown) statsHTML += `<span><strong>Cooldown:</strong> ${(skill.cooldown / 60).toFixed(1)}s</span>`;
+                        if (levelData.chains) statsHTML += `<span><strong>Saltos:</strong> ${levelData.chains}</span>`;
+                        if (levelData.regenPerSecond) statsHTML += `<span><strong>Regen:</strong> ${levelData.regenPerSecond}/s</span>`;
+                    }
+                    statsHTML += '</div>';
+                    // --- FIM DA MODIFICAÇÃO ---
+
+                    card.innerHTML = `<h3>${skill.name}${levelText}</h3><p>${descText}</p>${statsHTML}`;
                     card.onclick = (event) => {
                         event.stopPropagation();
                         player.addSkill(skillId);
