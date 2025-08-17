@@ -2604,8 +2604,6 @@ window.onload = () => {
 
         // --- LÓGICA DO JOGO ---
         function initGame(characterId = 'SERAPH') {
-            setGameState('playing');
-
             // ALTERAÇÃO 1: Geração de plataformas aprimorada para um mundo maior
             platforms = [];
             const groundLevel = canvas.height * (1 - CONFIG.GROUND_HEIGHT_PERCENT);
@@ -2706,6 +2704,8 @@ window.onload = () => {
             // Reinicia o gerenciador de eventos
             eventManager.currentEvent = null;
             eventManager.timeUntilNextEvent = 120 * 60; // Reinicia o temporizador para o próximo jogo
+
+            setGameState('playing');
         }
 
         function startNextWave() {
@@ -3372,6 +3372,7 @@ window.onload = () => {
                 ui.achievementsScreen.classList.remove('hidden');
             }
         }
+        window.setGameState = setGameState; // Expose for testing
 
         let lastEventName = '';
         let lastEventTime = -1;
