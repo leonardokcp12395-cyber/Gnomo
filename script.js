@@ -132,6 +132,7 @@ window.onload = () => {
             PLAYER_LANDING_SQUASH_DURATION: 10, // Duração do efeito de squash ao aterrar
             ORB_HIT_COOLDOWN_FRAMES: 12, // Cooldown para orbes atingirem o mesmo inimigo
             TEMPORARY_MESSAGE_DURATION: 120, // Duração das mensagens temporárias em frames (2 segundos)
+            SHOOTER_MIN_DISTANCE: 250, // Distância mínima que os atiradores tentam manter
             // ALTERAÇÃO 1: Mundo Expandido
                 WORLD_BOUNDS: { width: 2400, height: 1600 } // Arena Fechada
         };
@@ -241,6 +242,21 @@ window.onload = () => {
                         { desc: "Aumenta a duração e o efeito de abrandamento.", radius: 190, duration: 360, slowFactor: 0.4, regenBoost: 2.5 },
                         { desc: "Aumenta significativamente o raio e a regeneração.", radius: 220, duration: 420, slowFactor: 0.5, regenBoost: 3.5 }
                     ]
+                },
+                'celestial_hammer': {
+                    name: "Martelo Celestial",
+                    icon: "🔨",
+                    type: 'orbital',
+                    category: 'active',
+                    cooldown: 0,
+                    causesHitStop: true,
+                    levels: [
+                        { desc: "Um martelo lento e pesado orbita, esmagando inimigos.", count: 1, damage: 40, radius: 110, speed: 0.03, pierce: 3 },
+                        { desc: "Aumenta o dano do martelo.", count: 1, damage: 60, radius: 115, speed: 0.03, pierce: 4 },
+                        { desc: "Aumenta o raio da órbita.", count: 1, damage: 60, radius: 130, speed: 0.03, pierce: 4 },
+                        { desc: "Aumenta drasticamente o dano.", count: 1, damage: 100, radius: 130, speed: 0.035, pierce: 5 },
+                        { desc: "O martelo torna-se uma força imparável da natureza.", count: 1, damage: 150, radius: 140, speed: 0.04, pierce: 7 }
+                    ]
                 }
         };
 
@@ -259,6 +275,13 @@ window.onload = () => {
                 baseHealth: CONFIG.PLAYER_HEALTH * 0.8,
                 speed: CONFIG.PLAYER_SPEED * 1.2,
                 initialSkill: 'orbital_shield'
+            },
+            'ARCANGEL': {
+                name: "Arcanjo",
+                description: "Um ser poderoso que sacrifica velocidade por poder destrutivo em área.",
+                baseHealth: CONFIG.PLAYER_HEALTH * 1.2, // Mais vida
+                speed: CONFIG.PLAYER_SPEED * 0.85,    // Mais lento
+                initialSkill: 'vortex' // Começa com o Vórtice
             }
         };
 
@@ -309,7 +332,13 @@ window.onload = () => {
                     baseSkill: 'sanctuary',
                     passiveReq: 'static_field',
                     description: "O santuário agora também causa dano de luz contínuo aos inimigos."
-            }
+                },
+                'thunder_hammer': {
+                    name: "Martelo Trovejante",
+                    baseSkill: 'celestial_hammer',
+                    passiveReq: 'particle_burst',
+                    description: "O martelo agora cria uma explosão de partículas em cada inimigo que atinge."
+                }
         };
 
         // --- CONFIGURAÇÃO DE ONDAS ---
@@ -318,8 +347,8 @@ window.onload = () => {
             { duration: 30, enemies: [{ type: 'chaser', count: 5, spawnInterval: 60 }], eliteChance: 0 },
             // Wave 2: Mais chasers e speeders
             { duration: 45, enemies: [{ type: 'chaser', count: 8, spawnInterval: 50 }, { type: 'speeder', count: 4, spawnInterval: 70 }], eliteChance: 0.01 },
-            // Wave 3: Tanques introduzidos
-            { duration: 60, enemies: [{ type: 'chaser', count: 10, spawnInterval: 45 }, { type: 'speeder', count: 6, spawnInterval: 60 }, { type: 'tank', count: 3, spawnInterval: 100 }], eliteChance: 0.02 },
+            // Wave 3: Tanques e Chargers introduzidos
+            { duration: 60, enemies: [{ type: 'chaser', count: 10, spawnInterval: 45 }, { type: 'speeder', count: 6, spawnInterval: 60 }, { type: 'tank', count: 3, spawnInterval: 100 }, { type: 'charger', count: 2, spawnInterval: 180 }], eliteChance: 0.02 },
             // Wave 4: Atiradores introduzidos
             { duration: 75, enemies: [{ type: 'chaser', count: 12, spawnInterval: 40 }, { type: 'speeder', count: 8, spawnInterval: 50 }, { type: 'tank', count: 4, spawnInterval: 90 }, { type: 'shooter', count: 2, spawnInterval: 120 }], eliteChance: 0.03 },
             // Wave 5: Bombardeiros introduzidos (pre-boss)
@@ -1362,49 +1391,86 @@ window.onload = () => {
                             skillState.timer = skillData.cooldown;
                     }
                 }
-                // Habilidades orbitais atualizam sempre (não têm cooldown de ativação)
-                if (this.skills['orbital_shield']) {
-                    const skillState = this.skills['orbital_shield'];
-                    const levelData = SKILL_DATABASE['orbital_shield'].levels[skillState.level - 1];
-                    // Se o número de orbes mudou, recria-os para que apareçam imediatamente
-                    if (skillState.orbs.length !== levelData.count) {
-                        skillState.orbs = Array.from({ length: levelData.count }, (_, i) => ({ angle: (Math.PI * 2 / levelData.count) * i, lastHitFrame: 0 }));
-                    }
+                // --- INÍCIO DA REATORAÇÃO: Lógica genérica para habilidades orbitais ---
+                Object.keys(this.skills).forEach(skillId => {
+                    const skillData = SKILL_DATABASE[skillId];
+                    if (skillData.type === 'orbital') {
+                        const skillState = this.skills[skillId];
+                        const levelData = skillData.levels[skillState.level - 1];
 
-                    skillState.orbs.forEach(orb => {
-                        orb.angle += levelData.speed;
-                        const orbX = this.x + Math.cos(orb.angle) * levelData.radius;
-                        const orbY = this.y + Math.sin(orb.angle) * levelData.radius;
+                        // Garante que a propriedade 'orbs' existe
+                        if (!skillState.orbs) {
+                             skillState.orbs = [];
+                        }
 
-                        // Otimização: Usar Quadtree para verificar inimigos próximos ao orbe
-                        const orbSearchRadius = 10 + 20; // Raio do orbe + margem
-                        const orbSearchArea = new Rectangle(
-                            orbX - orbSearchRadius,
-                            orbY - orbSearchRadius,
-                            orbSearchRadius * 2,
-                            orbSearchRadius * 2
-                        );
-                        const nearbyEnemiesForOrb = qtree.query(orbSearchArea);
+                        // Se o número de orbitais mudou, recria-os
+                        if (skillState.orbs.length !== levelData.count) {
+                            skillState.orbs = Array.from({ length: levelData.count }, (_, i) => ({
+                                angle: (Math.PI * 2 / levelData.count) * i,
+                                lastHitFrame: 0,
+                                piercedEnemies: new Set() // Para a perfuração do martelo
+                            }));
+                        }
 
-                        nearbyEnemiesForOrb.forEach(enemy => {
-                            if (Math.hypot(orbX - enemy.x, orbY - enemy.y) < 10 + enemy.radius) { // 10 é o raio do orbe
-                                // CORREÇÃO: Usar orbHitCooldown no inimigo em vez de setTimeout
-                                if(frameCount - orb.lastHitFrame > CONFIG.ORB_HIT_COOLDOWN_FRAMES && enemy.orbHitCooldown <= 0) {
-                                    enemy.takeDamage(levelData.damage * this.damageModifier); // Aplica modificador de dano
-                                    enemy.applyKnockback(orbX, orbY, CONFIG.ENEMY_KNOCKBACK_FORCE * 0.5); // Pequeno knockback
+                        skillState.orbs.forEach(orb => {
+                            orb.angle += levelData.speed;
+                            const orbX = this.x + Math.cos(orb.angle) * levelData.radius;
+                            const orbY = this.y + Math.sin(orb.angle) * levelData.radius;
 
-                                    // Lógica da evolução "Aura da Stasis"
-                                    if (skillState.evolved) {
-                                        enemy.applySlow(120); // Aplica lentidão por 2 segundos
+                            const orbSearchRadius = 15 + 20; // Raio do orbital + margem
+                            const orbSearchArea = new Rectangle(orbX - orbSearchRadius, orbY - orbSearchRadius, orbSearchRadius * 2, orbSearchRadius * 2);
+                            const nearbyEnemiesForOrb = qtree.query(orbSearchArea);
+
+                            // Limpa os inimigos perfurados a cada rotação completa para permitir novos acertos
+                            if(orb.angle > Math.PI * 2) {
+                                orb.angle -= Math.PI * 2;
+                                orb.piercedEnemies.clear();
+                            }
+
+                            let hitThisFrame = false;
+                            nearbyEnemiesForOrb.forEach(enemy => {
+                                if (Math.hypot(orbX - enemy.x, orbY - enemy.y) < 15 + enemy.radius) {
+                                    const canHit = !orb.piercedEnemies.has(enemy);
+
+                                    if (canHit) {
+                                        enemy.takeDamage(levelData.damage * this.damageModifier);
+                                        enemy.applyKnockback(orbX, orbY, CONFIG.ENEMY_KNOCKBACK_FORCE * 0.5);
+                                        hitThisFrame = true;
+
+                                        if (levelData.pierce) {
+                                            orb.piercedEnemies.add(enemy);
+                                            if (orb.piercedEnemies.size >= levelData.pierce) {
+                                                // Se atingiu o limite de perfuração, tecnicamente o projétil "morreria",
+                                                // mas para orbitais, apenas limpamos para a próxima rotação.
+                                            }
+                                        }
+
+                                        // Lógica de Evolução
+                                        if (skillState.evolved) {
+                                            if (skillId === 'orbital_shield') { // Aura da Stasis
+                                                enemy.applySlow(120);
+                                            } else if (skillId === 'celestial_hammer') { // Martelo Trovejante
+                                                // Cria uma pequena explosão no local do inimigo
+                                                const explosionData = {
+                                                    radius: 40,
+                                                    duration: 20,
+                                                    damage: levelData.damage * 0.25, // Explosão causa 25% do dano do martelo
+                                                    isExplosion: true,
+                                                    force: 0
+                                                };
+                                                activeVortexes.push(new Vortex(enemy.x, enemy.y, explosionData));
+                                            }
+                                        }
                                     }
-
-                                    orb.lastHitFrame = frameCount; // Atualiza o último frame de acerto do orbe
-                                    enemy.orbHitCooldown = CONFIG.ORB_HIT_COOLDOWN_FRAMES; // Define cooldown no inimigo
                                 }
+                            });
+                            if (hitThisFrame && skillData.causesHitStop) {
+                                hitStopTimer = 2; // Hit stop mais curto para orbitais
                             }
                         });
-                    });
-                }
+                    }
+                });
+                // --- FIM DA REATORAÇÃO ---
             }
 
             findNearestEnemy() {
@@ -1505,6 +1571,15 @@ window.onload = () => {
                             this.shape = 'pyramid'; this.damage = 0; this.xpValue = 70; this.summonCooldown = 240;
                         this.summonTimer = this.summonCooldown;
                         break;
+                    case 'charger': // NOVO INIMIGO
+                        this.speed = Math.min(3.0, 2.0 + (gameTime / 160) + (waveNumber * 0.007));
+                        this.radius = 14; this.health = 50 + Math.floor(gameTime / 10) * 5 + (waveNumber * 2.5); this.color = '#FF69B4'; // Rosa choque
+                        this.shape = 'hexagon'; this.damage = 25; this.xpValue = 30;
+                        this.state = 'chasing'; // Estados: chasing, telegraphing, charging
+                        this.telegraphTimer = 0;
+                        this.chargeTarget = null;
+                        this.chargeDuration = 0;
+                        break;
                     default: // chaser
                             this.speed = Math.min(4.0, 2.2 + (gameTime / 150) + (waveNumber * 0.008));
                             this.radius = 12; this.health = 25 + Math.floor(gameTime / 10) * 3 + (waveNumber * 1.5); this.color = '#FF4D4D';
@@ -1560,6 +1635,8 @@ window.onload = () => {
                     ctx.lineTo(Math.cos(angle + 4*Math.PI/3) * this.radius, Math.sin(angle + 4*Math.PI/3) * this.radius);
                 } else if (this.shape === 'pentagon') {
                     for(let i=0; i<5; i++) ctx.lineTo(Math.cos(i*2*Math.PI/5) * this.radius, Math.sin(i*2*Math.PI/5) * this.radius);
+                } else if (this.shape === 'hexagon') { // Para o Charger
+                    for(let i=0; i<6; i++) ctx.lineTo(Math.cos(i*Math.PI/3) * this.radius, Math.sin(i*Math.PI/3) * this.radius);
                 } else if (this.shape === 'star') { // Desenha uma estrela para o atirador
                     const numPoints = 5;
                     const outerRadius = this.radius;
@@ -1632,10 +1709,60 @@ window.onload = () => {
                     return; // Para de se mover
                 }
 
+                // Lógica do Charger State Machine
+                if (this.type === 'charger') {
+                    const dist = Math.hypot(player.x - this.x, player.y - this.y);
+                    switch (this.state) {
+                        case 'chasing':
+                            if (dist < 150) { // Distância para iniciar o ataque
+                                this.state = 'telegraphing';
+                                this.telegraphTimer = 60; // 1 segundo de aviso
+                                this.chargeTarget = { x: player.x, y: player.y }; // Trava no alvo
+                            }
+                            break;
+                        case 'telegraphing':
+                            this.telegraphTimer--;
+                            // Efeito visual de "carregando"
+                            this.color = frameCount % 10 < 5 ? '#FFFFFF' : '#FF69B4';
+                            if (this.telegraphTimer <= 0) {
+                                this.state = 'charging';
+                                this.chargeDuration = 30; // Carga dura 0.5 segundos
+                            }
+                            break;
+                        case 'charging':
+                            const chargeAngle = Math.atan2(this.chargeTarget.y - this.y, this.chargeTarget.x - this.x);
+                            this.x += Math.cos(chargeAngle) * this.speed * 3; // Carga 3x mais rápida
+                            this.y += Math.sin(chargeAngle) * this.speed * 3;
+                            this.chargeDuration--;
+                            if (this.chargeDuration <= 0 || Math.hypot(this.chargeTarget.x - this.x, this.chargeTarget.y - this.y) < 20) {
+                                this.state = 'chasing';
+                            }
+                            break;
+                    }
+                    // Se estiver carregando ou telegrafando, não executa o movimento normal abaixo.
+                    if (this.state !== 'chasing') {
+                        return;
+                    }
+                }
+
                 // Inimigos voadores movem-se em direção ao jogador em X e Y, a menos que estejam em knockback forte
                 if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 5) { // Só se move se o knockback for pequeno
-                    const angle = Math.atan2(player.y - this.y, player.x - this.x);
+                    let angle = Math.atan2(player.y - this.y, player.x - this.x);
                     let currentSpeed = this.speed;
+
+                    // Lógica específica para o 'shooter'
+                    if (this.type === 'shooter') {
+                        const dist = Math.hypot(player.x - this.x, player.y - this.y);
+                        if (dist < CONFIG.SHOOTER_MIN_DISTANCE) {
+                            // Se estiver muito perto, inverte o ângulo para fugir
+                            angle += Math.PI;
+                        } else if (dist > CONFIG.SHOOTER_MIN_DISTANCE + 50) {
+                            // Persegue normalmente se estiver longe
+                        } else {
+                            // Se estiver na distância ideal, para de se mover
+                            currentSpeed = 0;
+                        }
+                    }
 
                     // Nova lógica de lentidão: aplica apenas o efeito mais forte
                     let finalSlowFactor = 0;
@@ -3228,27 +3355,48 @@ window.onload = () => {
 
             if (player) player.draw(ctx);
 
-            if (player && player.skills && player.skills['orbital_shield']) {
-                const skillState = player.skills['orbital_shield'];
-                const levelData = SKILL_DATABASE['orbital_shield'].levels[skillState.level - 1];
-                skillState.orbs.forEach(orb => {
-                    const orbX = player.x + Math.cos(orb.angle) * levelData.radius;
-                    const orbY = player.y + Math.sin(orb.angle) * levelData.radius;
-                    const screenLeft = camera.x;
-                    const screenRight = camera.x + canvas.width;
-                    if (orbX + 10 < screenLeft || orbX - 10 > screenRight) {
-                        return;
+            if (player && player.skills) {
+                Object.keys(player.skills).forEach(skillId => {
+                    const skillData = SKILL_DATABASE[skillId];
+                    if (skillData.type === 'orbital' && player.skills[skillId].orbs) {
+                        const skillState = player.skills[skillId];
+                        const levelData = skillData.levels[skillState.level - 1];
+                        skillState.orbs.forEach(orb => {
+                            const orbX = player.x + Math.cos(orb.angle) * levelData.radius;
+                            const orbY = player.y + Math.sin(orb.angle) * levelData.radius;
+                            const screenLeft = camera.x;
+                            const screenRight = camera.x + canvas.width;
+
+                            if (orbX + 20 < screenLeft || orbX - 20 > screenRight) return;
+
+                            ctx.save();
+                            ctx.translate(orbX - camera.x, orbY - camera.y);
+                            ctx.rotate(orb.angle + Math.PI / 2); // Alinha o orbital
+
+                            if (skillId === 'orbital_shield') {
+                                ctx.beginPath();
+                                ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                                ctx.fillStyle = 'lightblue';
+                                ctx.fill();
+                                ctx.strokeStyle = 'white';
+                                ctx.lineWidth = 1;
+                                ctx.stroke();
+                            } else if (skillId === 'celestial_hammer') {
+                                // Desenha o martelo
+                                ctx.fillStyle = '#C0C0C0'; // Prata
+                                ctx.strokeStyle = '#A9A9A9'; // Cinza escuro
+                                ctx.lineWidth = 2;
+                                // Cabeça do martelo
+                                ctx.fillRect(-12, -20, 24, 15);
+                                ctx.strokeRect(-12, -20, 24, 15);
+                                // Cabo do martelo
+                                ctx.fillStyle = '#8B4513'; // Castanho
+                                ctx.fillRect(-4, -5, 8, 20);
+                                ctx.strokeRect(-4, -5, 8, 20);
+                            }
+                            ctx.restore();
+                        });
                     }
-                    ctx.save();
-                    ctx.translate(orbX - camera.x, orbY - camera.y);
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 10, 0, Math.PI * 2);
-                    ctx.fillStyle = 'lightblue';
-                    ctx.fill();
-                    ctx.strokeStyle = 'white';
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
-                    ctx.restore();
                 });
             }
 
