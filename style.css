@@ -52,6 +52,30 @@ canvas {
     display: none !important; /* Força a ocultação */
 }
 
+/* Estilos para as estatísticas das habilidades no ecrã de Level Up */
+.skill-stats {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px; /* Espaçamento entre linhas e colunas */
+    font-size: 0.85em;
+    color: #b0e0e6; /* Azul claro, para um toque celestial */
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    padding-top: 8px;
+}
+
+.skill-stats span {
+    display: inline-block;
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.skill-stats strong {
+    color: #ffffff;
+    font-weight: bold;
+}
+
 /* Camada de UI que aparece sobre o jogo */
 .ui-layer {
     position: absolute;
