@@ -1076,11 +1076,6 @@ window.onload = () => {
                     if (!collided) this.onGround = false;
                 }
             }
-            
-            applyGravity() {
-                this.velocityY += CONFIG.GRAVITY;
-                this.moveAndCollide(0, this.velocityY);
-            }
 
             dash() {
                 if (this.dashCooldown > 0 || this.isDashing) return;
@@ -3181,26 +3176,44 @@ window.onload = () => {
             for (const proj of projectilePool) {
                 if (!proj.active) continue;
 
-                let searchRadius = proj.radius + 30;
+                // Otimização: Apenas inimigos próximos são verificados
+                let searchRadius = (proj.length || proj.radius) + 30; // Usa o comprimento se existir
                 let range = new Rectangle(proj.x - searchRadius, proj.y - searchRadius, searchRadius * 2, searchRadius * 2);
                 let nearbyEnemies = qtree.query(range);
 
                 for (let enemy of nearbyEnemies) {
                     if (proj.isDead || proj.piercedEnemies.has(enemy)) continue;
 
-                    if (Math.hypot(proj.x - enemy.x, proj.y - enemy.y) < proj.radius + enemy.radius) {
+                    let hit = false;
+                    // NOVA LÓGICA DE COLISÃO PARA O RAIO
+                    if (proj.skillId === 'celestial_ray' || proj.skillId === 'celestial_beam') {
+                        // Trata o raio como uma série de pontos e verifica a colisão para cada um
+                        const segments = 5; // Verificamos 5 pontos ao longo do raio
+                        for (let i = 0; i <= segments; i++) {
+                            const checkX = proj.x + (i / segments - 0.5) * proj.length * Math.cos(proj.angle);
+                            const checkY = proj.y + (i / segments - 0.5) * proj.length * Math.sin(proj.angle);
+                            if (Math.hypot(checkX - enemy.x, checkY - enemy.y) < (proj.width/2 || proj.radius) + enemy.radius) {
+                                hit = true;
+                                break;
+                            }
+                        }
+                    } else { // Lógica de colisão original para projéteis circulares
+                        if (Math.hypot(proj.x - enemy.x, proj.y - enemy.y) < proj.radius + enemy.radius) {
+                            hit = true;
+                        }
+                    }
+                    
+                    if (hit) { // Se a colisão ocorreu
                         enemy.takeDamage(proj.damage);
                         enemy.applyKnockback(proj.x, proj.y, CONFIG.ENEMY_KNOCKBACK_FORCE);
 
-                        // Ativa o Hit Stop se a habilidade do projétil o causar
                         if (proj.skillId && SKILL_DATABASE[proj.skillId]?.causesHitStop) {
                             hitStopTimer = 4;
                         }
 
-                        // Lógica da evolução "Lanças do Firmamento" (Lifesteal)
                         const skillState = player.skills[proj.skillId];
                         if (skillState && skillState.evolved) {
-                            const lifestealAmount = proj.damage * 0.05; // 5% de roubo de vida
+                            const lifestealAmount = proj.damage * 0.05;
                             player.health = Math.min(player.maxHealth, player.health + lifestealAmount);
                         }
 
