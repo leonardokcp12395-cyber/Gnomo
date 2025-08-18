@@ -52,6 +52,20 @@ canvas {
     display: none !important; /* Força a ocultação */
 }
 
+#vignette-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Cria um gradiente radial que é transparente no centro e preto nas bordas */
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 50%, rgba(0,0,0,0.8) 100%);
+    z-index: 4; /* Fica entre o HUD e o jogo */
+    pointer-events: none; /* Não interfere com cliques */
+    opacity: 0; /* Começa invisível */
+    transition: opacity 0.5s ease-in-out; /* Transição suave */
+}
+
 /* Estilos para as estatísticas das habilidades no ecrã de Level Up */
 .skill-stats {
     margin-top: 8px;
