@@ -50,7 +50,16 @@ const PERMANENT_UPGRADES = {
     ], desc: (val) => `+${Math.round(val*100)}% Dano`},
     'xp_gain': { name: "Sabedoria", icon: "⭐", levels: [
         { cost: 15, effect: 0.1 }, { cost: 40, effect: 0.2 }, { cost: 80, effect: 0.3 }
-    ], desc: (val) => `+${Math.round(val*100)}% Ganho de XP`}
+    ], desc: (val) => `+${Math.round(val*100)}% Ganho de XP`},
+    'initial_luck': { name: "Sorte Inicial", icon: "🍀", levels: [
+        { cost: 50, effect: 0.1 }, { cost: 120, effect: 0.2 }, { cost: 250, effect: 0.3 }
+    ], desc: (val) => `+${Math.round(val*100)}% Chance de Power-up`},
+    'ancient_knowledge': { name: "Conhecimento Ancestral", icon: "🧠", levels: [
+        { cost: 100, effect: 1 }
+    ], desc: (val) => `+${val} Rerrol de Habilidade no início`},
+    'unlock_powerful_skill': { name: "Desbloquear Habilidade", icon: "🔑", levels: [
+        { cost: 500, effect: 1 }
+    ], desc: (val) => `Desbloqueia uma nova habilidade poderosa`}
 };
 let playerGems = 0;
 let playerUpgrades = {};
@@ -256,6 +265,20 @@ window.onload = () => {
                         { desc: "Aumenta o raio da órbita.", count: 1, damage: 60, radius: 130, speed: 0.03, pierce: 4 },
                         { desc: "Aumenta drasticamente o dano.", count: 1, damage: 100, radius: 130, speed: 0.035, pierce: 5 },
                         { desc: "O martelo torna-se uma força imparável da natureza.", count: 1, damage: 150, radius: 140, speed: 0.04, pierce: 7 }
+                    ]
+                },
+                'celestial_beam': {
+                    name: "Feixe Celestial",
+                    icon: "🛰️",
+                    type: 'projectile',
+                    category: 'active',
+                    cooldown: 200,
+                    unlocked: false, // Habilidade bloqueada por padrão
+                    causesHitStop: true,
+                    levels: [
+                        { desc: "Dispara um feixe contínuo que causa dano massivo.", damage: 25, pierce: 999, speed: 0, width: 20, duration: 120 },
+                        { desc: "Aumenta a largura e o dano do feixe.", damage: 35, pierce: 999, speed: 0, width: 30, duration: 120 },
+                        { desc: "O feixe dura mais tempo.", damage: 40, pierce: 999, speed: 0, width: 30, duration: 180 }
                     ]
                 }
         };
@@ -769,6 +792,12 @@ window.onload = () => {
                 this.baseHealth = characterData.baseHealth + (healthUpgradeLevel > 0 ? PERMANENT_UPGRADES.max_health.levels[healthUpgradeLevel - 1].effect : 0);
                 this.damageModifier = 1 + (damageUpgradeLevel > 0 ? PERMANENT_UPGRADES.damage_boost.levels[damageUpgradeLevel - 1].effect : 0);
                     this.xpModifier = 1; // Will be calculated by recalculateStatModifiers
+                
+                const luckUpgradeLevel = playerUpgrades.initial_luck;
+                this.powerupDropChance = CONFIG.POWERUP_DROP_CHANCE * (1 + (luckUpgradeLevel > 0 ? PERMANENT_UPGRADES.initial_luck.levels[luckUpgradeLevel - 1].effect : 0));
+                
+                const knowledgeUpgradeLevel = playerUpgrades.ancient_knowledge;
+                this.freeRerolls = (knowledgeUpgradeLevel > 0 ? PERMANENT_UPGRADES.ancient_knowledge.levels[knowledgeUpgradeLevel - 1].effect : 0);
 
                 this.maxHealth = this.baseHealth;
                 this.health = this.maxHealth;
@@ -1301,6 +1330,13 @@ window.onload = () => {
                             } else {
                                 skillState.timer = 10;
                             }
+                        } else if (skillId === 'celestial_beam') {
+                            const beamAngle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
+                            const beamDamage = levelData.damage * this.damageModifier;
+                            // O "projétil" do feixe é estático, então a posição é relativa ao jogador
+                            getFromPool(projectilePool, this.x, this.y, beamAngle, { ...levelData, damage: beamDamage }, skillId);
+                            // Som?
+                            skillState.timer = skillData.cooldown;
                         }
                     } else if (skillData.type === 'aura' && skillId === 'vortex') {
                         // Aplica o modificador de dano do jogador
@@ -1861,7 +1897,7 @@ window.onload = () => {
                         for (let i = 0; i < 20; i++) { particleManager.createParticle(this.x, this.y, this.color, 4); } // <<<<<<< MUDANÇA 1
                     }
 
-                    if(Math.random() < CONFIG.POWERUP_DROP_CHANCE){
+                    if(Math.random() < player.powerupDropChance){
                         powerUps.push(new PowerUp(this.x, this.y, 'nuke'));
                         showTemporaryMessage("NUKE!", "yellow"); // Feedback para power-up
                     }
@@ -2084,18 +2120,24 @@ window.onload = () => {
                 this.x = x;
                 this.y = y;
                 this.skillId = skillId;
-
-                this.velocity = { x: Math.cos(angle) * levelData.speed, y: Math.sin(angle) * levelData.speed };
+                this.angle = angle;
                 this.damage = levelData.damage;
                 this.pierce = levelData.pierce;
 
                 // Propriedades específicas da habilidade
-                if (this.skillId === 'celestial_ray') {
+                this.isBeam = (this.skillId === 'celestial_beam');
+                if (this.isBeam) {
+                    this.duration = levelData.duration;
+                    this.width = levelData.width;
+                    this.length = 1000; // Um comprimento longo para simular um feixe
+                    this.velocity = { x: 0, y: 0 };
+                } else if (this.skillId === 'celestial_ray') {
                     this.radius = levelData.width / 2;
                     this.length = levelData.length;
-                    this.angle = angle;
-                } else { // Projétil padrão (ex: Lança Divina)
+                    this.velocity = { x: Math.cos(angle) * levelData.speed, y: Math.sin(angle) * levelData.speed };
+                } else { // Projétil padrão
                     this.radius = 5;
+                    this.velocity = { x: Math.cos(angle) * levelData.speed, y: Math.sin(angle) * levelData.speed };
                 }
 
                 this.piercedEnemies.clear();
@@ -2109,7 +2151,7 @@ window.onload = () => {
                 const screenRight = camera.x + canvas.width;
                 const screenTop = camera.y;
                 const screenBottom = camera.y + canvas.height;
-                const largerDimension = this.skillId === 'celestial_ray' ? this.length : this.radius;
+                const largerDimension = this.length || this.radius;
                 if (this.x + largerDimension < screenLeft || this.x - largerDimension > screenRight ||
                     this.y + largerDimension < screenTop || this.y - largerDimension > screenBottom) {
                     return;
@@ -2119,7 +2161,17 @@ window.onload = () => {
                 ctx.translate(this.x - camera.x, this.y - camera.y);
 
                 // Desenha o projétil principal
-                if (this.skillId === 'celestial_ray') {
+                if (this.isBeam) {
+                    ctx.save();
+                    const lifeRatio = this.duration / SKILL_DATABASE[this.skillId].levels[0].duration;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + (1-lifeRatio) * 0.5})`;
+                    ctx.strokeStyle = `rgba(255, 255, 0, ${0.5 + (1-lifeRatio) * 0.5})`;
+                    ctx.lineWidth = 2;
+                    ctx.rotate(this.angle);
+                    ctx.fillRect(0, -this.width / 2, this.length, this.width);
+                    ctx.strokeRect(0, -this.width / 2, this.length, this.width);
+                    ctx.restore();
+                } else if (this.skillId === 'celestial_ray') {
                     ctx.save();
                     ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
                     ctx.rotate(this.angle);
@@ -2139,8 +2191,23 @@ window.onload = () => {
                 if (!this.active) {
                     return;
                 }
-                this.x += this.velocity.x;
-                this.y += this.velocity.y;
+
+                if (this.isBeam) {
+                    this.duration--;
+                    this.x = player.x; // Segue o jogador
+                    this.y = player.y;
+                    this.angle = Math.atan2(player.lastMoveDirection.y, player.lastMoveDirection.x);
+                    if (this.duration <= 0) {
+                        this.isDead = true;
+                        releaseToPool(this);
+                    }
+                    // A colisão do feixe é tratada de forma diferente porque não se move.
+                    // A lógica em handlePlayerProjectiles já verifica a sobreposição, o que deve funcionar.
+                } else {
+                    this.x += this.velocity.x;
+                    this.y += this.velocity.y;
+                }
+
 
                 // <<<<<<< MUDANÇA 1: SOLICITA A CRIAÇÃO DE PARTÍCULAS AO GESTOR CENTRAL
                 if (frameCount % 3 === 0) {
@@ -2857,6 +2924,14 @@ window.onload = () => {
 
             // Liberta todos os objetos de volta para os seus agrupamentos
             // particlePool.forEach(p => releaseToPool(p)); // <<<<<<< MUDANÇA 1: Removido
+            
+            // Lógica para desbloquear habilidade
+            if (playerUpgrades.unlock_powerful_skill > 0) {
+                SKILL_DATABASE['celestial_beam'].unlocked = true;
+            } else {
+                 SKILL_DATABASE['celestial_beam'].unlocked = false; // Garante que está bloqueado se não tiver a melhoria
+            }
+
             projectilePool.forEach(p => releaseToPool(p));
             enemyProjectilePool.forEach(p => releaseToPool(p));
             xpOrbPool.forEach(o => releaseToPool(o));
@@ -3678,7 +3753,8 @@ window.onload = () => {
                     }
                 }
                 for(const skillId in SKILL_DATABASE){
-                    if(!player.skills[skillId] && SKILL_DATABASE[skillId].type !== 'utility' && !options.includes(skillId)) {
+                    const skillData = SKILL_DATABASE[skillId];
+                    if(!player.skills[skillId] && skillData.type !== 'utility' && (skillData.unlocked !== false) && !options.includes(skillId)) {
                         options.push(skillId);
                     }
                 }
@@ -3722,6 +3798,22 @@ window.onload = () => {
                     };
                     container.appendChild(card);
                 });
+            }
+
+            // Adiciona o botão de Reroll se houver rerolls disponíveis
+            if (player.freeRerolls > 0) {
+                const rerollButton = document.createElement('button');
+                rerollButton.className = 'ui-button reroll-button';
+                rerollButton.textContent = `Rerolar Opções (${player.freeRerolls})`;
+                rerollButton.onclick = (event) => {
+                    event.stopPropagation();
+                    if (player.freeRerolls > 0) {
+                        player.freeRerolls--;
+                        SoundManager.play('uiClick', 'E5');
+                        populateLevelUpOptions(); // Simplesmente chama a função de novo
+                    }
+                };
+                container.appendChild(rerollButton);
             }
         }
 
