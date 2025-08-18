@@ -2036,11 +2036,11 @@ window.onload = () => {
                     this.orbHitCooldown--;
                 }
                     
-                    // Garante que o boss permaneça dentro dos limites do mundo (Arena Fechada)
-                    const halfWorldWidth = CONFIG.WORLD_BOUNDS.width / 2;
-                    const halfWorldHeight = CONFIG.WORLD_BOUNDS.height / 2;
-                    this.x = Math.max(-halfWorldWidth + this.radius, Math.min(this.x, halfWorldWidth - this.radius));
-                    this.y = Math.max(-halfWorldHeight + this.radius, Math.min(this.y, halfWorldHeight - this.radius));
+                // Garante que o boss permaneça dentro dos limites do mundo (Arena Fechada)
+                const halfWorldWidth = CONFIG.WORLD_BOUNDS.width / 2;
+                const halfWorldHeight = CONFIG.WORLD_BOUNDS.height / 2;
+                this.x = Math.max(-halfWorldWidth + this.radius, Math.min(this.x, halfWorldWidth - this.radius));
+                this.y = Math.max(-halfWorldHeight + this.radius, Math.min(this.y, halfWorldHeight - this.radius));
             }
 
             chooseNextAttack() {
