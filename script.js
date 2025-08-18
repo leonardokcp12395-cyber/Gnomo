@@ -81,7 +81,7 @@ function loadPermanentData() {
         localStorage.removeItem('playerAchievements');
         localStorage.removeItem('playerGems');
     }
-
+    
     // Validate loaded data
     for(const key in PERMANENT_UPGRADES) {
         const upgradeData = PERMANENT_UPGRADES[key];
@@ -394,7 +394,7 @@ window.onload = () => {
                         // Tenta encontrar uma plataforma de chão. Se não, usa uma posição padrão.
                         const groundPlatform = platforms.find(p => p.height > 100) || { y: canvas.height * 0.8 };
                         const groundY = groundPlatform.y;
-
+                        
                         // Spawna o aviso perto do jogador
                         const spawnX = player.x + (Math.random() - 0.5) * canvas.width;
                         activeMeteorWarnings.push(getFromPool(meteorWarningPool, spawnX, groundY));
@@ -427,14 +427,14 @@ window.onload = () => {
             timeUntilNextEvent: 120 * 60, // 2 minutos para o primeiro evento
             currentEvent: null,
             eventTimer: 0,
-
+            
             update() {
                 if (this.currentEvent) {
                     this.eventTimer--;
                     if (EVENTS[this.currentEvent]?.update) {
                         EVENTS[this.currentEvent].update();
                     }
-
+                    
                     if (this.eventTimer <= 0) {
                         const endedEventName = EVENTS[this.currentEvent]?.name || 'Evento';
                         if (EVENTS[this.currentEvent]?.end) {
@@ -792,10 +792,10 @@ window.onload = () => {
                 this.baseHealth = characterData.baseHealth + (healthUpgradeLevel > 0 ? PERMANENT_UPGRADES.max_health.levels[healthUpgradeLevel - 1].effect : 0);
                 this.damageModifier = 1 + (damageUpgradeLevel > 0 ? PERMANENT_UPGRADES.damage_boost.levels[damageUpgradeLevel - 1].effect : 0);
                     this.xpModifier = 1; // Will be calculated by recalculateStatModifiers
-
+                
                 const luckUpgradeLevel = playerUpgrades.initial_luck;
                 this.powerupDropChance = CONFIG.POWERUP_DROP_CHANCE * (1 + (luckUpgradeLevel > 0 ? PERMANENT_UPGRADES.initial_luck.levels[luckUpgradeLevel - 1].effect : 0));
-
+                
                 const knowledgeUpgradeLevel = playerUpgrades.ancient_knowledge;
                 this.freeRerolls = (knowledgeUpgradeLevel > 0 ? PERMANENT_UPGRADES.ancient_knowledge.levels[knowledgeUpgradeLevel - 1].effect : 0);
 
@@ -971,7 +971,7 @@ window.onload = () => {
                 // Atualiza o alvo da câmara para a posição do jogador
                 camera.targetX = this.x - canvas.width / 2;
                 camera.targetY = this.y - canvas.height / 2;
-
+                    
                     // Garante que o jogador permaneça dentro dos limites do mundo (Arena Fechada)
                     const halfWorldWidth = CONFIG.WORLD_BOUNDS.width / 2;
                     this.x = Math.max(-halfWorldWidth + this.radius, Math.min(this.x, halfWorldWidth - this.radius));
@@ -1368,7 +1368,7 @@ window.onload = () => {
                         } else if (skillData.type === 'area' && skillId === 'spectral_blades') {
                             const enemiesToHit = [];
                             const playerAngle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
-
+                            
                             // Find all enemies in range and in the arc
                             for (const enemy of enemies) {
                                 if (enemy.isDead) continue;
@@ -1377,7 +1377,7 @@ window.onload = () => {
                                 if (dist < levelData.range) {
                                     const angleToEnemy = Math.atan2(enemy.y - this.y, enemy.x - this.x);
                                     let angleDiff = playerAngle - angleToEnemy;
-
+                                    
                                     // Normalize the angle difference to be between -PI and PI
                                     while (angleDiff <= -Math.PI) angleDiff += 2 * Math.PI;
                                     while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
@@ -1390,7 +1390,7 @@ window.onload = () => {
 
                             // Sort by distance to apply pierce correctly
                             enemiesToHit.sort((a, b) => Math.hypot(this.x - a.x, this.y - a.y) - Math.hypot(this.x - b.x, this.y - b.y));
-
+                            
                             let piercedCount = 0;
                             for (const enemy of enemiesToHit) {
                                 if (piercedCount >= levelData.pierce) break;
@@ -1415,7 +1415,7 @@ window.onload = () => {
                                     hitStopTimer = 4;
                                 }
                             }
-
+                            
                             skillState.timer = skillData.cooldown;
                         } else if (skillId === 'sanctuary') {
                             activeSanctuaryZones.push(new SanctuaryZone(this.x, this.y, { ...levelData, evolved: skillState.evolved }));
@@ -1451,7 +1451,7 @@ window.onload = () => {
                             const orbSearchRadius = 15 + 20; // Raio do orbital + margem
                             const orbSearchArea = new Rectangle(orbX - orbSearchRadius, orbY - orbSearchRadius, orbSearchRadius * 2, orbSearchRadius * 2);
                             const nearbyEnemiesForOrb = qtree.query(orbSearchArea);
-
+                            
                             // Limpa os inimigos perfurados a cada rotação completa para permitir novos acertos
                             if(orb.angle > Math.PI * 2) {
                                 orb.angle -= Math.PI * 2;
@@ -1538,7 +1538,7 @@ window.onload = () => {
                     // Reset modifiers to base (including permanent upgrades)
                     const xpUpgradeLevel = playerUpgrades.xp_gain;
                     this.xpModifier = 1 + (xpUpgradeLevel > 0 ? PERMANENT_UPGRADES.xp_gain.levels[xpUpgradeLevel - 1].effect : 0);
-
+                    
                     // Apply Celestial Pact bonus
                     if (this.skills['celestial_pact']) {
                         const level = this.skills['celestial_pact'].level;
@@ -1829,7 +1829,7 @@ window.onload = () => {
                         // --- INÍCIO DA OTIMIZAÇÃO ---
                         // 1. Definir a área de busca para o Quadtree
                         const healArea = new Rectangle(this.x - this.healRadius, this.y - this.healRadius, this.healRadius * 2, this.healRadius * 2);
-
+                        
                         // 2. Pedir ao Quadtree apenas os inimigos próximos
                         const nearbyEnemies = qtree.query(healArea);
 
@@ -1883,7 +1883,7 @@ window.onload = () => {
                     // Garante que o XP Orb é criado e adicionado ao pool
                     getFromPool(xpOrbPool, this.x, this.y, this.xpValue);
                     score.kills++; // Contabiliza a morte para a pontuação da partida
-
+                    
                     // Lógica de Conquistas
                     if(playerAchievements.stats) {
                         playerAchievements.stats.totalKills = (playerAchievements.stats.totalKills || 0) + 1;
@@ -1923,7 +1923,7 @@ window.onload = () => {
                         playerGems += gemsDropped;
                         // A mensagem temporária foi removida para dar lugar ao texto flutuante
                         // showTemporaryMessage(`+${gemsDropped} Gemas!`, 'violet');
-
+                        
                         // --- INÍCIO DA MODIFICAÇÃO: Feedback de Coleta de Gemas ---
                         const gemText = `+${gemsDropped} Gemas!`;
                         activeDamageNumbers.push(getFromPool(damageNumberPool, this.x, this.y - 15, gemText, '#DA70D6')); // Cor violeta
@@ -1941,7 +1941,7 @@ window.onload = () => {
                                 savePermanentData();
                             }
                         }
-
+                        
                     waveEnemiesRemaining--; // Decrementa inimigos da onda
                 }
             }
@@ -2041,7 +2041,7 @@ window.onload = () => {
                 if (this.orbHitCooldown > 0) {
                     this.orbHitCooldown--;
                 }
-
+                    
                 // Garante que o boss permaneça dentro dos limites do mundo (Arena Fechada)
                 const halfWorldWidth = CONFIG.WORLD_BOUNDS.width / 2;
                 const halfWorldHeight = CONFIG.WORLD_BOUNDS.height / 2;
@@ -2455,7 +2455,7 @@ window.onload = () => {
             draw(ctx) {
                 ctx.save();
                     ctx.translate(this.x - camera.x, this.y - camera.y);
-
+                    
                     if (this.type === 'heal_orb') {
                         ctx.fillStyle = `rgba(255, 0, 0, ${0.7 + Math.sin(this.animationFrame * 0.1) * 0.3})`;
                         ctx.beginPath();
@@ -2616,7 +2616,7 @@ window.onload = () => {
                     this.slowFactor = levelData.slowFactor;
                     this.regenBoost = levelData.regenBoost;
                     this.animationFrame = 0;
-
+                    
                     // Lógica da evolução
                     this.evolved = levelData.evolved || false;
                     if (this.evolved) {
@@ -2641,7 +2641,7 @@ window.onload = () => {
                     // Efeito nos inimigos
                     enemies.forEach(enemy => {
                         if (Math.hypot(this.x - enemy.x, this.y - enemy.y) < this.radius) {
-                            enemy.applySlow(60);
+                            enemy.applySlow(60); 
 
                             // Lógica da evolução
                             if (this.evolved && frameCount % 60 === 0) { // Dano a cada segundo
@@ -2666,7 +2666,7 @@ window.onload = () => {
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius * pulse, 0, Math.PI * 2);
                     ctx.fill();
-
+                    
                     // Círculo interno (sólido)
                     ctx.fillStyle = `rgba(255, 255, 200, ${lifeRatio * 0.1})`;
                     ctx.beginPath();
@@ -2930,7 +2930,7 @@ window.onload = () => {
 
             // Liberta todos os objetos de volta para os seus agrupamentos
             // particlePool.forEach(p => releaseToPool(p)); // <<<<<<< MUDANÇA 1: Removido
-
+            
             // Lógica para desbloquear habilidade
             if (playerUpgrades.unlock_powerful_skill > 0) {
                 SKILL_DATABASE['celestial_beam'].unlocked = true;
@@ -3000,7 +3000,7 @@ window.onload = () => {
 
                     const baseCount = 5;
                         let enemyCount = baseCount + Math.floor(waveNumber * 0.8);
-
+                        
                         // Aplica o bónus do Pacto Celestial
                         if (player.skills['celestial_pact']) {
                             const levelData = SKILL_DATABASE['celestial_pact'].levels[player.skills['celestial_pact'].level - 1];
@@ -3065,7 +3065,7 @@ window.onload = () => {
                         else if (spawnSide === 1) { x = camX + camW + spawnMargin; y = camY + Math.random() * camH; }
                         else if (spawnSide === 2) { x = camX + Math.random() * camW; y = camY - spawnMargin; }
                         else { x = camX + Math.random() * camW; y = camY + camH + spawnMargin; }
-
+                            
                             // Garante que o spawn ocorra dentro dos limites do mundo
                             const halfWorldWidth = CONFIG.WORLD_BOUNDS.width / 2;
                             const halfWorldHeight = CONFIG.WORLD_BOUNDS.height / 2;
@@ -3105,7 +3105,7 @@ window.onload = () => {
                 // 1. Define a área de busca (um quadrado à volta do alvo atual)
                 const searchRadius = levelData.chainRadius;
                 const searchArea = new Rectangle(currentTarget.x - searchRadius, currentTarget.y - searchRadius, searchRadius * 2, searchRadius * 2);
-
+                
                 // 2. Pede ao Quadtree apenas os inimigos na área
                 const candidates = qtree.query(searchArea);
 
@@ -3141,24 +3141,24 @@ window.onload = () => {
 
                 const segmentLength = 15;
                 const numSegments = Math.ceil(distance / segmentLength);
-
+                
                 bolt.points.push({x: startPos.x, y: startPos.y});
 
                 for (let i = 1; i < numSegments; i++) {
                     const t = i / numSegments;
                     const x = startPos.x + dx * t;
                     const y = startPos.y + dy * t;
-
+                    
                     // Adiciona jitter (tremor) perpendicular ao raio
                     const jitter = (Math.random() - 0.5) * 15;
                     const jitterX = x + Math.cos(angle + Math.PI / 2) * jitter;
                     const jitterY = y + Math.sin(angle + Math.PI / 2) * jitter;
-
+                    
                     bolt.points.push({x: jitterX, y: jitterY});
             }
-
+                
                 bolt.points.push({x: endPos.x, y: endPos.y});
-
+                
                 // Adiciona o raio a uma lista para ser desenhado
                 activeLightningBolts.push(bolt);
         }
@@ -3168,10 +3168,10 @@ window.onload = () => {
                 for (let i = 0; i < numParticles; i++) {
                     const particleAngle = angle + (i / (numParticles - 1) - 0.5) * arc;
                     const particleRange = range * 0.6 + Math.random() * (range * 0.4);
-
+                    
                     const pX = x + Math.cos(particleAngle) * particleRange;
                     const pY = y + Math.sin(particleAngle) * particleRange;
-
+                    
                     const particle = getFromPool(particleManager.pool);
                     if (particle) {
                         particle.init(pX, pY, 'white', 1.5);
@@ -3221,7 +3221,7 @@ window.onload = () => {
                             hit = true;
                         }
                     }
-
+                    
                     if (hit) { // Se a colisão ocorreu
                         enemy.takeDamage(proj.damage);
                         enemy.applyKnockback(proj.x, proj.y, CONFIG.ENEMY_KNOCKBACK_FORCE);
@@ -3300,7 +3300,7 @@ window.onload = () => {
             for (const id in ACHIEVEMENT_DATABASE) {
                 const ach = ACHIEVEMENT_DATABASE[id];
                 const isUnlocked = playerAchievements.unlocked[id];
-
+                
                 const card = document.createElement('div');
                 card.className = isUnlocked ? 'achievement-card unlocked' : 'achievement-card';
 
@@ -3310,7 +3310,7 @@ window.onload = () => {
                     const target = ach.condition.value;
                     progressHTML = `<p>Progresso: ${current} / ${target}</p>`;
                 }
-
+                
                 card.innerHTML = `
                     <h3>${ach.name}</h3>
                     <p>${ach.description}</p>
@@ -3523,7 +3523,7 @@ window.onload = () => {
                     demoPlayer = new DemoPlayer(canvas.width / 2, canvas.height / 2);
                 }
                 demoPlayer.update();
-
+                
                 // Animação de fundo para o menu
                 const parallaxX = Math.cos(frameCount * 0.002) * 20;
                 const parallaxY = Math.sin(frameCount * 0.002) * 10;
@@ -3801,7 +3801,7 @@ window.onload = () => {
                     card.className = 'skill-card';
                     const currentLevel = player.skills[skillId]?.level || 0;
                     const nextLevel = currentLevel; // The level we are about to get
-
+                    
                     let levelText = skill.type !== 'utility' || (skill.levels && skill.levels.length > 1) ? ` (Nível ${currentLevel + 1})` : '';
                     let descText = skill.desc || (skill.levels && skill.levels[nextLevel] ? skill.levels[nextLevel].desc : '');
 
