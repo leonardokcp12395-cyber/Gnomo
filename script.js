@@ -1826,13 +1826,24 @@ window.onload = () => {
                 if (this.type === 'healer') {
                     this.healTimer--;
                     if (this.healTimer <= 0) {
-                        enemies.forEach(otherEnemy => {
+                        // --- INÍCIO DA OTIMIZAÇÃO ---
+                        // 1. Definir a área de busca para o Quadtree
+                        const healArea = new Rectangle(this.x - this.healRadius, this.y - this.healRadius, this.healRadius * 2, this.healRadius * 2);
+                        
+                        // 2. Pedir ao Quadtree apenas os inimigos próximos
+                        const nearbyEnemies = qtree.query(healArea);
+
+                        // 3. Iterar apenas sobre os inimigos próximos
+                        nearbyEnemies.forEach(otherEnemy => {
+                            // A verificação de distância ainda é necessária para ter a certeza (o Quadtree devolve um quadrado)
                             if (otherEnemy !== this && Math.hypot(this.x - otherEnemy.x, this.y - otherEnemy.y) < this.healRadius) {
                                 otherEnemy.health = Math.min(otherEnemy.maxHealth, otherEnemy.health + this.healAmount);
                                 // Partículas de cura
-                                for (let i = 0; i < 3; i++) { particleManager.createParticle(otherEnemy.x, otherEnemy.y, 'lime', 1); } // <<<<<<< MUDANÇA 1
+                                for (let i = 0; i < 3; i++) { particleManager.createParticle(otherEnemy.x, otherEnemy.y, 'lime', 1); }
                             }
                         });
+                        // --- FIM DA OTIMIZAÇÃO ---
+
                         this.healTimer = this.healCooldown;
                     }
                 }
@@ -3073,7 +3084,7 @@ window.onload = () => {
 
         function chainLightningEffect(source, initialTarget, levelData) {
             if (SKILL_DATABASE['chain_lightning'].causesHitStop) {
-                hitStopTimer = 4; // Ativa o Hit Stop
+                hitStopTimer = 4;
             }
 
             let currentTarget = initialTarget;
@@ -3083,7 +3094,6 @@ window.onload = () => {
             for (let i = 0; i <= levelData.chains; i++) {
                 if (!currentTarget) break;
 
-                // Causa dano e cria o efeito visual
                 currentTarget.takeDamage(levelData.damage * player.damageModifier);
                 createLightningBolt(lastPosition, currentTarget);
 
@@ -3091,19 +3101,28 @@ window.onload = () => {
                 let nextTarget = null;
                 let nearestDistSq = Infinity;
 
-                // Encontra o próximo alvo mais próximo que ainda não foi atingido
-                for (const enemy of enemies) {
+                // --- INÍCIO DA OTIMIZAÇÃO ---
+                // 1. Define a área de busca (um quadrado à volta do alvo atual)
+                const searchRadius = levelData.chainRadius;
+                const searchArea = new Rectangle(currentTarget.x - searchRadius, currentTarget.y - searchRadius, searchRadius * 2, searchRadius * 2);
+                
+                // 2. Pede ao Quadtree apenas os inimigos na área
+                const candidates = qtree.query(searchArea);
+
+                // 3. Itera apenas sobre os candidatos (muito menos inimigos)
+                for (const enemy of candidates) {
                     if (!targetsHit.has(enemy) && !enemy.isDead) {
                         const distSq = Math.hypot(currentTarget.x - enemy.x, currentTarget.y - enemy.y);
-                        if (distSq < levelData.chainRadius * levelData.chainRadius && distSq < nearestDistSq) {
+                        if (distSq < searchRadius * searchRadius && distSq < nearestDistSq) {
                             nearestDistSq = distSq;
                             nextTarget = enemy;
                         }
                     }
                 }
+                // --- FIM DA OTIMIZAÇÃO ---
 
                 currentTarget = nextTarget;
-                if(currentTarget) targetsHit.add(currentTarget);
+                if (currentTarget) targetsHit.add(currentTarget);
             }
         }
 
