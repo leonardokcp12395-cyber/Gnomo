@@ -1,46 +1,61 @@
 // Variável de depuração global
 const DEBUG_MODE = false; // Altere para true para ver logs no console
 
-// Variáveis globais que serão inicializadas dentro de window.onload ou initGame
-let player;
-let platforms = []; // Nova variável para todas as plataformas
-let enemies = [];
-let activeVortexes = [];
-let powerUps = [];
-let activeStaticFields = []; // Novo array para campos estáticos
-let activeSanctuaryZones = []; // Novo array para Santuários
-let activeLightningBolts = []; // Array para os raios
-let activeDamageNumbers = [];
-let activeChests = []; // Baús de recompensa
-// ALTERAÇÃO 4b: Partículas de Ambiente
-let ambientParticles = [];
-
-// Pools de objetos declarados aqui para que possam ser acessados globalmente,
-// mas inicializados dentro de initGame() para garantir que as classes já foram definidas.
-let particleManager; // <<<<<<< MUDANÇA 1: SUBSTITUÍDO O particlePool
-let projectilePool;
-let enemyProjectilePool;
-let xpOrbPool;
-let damageNumberPool;
-        let meteorWarningPool;
-let qtree; // Variável global para o Quadtree
-
-// Variável para calcular o tempo decorrido entre frames
-let lastFrameTime = 0; // Inicializado para 0 para o primeiro deltaTime
-
 // Contexto do canvas e container do jogo
 let canvas;
 let ctx;
 let gameContainer;
 
-// Variáveis para o sistema de ondas
-let waveNumber = 0;
-let waveEnemiesRemaining = 0;
-let waveCooldownTimer = 0; // Tempo entre ondas
-let currentWaveConfig = {};
-// let enemySpawnTimer = 0; // <<<<<<< MUDANÇA 3: REMOVIDO o timer de spawn global
+// --- ESTADO CENTRALIZADO DO JOGO ---
+const game = {
+    player: null,
+    platforms: [],
+    enemies: [],
+    activeVortexes: [],
+    powerUps: [],
+    activeStaticFields: [],
+    activeSanctuaryZones: [],
+    activeLightningBolts: [],
+    activeDamageNumbers: [],
+    activeChests: [],
+    ambientParticles: [],
+    particleManager: null,
+    projectilePool: null,
+    enemyProjectilePool: null,
+    xpOrbPool: null,
+    damageNumberPool: null,
+    meteorWarningPool: null,
+    qtree: null,
+    lastFrameTime: 0,
+    waveNumber: 0,
+    waveEnemiesRemaining: 0,
+    waveCooldownTimer: 0,
+    currentWaveConfig: {},
+    state: 'menu',
+    activeMeteorWarnings: [],
+    keys: {},
+    time: 0,
+    frameCount: 0,
+    score: { kills: 0, time: 0 },
+    screenShake: { intensity: 0, duration: 0 },
+    hitStopTimer: 0,
+    isGoldenFrenzyActive: false,
+    camera: {
+        x: 0,
+        y: 0,
+        targetX: 0,
+        targetY: 0,
+        update() {
+            // Suaviza o movimento da câmara em direção ao jogador
+            this.x += (this.targetX - this.x) * CONFIG.CAMERA_LERP_FACTOR;
+            this.y += (this.targetY - this.y) * CONFIG.CAMERA_LERP_FACTOR;
+        }
+    },
+    activeTouches: new Map(),
+    movementVector: { x: 0, y: 0 }
+};
 
-// --- MELHORIAS PERMANENTES ---
+// --- MELHORIAS PERMANENTES (permanecem globais) ---
 const PERMANENT_UPGRADES = {
     'max_health': { name: "Vitalidade", icon: "❤️", levels: [
         { cost: 10, effect: 10 }, { cost: 25, effect: 20 }, { cost: 50, effect: 30 }
@@ -64,6 +79,10 @@ const PERMANENT_UPGRADES = {
 let playerGems = 0;
 let playerUpgrades = {};
 let playerAchievements = {};
+
+// --- DADOS CONSTANTES (permanecem globais) ---
+const isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 
 function loadPermanentData() {
     try {
@@ -267,6 +286,19 @@ window.onload = () => {
                         { desc: "O martelo torna-se uma força imparável da natureza.", count: 1, damage: 150, radius: 140, speed: 0.04, pierce: 7 }
                     ]
                 },
+                'vortex_lances_skill': {
+                    name: "Lanças do Vórtice",
+                    icon: "💫",
+                    type: 'aura',
+                    category: 'active',
+                    cooldown: 400, // Mesmo cooldown do Vórtice
+                    levels: [
+                        { desc: "Um vórtice que dispara Lanças Divinas em todas as direções.",
+                          radius: 220, duration: 180, force: 2.5, damage: 2, // Stats do Vórtice nível máx.
+                          lance_count: 8, lance_damage: 20, lance_pierce: 4, lance_cooldown: 90 // Stats das Lanças
+                        }
+                    ]
+                },
                 'celestial_beam': {
                     name: "Feixe Celestial",
                     icon: "🛰️",
@@ -364,6 +396,17 @@ window.onload = () => {
                 }
         };
 
+        // --- BASE DE DADOS DE FUSÕES DE HABILIDADES (NOVA) ---
+        const FUSION_DATABASE = {
+            'vortex_lances': {
+                name: "Lanças do Vórtice",
+                skillA: 'divine_lance',
+                skillB: 'vortex',
+                description: "Combina Lança e Vórtice. O Vórtice agora dispara Lanças perfurantes.",
+                newSkill: 'vortex_lances_skill' // ID de uma nova habilidade a ser criada na SKILL_DATABASE
+            }
+        };
+
         // --- CONFIGURAÇÃO DE ONDAS ---
         const WAVE_CONFIGS = [
             // Wave 1: Início suave
@@ -390,14 +433,14 @@ window.onload = () => {
                 start: () => {},
                 update: () => {
                     // Spawna um novo aviso de meteoro a cada 20 frames
-                    if (frameCount % 20 === 0) {
+                    if (game.frameCount % 20 === 0) {
                         // Tenta encontrar uma plataforma de chão. Se não, usa uma posição padrão.
-                        const groundPlatform = platforms.find(p => p.height > 100) || { y: canvas.height * 0.8 };
+                        const groundPlatform = game.platforms.find(p => p.height > 100) || { y: canvas.height * 0.8 };
                         const groundY = groundPlatform.y;
 
                         // Spawna o aviso perto do jogador
-                        const spawnX = player.x + (Math.random() - 0.5) * canvas.width;
-                        activeMeteorWarnings.push(getFromPool(meteorWarningPool, spawnX, groundY));
+                        const spawnX = game.player.x + (Math.random() - 0.5) * canvas.width;
+                        game.activeMeteorWarnings.push(getFromPool(game.meteorWarningPool, spawnX, groundY));
                     }
                 },
                 end: () => {}
@@ -405,9 +448,9 @@ window.onload = () => {
             'golden_frenzy': {
                 name: "Frenesi Dourado",
                 duration: 30 * 60, // 30 segundos
-                start: () => { isGoldenFrenzyActive = true; },
+                start: () => { game.isGoldenFrenzyActive = true; },
                 update: () => {},
-                end: () => { isGoldenFrenzyActive = false; }
+                end: () => { game.isGoldenFrenzyActive = false; }
             },
             'distortion_zone': {
                 name: "Zona de Distorção",
@@ -457,41 +500,6 @@ window.onload = () => {
                         showTemporaryMessage(EVENTS[nextEvent].name, 'gold');
                     }
                 }
-            }
-        };
-
-        // --- VARIÁVEIS GLOBAIS DE ESTADO ---
-        let gameState = 'menu'; // 'menu', 'playing', 'paused', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades'
-        let activeMeteorWarnings = [];
-        let keys = {}; // Para controlos de teclado
-        let gameTime = 0; // Tempo em segundos (agora baseado em deltaTime)
-        let frameCount = 0; // Contador de frames
-        let score = {
-            kills: 0,
-            time: 0 // Tempo em segundos
-        };
-        let screenShake = { intensity: 0, duration: 0 };
-        let hitStopTimer = 0; // Para o efeito de "hit stop"
-        let isGoldenFrenzyActive = false; // Flag para o evento Frenesi Dourado
-        const isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-        // --- CONTROLO MÓVEL DINÂMICO ---
-        let activeTouches = new Map(); // Armazena touch.identifier -> { joystickType: 'move', startX: ..., ... }
-        let movementVector = { x: 0, y: 0 }; // Vetor de movimento do jogador (apenas para o joystick de movimento)
-
-        // --- CÂMARA ---
-        let camera = {
-            x: 0,
-            y: 0,
-            targetX: 0,
-            targetY: 0,
-            update() {
-                // Suaviza o movimento da câmara em direção ao jogador
-                this.x += (this.targetX - this.x) * CONFIG.CAMERA_LERP_FACTOR;
-                this.y += (this.targetY - this.y) * CONFIG.CAMERA_LERP_FACTOR;
-
-                // Limita a câmara para não mostrar fora do "mundo" (se houver um limite)
-                // Por enquanto, centraliza no jogador
             }
         };
 
@@ -721,7 +729,7 @@ window.onload = () => {
 
             draw(ctx) {
                 ctx.save();
-                ctx.translate(this.x - camera.x, this.y - camera.y);
+                ctx.translate(this.x - game.camera.x, this.y - game.camera.y);
                 ctx.globalAlpha = this.alpha;
                 ctx.fillStyle = this.color; // Usa a cor da instância
                 ctx.font = 'bold 20px "Courier New", Courier, monospace';
@@ -749,14 +757,14 @@ window.onload = () => {
 
             draw(ctx) {
                 // Otimização: Só desenha a plataforma se ela estiver visível na tela
-                const screenLeft = camera.x;
-                const screenRight = camera.x + canvas.width;
+                const screenLeft = game.camera.x;
+                const screenRight = game.camera.x + canvas.width;
                 if (this.x + this.width < screenLeft || this.x > screenRight) {
                     return; // Fora da tela, não desenha
                 }
 
                 ctx.save();
-                ctx.translate(-camera.x, -camera.y); // Aplica o deslocamento da câmara
+                ctx.translate(-game.camera.x, -game.camera.y); // Aplica o deslocamento da câmara
 
                 const gradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.height);
                 gradient.addColorStop(0, '#3CB371');
@@ -832,13 +840,13 @@ window.onload = () => {
 
             draw(ctx) {
                 // Adiciona efeito de piscar para I-Frames
-                if (this.invincibilityTimer > 0 && frameCount % 8 < 4) {
+                if (this.invincibilityTimer > 0 && game.frameCount % 8 < 4) {
                     this.animationFrame++;
                     return; // Pula o desenho, criando o efeito de piscar
                 }
 
                 ctx.save();
-                ctx.translate(this.x - camera.x, this.y - camera.y);
+                ctx.translate(this.x - game.camera.x, this.y - game.camera.y);
 
                 // Squash and Stretch
                 let scaleX = 1;
@@ -850,32 +858,6 @@ window.onload = () => {
                     this.squashStretchTimer--;
                 }
                 ctx.scale(this.facingRight ? scaleX : -scaleX, scaleY);
-
-                /*
-                // --- LÓGICA DO CONTORNO (Desativada para teste de performance) ---
-                const contourColor = this.invincibilityTimer > 0 ? 'gold' : 'white';
-                ctx.strokeStyle = contourColor;
-                ctx.lineWidth = 3; // Reduzido para melhor performance
-                ctx.lineJoin = 'round'; // Para cantos mais suaves
-
-                ctx.beginPath();
-                // Corpo
-                ctx.moveTo(0, -this.radius * 1.5);
-                ctx.lineTo(this.radius * 1.2, this.radius * 0.8);
-                ctx.lineTo(-this.radius * 1.2, this.radius * 0.8);
-                ctx.closePath();
-                // Asa Direita
-                ctx.moveTo(this.radius * 0.8, -this.radius * 0.5);
-                ctx.quadraticCurveTo(this.radius * 2, -this.radius * 1.5, this.radius * 1.5, this.radius * 0.5);
-                ctx.lineTo(this.radius * 0.8, this.radius * 0.8);
-                ctx.closePath();
-                // Asa Esquerda
-                ctx.moveTo(-this.radius * 0.8, -this.radius * 0.5);
-                ctx.quadraticCurveTo(-this.radius * 2, -this.radius * 1.5, -this.radius * 1.5, this.radius * 0.5);
-                ctx.lineTo(-this.radius * 0.8, this.radius * 0.8);
-                ctx.closePath();
-                ctx.stroke();
-                */
 
                 // --- LÓGICA DE DESENHO ORIGINAL ---
                 if (this.hitTimer > 0) {
@@ -954,8 +936,8 @@ window.onload = () => {
                 this.updateSkills();
 
                 // Garante que o jogador morre se cair muito para fora do mundo
-                if (platforms.length > 0) {
-                    const groundPlatform = platforms[0]; // Assume que a primeira plataforma é sempre o chão principal.
+                if (game.platforms.length > 0) {
+                    const groundPlatform = game.platforms[0]; // Assume que a primeira plataforma é sempre o chão principal.
                     const groundTopY = groundPlatform.y;
                     if (this.y > groundTopY + 400) { // Aumenta a margem de queda
                         this.takeDamage(9999);
@@ -969,8 +951,8 @@ window.onload = () => {
                 }
 
                 // Atualiza o alvo da câmara para a posição do jogador
-                camera.targetX = this.x - canvas.width / 2;
-                camera.targetY = this.y - canvas.height / 2;
+                game.camera.targetX = this.x - canvas.width / 2;
+                game.camera.targetY = this.y - canvas.height / 2;
 
                     // Garante que o jogador permaneça dentro dos limites do mundo (Arena Fechada)
                     const halfWorldWidth = CONFIG.WORLD_BOUNDS.width / 2;
@@ -997,11 +979,11 @@ window.onload = () => {
                 let dx = 0;
                 let dy_input = 0;
                 if (isMobile) {
-                    dx = movementVector.x;
-                    dy_input = movementVector.y;
+                    dx = game.movementVector.x;
+                    dy_input = game.movementVector.y;
                 } else {
-                    dx = (keys['d'] || keys['ArrowRight']) ? 1 : ((keys['a'] || keys['ArrowLeft']) ? -1 : 0);
-                    dy_input = (keys['s'] || keys['ArrowDown']) ? 1 : ((keys['w'] || keys['ArrowUp']) ? -1 : 0);
+                    dx = (game.keys['d'] || game.keys['ArrowRight']) ? 1 : ((game.keys['a'] || game.keys['ArrowLeft']) ? -1 : 0);
+                    dy_input = (game.keys['s'] || game.keys['ArrowDown']) ? 1 : ((game.keys['w'] || game.keys['ArrowUp']) ? -1 : 0);
                 }
 
                 if (dx !== 0 || dy_input !== 0) {
@@ -1014,7 +996,7 @@ window.onload = () => {
                 this.moveAndCollide(dx * this.speed, 0);
 
                 // 4. Lida com saltos e ativação de dash
-                const jumpPressed = isMobile ? (movementVector.y < -0.5) : (keys['w'] || keys['ArrowUp'] || keys[' ']);
+                const jumpPressed = isMobile ? (game.movementVector.y < -0.5) : (game.keys['w'] || game.keys['ArrowUp'] || game.keys[' ']);
                 if (jumpPressed) {
                     if (this.jumpsAvailable > 0 && (this.onGround || this.coyoteTimer > 0)) {
                         this.velocityY = CONFIG.PLAYER_JUMP_FORCE;
@@ -1022,7 +1004,7 @@ window.onload = () => {
                         this.onGround = false;
                         this.coyoteTimer = 0; // Consome o coyote time
                         this.jumpBufferTimer = 0; // Consome o buffer também
-                        if (!isMobile) keys['w'] = keys['ArrowUp'] = keys[' '] = false;
+                        if (!isMobile) game.keys['w'] = game.keys['ArrowUp'] = game.keys[' '] = false;
                     } else if (this.jumpsAvailable > 0 && !this.onGround && this.skills['double_jump']) {
                         this.velocityY = CONFIG.PLAYER_DOUBLE_JUMP_FORCE;
                         this.jumpsAvailable--;
@@ -1033,9 +1015,9 @@ window.onload = () => {
                 }
 
 
-                if (!isMobile && keys['shift']) {
+                if (!isMobile && game.keys['shift']) {
                     this.dash();
-                    keys['shift'] = false;
+                    game.keys['shift'] = false;
                 }
 
                 if (this.dashCooldown > 0) {
@@ -1057,7 +1039,7 @@ window.onload = () => {
 
                     this.y += stepY;
                     let collided = false;
-                    for (const p of platforms) {
+                    for (const p of game.platforms) {
                         if (this.x + this.radius > p.x && this.x - this.radius < p.x + p.width && this.y + this.radius > p.y && this.y - this.radius < p.y + p.height) {
                             if (stepY > 0 && (this.y - stepY) + this.radius <= p.y) {
                                 this.y = p.y - this.radius;
@@ -1103,15 +1085,14 @@ window.onload = () => {
                 if (this.skills['scorched_earth']) {
                     const damage = SKILL_DATABASE['scorched_earth'].levels[0].damagePerFrame;
                     // Cria a área de dano
-                    activeVortexes.push(new Vortex(this.x, this.y, { radius: 20, duration: 60, damage: damage, isExplosion: true, force: 0 }));
+                    game.activeVortexes.push(new Vortex(this.x, this.y, { radius: 20, duration: 60, damage: damage, isExplosion: true, force: 0 }));
                     // ADICIONE: Cria partículas visuais de fogo
                     for (let i = 0; i < 5; i++) {
-                        particleManager.createParticle(this.x, this.y, 'orange', 2.5); // <<<<<<< MUDANÇA 1
+                        game.particleManager.createParticle(this.x, this.y, 'orange', 2.5);
                     }
                 }
             }
 
-            // <<<<<<< MUDANÇA DE FÍSICA: Lógica de gravidade e colisão com plataformas refeita
             applyGravity() {
                 const wasOnGround = this.onGround;
                 this.velocityY += CONFIG.GRAVITY;
@@ -1123,7 +1104,7 @@ window.onload = () => {
                 let collided = false;
 
                 // Itera sobre todas as plataformas para verificar colisão
-                for (const p of platforms) {
+                for (const p of game.platforms) {
                     // Verifica se a trajetória do jogador intercepta a plataforma (varredura vertical)
                     if (this.x + this.radius > p.x && this.x - this.radius < p.x + p.width && // Dentro dos limites X da plataforma
                         oldY + this.radius <= p.y && // No frame anterior, a base do jogador estava ACIMA do topo da plataforma
@@ -1162,8 +1143,8 @@ window.onload = () => {
 
                 // --- SEÇÃO DE SEGURANÇA (Safety Net) ---
                 // Garante que o jogador morre se cair muito para fora do mundo
-                if (platforms.length > 0) {
-                    const groundPlatform = platforms[0]; // Assume que a primeira plataforma é sempre o chão principal.
+                if (game.platforms.length > 0) {
+                    const groundPlatform = game.platforms[0]; // Assume que a primeira plataforma é sempre o chão principal.
                     const groundTopY = groundPlatform.y;
                     if (this.y > groundTopY + 200) {
                         this.takeDamage(9999);
@@ -1179,14 +1160,14 @@ window.onload = () => {
 
                 if (this.shielded) {
                     this.shielded = false;
-                    for(let i=0; i<20; i++) particleManager.createParticle(this.x, this.y, 'cyan', 3);
+                    for(let i=0; i<20; i++) game.particleManager.createParticle(this.x, this.y, 'cyan', 3);
                     return;
                 }
 
                 this.health -= amount;
                 this.hitTimer = 30;
                 SoundManager.play('damage', '8n');
-                screenShake = { intensity: 5, duration: 15 };
+                game.screenShake = { intensity: 5, duration: 15 };
 
                 // Ativa I-Frames
                 this.invincibilityTimer = 36; // 0.6 segundos de invencibilidade
@@ -1211,7 +1192,7 @@ window.onload = () => {
                 SoundManager.play('xp', 'C5'); // Som de XP
                 // Partículas de XP ao recolher
                 for (let i = 0; i < 4; i++) {
-                    particleManager.createParticle(this.x, this.y, 'cyan', 2); // <<<<<<< MUDANÇA 1
+                    game.particleManager.createParticle(this.x, this.y, 'cyan', 2);
                 }
 
                 while (this.xp >= this.xpToNextLevel) {
@@ -1229,8 +1210,8 @@ window.onload = () => {
                     if (skillId === 'heal') this.health = Math.min(this.maxHealth, this.health + this.maxHealth * 0.25);
                     if (skillId === 'black_hole') { // Habilidade Buraco Negro
                         SoundManager.play('nuke', '8n'); // Som de nuke para o buraco negro
-                        screenShake = { intensity: 15, duration: 30 };
-                        enemies.forEach(e => {
+                        game.screenShake = { intensity: 15, duration: 30 };
+                        game.enemies.forEach(e => {
                             e.takeDamage(SKILL_DATABASE['black_hole'].levels[0].damage * this.damageModifier); // Aplica modificador de dano
                             e.applyKnockback(this.x, this.y, CONFIG.ENEMY_KNOCKBACK_FORCE * 5); // Forte knockback
                         });
@@ -1302,7 +1283,7 @@ window.onload = () => {
                                     const spreadAngle = (i - (levelData.count - 1) / 2) * 0.1;
                                     const projectileDamage = levelData.damage * this.damageModifier;
                                     // Passa o skillId para o projétil
-                                    getFromPool(projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage }, skillId);
+                                    getFromPool(game.projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage }, skillId);
                                 }
                                 SoundManager.play('lance', 'C4'); // Som de lança
                                 skillState.timer = skillData.cooldown;
@@ -1313,7 +1294,7 @@ window.onload = () => {
                             const rayAngle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
                             const rayDamage = levelData.damage * this.damageModifier;
                             // Passa o skillId para o projétil
-                            getFromPool(projectilePool, this.x, this.y, rayAngle, { ...levelData, damage: rayDamage }, skillId);
+                            getFromPool(game.projectilePool, this.x, this.y, rayAngle, { ...levelData, damage: rayDamage }, skillId);
                             SoundManager.play('lance', 'E5'); // Som diferente para o raio
                             skillState.timer = skillData.cooldown;
                         } else if (skillId === 'chain_lightning') { // NOVA HABILIDADE
@@ -1329,18 +1310,18 @@ window.onload = () => {
                             const beamAngle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
                             const beamDamage = levelData.damage * this.damageModifier;
                             // O "projétil" do feixe é estático, então a posição é relativa ao jogador
-                            getFromPool(projectilePool, this.x, this.y, beamAngle, { ...levelData, damage: beamDamage }, skillId);
+                            getFromPool(game.projectilePool, this.x, this.y, beamAngle, { ...levelData, damage: beamDamage }, skillId);
                             // Som?
                             skillState.timer = skillData.cooldown;
                         }
-                    } else if (skillData.type === 'aura' && skillId === 'vortex') {
-                        // Aplica o modificador de dano do jogador
-                        const vortexDamage = levelData.damage * this.damageModifier;
-                        activeVortexes.push(new Vortex(this.x, this.y, { ...levelData, damage: vortexDamage }));
+                    } else if (skillData.type === 'aura' && (skillId === 'vortex' || skillId === 'vortex_lances_skill')) {
+                        const vortexDamage = levelData.damage * game.player.damageModifier;
+                        const isFused = skillId === 'vortex_lances_skill';
+                        game.activeVortexes.push(new Vortex(this.x, this.y, { ...levelData, damage: vortexDamage, isFused: isFused }));
                         skillState.timer = skillData.cooldown;
                     } else if (skillData.type === 'aura' && skillId === 'particle_burst') { // Nova habilidade
                         SoundManager.play('particleBurst', '8n'); // Passa uma duração para o NoiseSynth
-                        enemies.forEach(enemy => {
+                        game.enemies.forEach(enemy => {
                             if (Math.hypot(this.x - enemy.x, this.y - enemy.y) < levelData.radius) {
                                 enemy.takeDamage(levelData.damage * this.damageModifier); // Aplica modificador de dano
                                 enemy.applyKnockback(this.x, this.y, CONFIG.ENEMY_KNOCKBACK_FORCE * 1.5); // Mais knockback
@@ -1348,11 +1329,11 @@ window.onload = () => {
                         });
                         // Partículas da explosão
                         for (let i = 0; i < Math.floor(levelData.particleCount / 2); i++) {
-                            particleManager.createParticle(this.x, this.y, 'magenta', 3); // <<<<<<< MUDANÇA 1
+                            game.particleManager.createParticle(this.x, this.y, 'magenta', 3);
                         }
                         skillState.timer = skillData.cooldown;
                     } else if (skillData.type === 'aura' && skillId === 'static_field') { // Campo Estático
-                        activeStaticFields.push(new StaticField(this.x, this.y, levelData));
+                        game.activeStaticFields.push(new StaticField(this.x, this.y, levelData));
                         skillState.timer = skillData.cooldown;
                     } else if (skillId === 'aegis_shield') { // Égide Divina
                         if (skillState.timer <= 0) { // Se o cooldown acabou
@@ -1370,7 +1351,7 @@ window.onload = () => {
                             const playerAngle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
 
                             // Find all enemies in range and in the arc
-                            for (const enemy of enemies) {
+                            for (const enemy of game.enemies) {
                                 if (enemy.isDead) continue;
 
                                 const dist = Math.hypot(this.x - enemy.x, this.y - enemy.y);
@@ -1401,7 +1382,7 @@ window.onload = () => {
                                 if (skillState.evolved) {
                                     const CHANCE_TO_DROP_HEAL = 0.05; // 5% de chance
                                     if (Math.random() < CHANCE_TO_DROP_HEAL) {
-                                        powerUps.push(new PowerUp(enemy.x, enemy.y, 'heal_orb'));
+                                        game.powerUps.push(new PowerUp(enemy.x, enemy.y, 'heal_orb'));
                                     }
                                 }
 
@@ -1412,13 +1393,13 @@ window.onload = () => {
                             if (enemiesToHit.length > 0) {
                                 createSlashEffect(this.x, this.y, playerAngle, levelData.range, levelData.arc);
                                 if (skillData.causesHitStop) {
-                                    hitStopTimer = 4;
+                                    game.hitStopTimer = 4;
                                 }
                             }
 
                             skillState.timer = skillData.cooldown;
                         } else if (skillId === 'sanctuary') {
-                            activeSanctuaryZones.push(new SanctuaryZone(this.x, this.y, { ...levelData, evolved: skillState.evolved }));
+                            game.activeSanctuaryZones.push(new SanctuaryZone(this.x, this.y, { ...levelData, evolved: skillState.evolved }));
                             skillState.timer = skillData.cooldown;
                     }
                 }
@@ -1450,7 +1431,7 @@ window.onload = () => {
 
                             const orbSearchRadius = 15 + 20; // Raio do orbital + margem
                             const orbSearchArea = new Rectangle(orbX - orbSearchRadius, orbY - orbSearchRadius, orbSearchRadius * 2, orbSearchRadius * 2);
-                            const nearbyEnemiesForOrb = qtree.query(orbSearchArea);
+                            const nearbyEnemiesForOrb = game.qtree.query(orbSearchArea);
 
                             // Limpa os inimigos perfurados a cada rotação completa para permitir novos acertos
                             if(orb.angle > Math.PI * 2) {
@@ -1489,14 +1470,14 @@ window.onload = () => {
                                                     isExplosion: true,
                                                     force: 0
                                                 };
-                                                activeVortexes.push(new Vortex(enemy.x, enemy.y, explosionData));
+                                                game.activeVortexes.push(new Vortex(enemy.x, enemy.y, explosionData));
                                             }
                                         }
                                     }
                                 }
                             });
                             if (hitThisFrame && skillData.causesHitStop) {
-                                hitStopTimer = 2; // Hit stop mais curto para orbitais
+                                game.hitStopTimer = 2; // Hit stop mais curto para orbitais
                             }
                         });
                     }
@@ -1518,7 +1499,7 @@ window.onload = () => {
                 );
 
                 // Pede ao Quadtree GLOBAL apenas os inimigos que estão nesta área
-                const candidates = qtree.query(searchArea);
+                const candidates = game.qtree.query(searchArea);
 
                 // Agora, só precisamos de verificar a distância para os candidatos
                 for (const enemy of candidates) {
@@ -1565,46 +1546,46 @@ window.onload = () => {
 
                 switch(type) {
                     case 'reaper':
-                            this.speed = Math.min(6.0, 4.0 + (gameTime / 180) + (waveNumber * 0.015));
-                            this.radius = 10; this.health = 15 + Math.floor(gameTime / 20) * 2 + waveNumber; this.color = '#7DF9FF';
+                            this.speed = Math.min(6.0, 4.0 + (game.time / 180) + (game.waveNumber * 0.015));
+                            this.radius = 10; this.health = 15 + Math.floor(game.time / 20) * 2 + game.waveNumber; this.color = '#7DF9FF';
                             this.shape = 'diamond'; this.damage = 30; this.xpValue = 15; this.explodesOnDeath = true;
                         break;
                     case 'tank':
-                            this.speed = Math.min(2.0, 1.2 + (gameTime / 200) + (waveNumber * 0.004));
-                            this.radius = 18; this.health = 70 + Math.floor(gameTime / 10) * 7 + (waveNumber * 3); this.color = '#FFA500';
+                            this.speed = Math.min(2.0, 1.2 + (game.time / 200) + (game.waveNumber * 0.004));
+                            this.radius = 18; this.health = 70 + Math.floor(game.time / 10) * 7 + (game.waveNumber * 3); this.color = '#FFA500';
                         this.shape = 'square'; this.damage = 12; this.xpValue = 40;
                         break;
                     case 'speeder':
-                            this.speed = Math.min(5.5, 3.5 + (gameTime / 100) + (waveNumber * 0.012));
-                            this.radius = 8; this.health = 12 + Math.floor(gameTime / 15) * 2 + waveNumber; this.color = '#FFFF00';
+                            this.speed = Math.min(5.5, 3.5 + (game.time / 100) + (game.waveNumber * 0.012));
+                            this.radius = 8; this.health = 12 + Math.floor(game.time / 15) * 2 + game.waveNumber; this.color = '#FFFF00';
                         this.shape = 'triangle'; this.damage = 7; this.xpValue = 12;
                         break;
                     case 'bomber':
-                            this.speed = Math.min(2.5, 1.5 + (gameTime / 220) + (waveNumber * 0.006));
-                            this.radius = 12; this.health = 45 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#9400D3';
+                            this.speed = Math.min(2.5, 1.5 + (game.time / 220) + (game.waveNumber * 0.006));
+                            this.radius = 12; this.health = 45 + Math.floor(game.time / 10) * 4 + (game.waveNumber * 2); this.color = '#9400D3';
                             this.shape = 'pentagon'; this.damage = 9; this.xpValue = 25; this.explodesOnDeath = true;
                         break;
                     case 'shooter':
-                            this.speed = Math.min(1.5, 0.8 + (gameTime / 280) + (waveNumber * 0.003));
-                            this.radius = 15; this.health = 35 + Math.floor(gameTime / 10) * 4 + (waveNumber * 2); this.color = '#FF00FF';
+                            this.speed = Math.min(1.5, 0.8 + (game.time / 280) + (game.waveNumber * 0.003));
+                            this.radius = 15; this.health = 35 + Math.floor(game.time / 10) * 4 + (game.waveNumber * 2); this.color = '#FF00FF';
                             this.shape = 'star'; this.damage = 4; this.xpValue = 35; this.attackCooldown = 150;
                             this.attackTimer = this.attackCooldown; this.projectileSpeed = 3.5; this.projectileDamage = 8;
                         break;
                     case 'healer':
-                            this.speed = Math.min(1.2, 0.7 + (gameTime / 300) + (waveNumber * 0.002));
-                            this.radius = 14; this.health = 60 + Math.floor(gameTime / 10) * 6 + (waveNumber * 3); this.color = '#00FF00';
+                            this.speed = Math.min(1.2, 0.7 + (game.time / 300) + (game.waveNumber * 0.002));
+                            this.radius = 14; this.health = 60 + Math.floor(game.time / 10) * 6 + (game.waveNumber * 3); this.color = '#00FF00';
                             this.shape = 'cross'; this.damage = 0; this.xpValue = 50; this.healCooldown = 180;
-                            this.healTimer = this.healCooldown; this.healAmount = 5 + Math.floor(gameTime / 20); this.healRadius = 100;
+                            this.healTimer = this.healCooldown; this.healAmount = 5 + Math.floor(game.time / 20); this.healRadius = 100;
                         break;
                     case 'summoner':
-                            this.speed = Math.min(1.0, 0.6 + (gameTime / 350) + (waveNumber * 0.001));
-                            this.radius = 20; this.health = 80 + Math.floor(gameTime / 10) * 8 + (waveNumber * 4); this.color = '#8B4513';
+                            this.speed = Math.min(1.0, 0.6 + (game.time / 350) + (game.waveNumber * 0.001));
+                            this.radius = 20; this.health = 80 + Math.floor(game.time / 10) * 8 + (game.waveNumber * 4); this.color = '#8B4513';
                             this.shape = 'pyramid'; this.damage = 0; this.xpValue = 70; this.summonCooldown = 240;
                         this.summonTimer = this.summonCooldown;
                         break;
                     case 'charger': // NOVO INIMIGO
-                        this.speed = Math.min(3.0, 2.0 + (gameTime / 160) + (waveNumber * 0.007));
-                        this.radius = 14; this.health = 50 + Math.floor(gameTime / 10) * 5 + (waveNumber * 2.5); this.color = '#FF69B4'; // Rosa choque
+                        this.speed = Math.min(3.0, 2.0 + (game.time / 160) + (game.waveNumber * 0.007));
+                        this.radius = 14; this.health = 50 + Math.floor(game.time / 10) * 5 + (game.waveNumber * 2.5); this.color = '#FF69B4'; // Rosa choque
                         this.shape = 'hexagon'; this.damage = 25; this.xpValue = 30;
                         this.state = 'chasing'; // Estados: chasing, telegraphing, charging
                         this.telegraphTimer = 0;
@@ -1612,8 +1593,8 @@ window.onload = () => {
                         this.chargeDuration = 0;
                         break;
                     default: // chaser
-                            this.speed = Math.min(4.0, 2.2 + (gameTime / 150) + (waveNumber * 0.008));
-                            this.radius = 12; this.health = 25 + Math.floor(gameTime / 10) * 3 + (waveNumber * 1.5); this.color = '#FF4D4D';
+                            this.speed = Math.min(4.0, 2.2 + (game.time / 150) + (game.waveNumber * 0.008));
+                            this.radius = 12; this.health = 25 + Math.floor(game.time / 10) * 3 + (game.waveNumber * 1.5); this.color = '#FF4D4D';
                         this.shape = 'circle'; this.damage = 8; this.xpValue = 20;
                         break;
                 }
@@ -1629,25 +1610,20 @@ window.onload = () => {
 
             draw(ctx) {
                 // Otimização: Só desenha se estiver na tela
-                const screenLeft = camera.x;
-                const screenRight = camera.x + canvas.width;
-                const screenTop = camera.y;
-                const screenBottom = camera.y + canvas.height;
+                const screenLeft = game.camera.x;
+                const screenRight = game.camera.x + canvas.width;
+                const screenTop = game.camera.y;
+                const screenBottom = game.camera.y + canvas.height;
                 if (this.x + this.radius < screenLeft || this.x - this.radius > screenRight ||
                     this.y + this.radius < screenTop || this.y - this.radius > screenBottom) {
                     return;
                 }
 
                 ctx.save();
-                ctx.translate(this.x - camera.x, this.y - camera.y); // Aplica o deslocamento da câmara
+                ctx.translate(this.x - game.camera.x, this.y - game.camera.y); // Aplica o deslocamento da câmara
 
                 const color = this.hitTimer > 0 ? 'white' : this.color;
                 ctx.fillStyle = color;
-
-                // OTIMIZAÇÃO: Animação de pulso com shadowBlur removida
-                // ctx.shadowColor = color;
-                // const pulse = Math.sin(this.animationFrame * 0.1) * 3 + 7;
-                // ctx.shadowBlur = pulse;
 
                 ctx.beginPath();
                 if (this.shape === 'square') { // Tanque
@@ -1660,7 +1636,7 @@ window.onload = () => {
                     ctx.closePath();
                 } else if (this.shape === 'triangle') {
                     // Triângulo aponta para o jogador (relativo ao inimigo)
-                    const angle = Math.atan2(player.y - this.y, player.x - this.x);
+                    const angle = Math.atan2(game.player.y - this.y, game.player.x - this.x);
                     ctx.moveTo(Math.cos(angle) * this.radius, Math.sin(angle) * this.radius);
                     ctx.lineTo(Math.cos(angle + 2*Math.PI/3) * this.radius, Math.sin(angle + 2*Math.PI/3) * this.radius);
                     ctx.lineTo(Math.cos(angle + 4*Math.PI/3) * this.radius, Math.sin(angle + 4*Math.PI/3) * this.radius);
@@ -1734,7 +1710,7 @@ window.onload = () => {
                 }
 
                 // ALTERAÇÃO 3: Lógica de explosão para o Ceifador
-                if (this.type === 'reaper' && Math.hypot(player.x - this.x, player.y - this.y) < this.radius + 40) {
+                if (this.type === 'reaper' && Math.hypot(game.player.x - this.x, game.player.y - this.y) < this.radius + 40) {
                     this.health = 0; // Força a morte, que aciona a explosão
                     this.takeDamage(1); // Aciona a lógica de morte
                     return; // Para de se mover
@@ -1742,19 +1718,19 @@ window.onload = () => {
 
                 // Lógica do Charger State Machine
                 if (this.type === 'charger') {
-                    const dist = Math.hypot(player.x - this.x, player.y - this.y);
+                    const dist = Math.hypot(game.player.x - this.x, game.player.y - this.y);
                     switch (this.state) {
                         case 'chasing':
                             if (dist < 150) { // Distância para iniciar o ataque
                                 this.state = 'telegraphing';
                                 this.telegraphTimer = 60; // 1 segundo de aviso
-                                this.chargeTarget = { x: player.x, y: player.y }; // Trava no alvo
+                                this.chargeTarget = { x: game.player.x, y: game.player.y }; // Trava no alvo
                             }
                             break;
                         case 'telegraphing':
                             this.telegraphTimer--;
                             // Efeito visual de "carregando"
-                            this.color = frameCount % 10 < 5 ? '#FFFFFF' : '#FF69B4';
+                            this.color = game.frameCount % 10 < 5 ? '#FFFFFF' : '#FF69B4';
                             if (this.telegraphTimer <= 0) {
                                 this.state = 'charging';
                                 this.chargeDuration = 30; // Carga dura 0.5 segundos
@@ -1778,12 +1754,12 @@ window.onload = () => {
 
                 // Inimigos voadores movem-se em direção ao jogador em X e Y, a menos que estejam em knockback forte
                 if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 5) { // Só se move se o knockback for pequeno
-                    let angle = Math.atan2(player.y - this.y, player.x - this.x);
+                    let angle = Math.atan2(game.player.y - this.y, game.player.x - this.x);
                     let currentSpeed = this.speed;
 
                     // Lógica específica para o 'shooter'
                     if (this.type === 'shooter') {
-                        const dist = Math.hypot(player.x - this.x, player.y - this.y);
+                        const dist = Math.hypot(game.player.x - this.x, game.player.y - this.y);
                         if (dist < CONFIG.SHOOTER_MIN_DISTANCE) {
                             // Se estiver muito perto, inverte o ângulo para fugir
                             angle += Math.PI;
@@ -1800,7 +1776,7 @@ window.onload = () => {
                     if (this.slowedTimer > 0) {
                         finalSlowFactor = Math.max(finalSlowFactor, 0.5); // Aura da Stasis aplica 50% de lentidão
                     }
-                    for (const field of activeStaticFields) {
+                    for (const field of game.activeStaticFields) {
                         if (Math.hypot(field.x - this.x, field.y - this.y) < field.radius) {
                             finalSlowFactor = Math.max(finalSlowFactor, field.slowFactor);
                             break; // Assume que o inimigo só pode estar em um campo por vez
@@ -1816,8 +1792,8 @@ window.onload = () => {
                 if (this.type === 'shooter') {
                     this.attackTimer--;
                     if (this.attackTimer <= 0) {
-                        const angle = Math.atan2(player.y - this.y, player.x - this.x);
-                        getFromPool(enemyProjectilePool, this.x, this.y, angle, this.projectileSpeed, this.projectileDamage); // Usa o agrupamento
+                        const angle = Math.atan2(game.player.y - this.y, game.player.x - this.x);
+                        getFromPool(game.enemyProjectilePool, this.x, this.y, angle, this.projectileSpeed, this.projectileDamage); // Usa o agrupamento
                         SoundManager.play('enemyShot', 'D4'); // Som de disparo do inimigo
                         this.attackTimer = this.attackCooldown;
                     }
@@ -1831,7 +1807,7 @@ window.onload = () => {
                         const healArea = new Rectangle(this.x - this.healRadius, this.y - this.healRadius, this.healRadius * 2, this.healRadius * 2);
 
                         // 2. Pedir ao Quadtree apenas os inimigos próximos
-                        const nearbyEnemies = qtree.query(healArea);
+                        const nearbyEnemies = game.qtree.query(healArea);
 
                         // 3. Iterar apenas sobre os inimigos próximos
                         nearbyEnemies.forEach(otherEnemy => {
@@ -1839,7 +1815,7 @@ window.onload = () => {
                             if (otherEnemy !== this && Math.hypot(this.x - otherEnemy.x, this.y - otherEnemy.y) < this.healRadius) {
                                 otherEnemy.health = Math.min(otherEnemy.maxHealth, otherEnemy.health + this.healAmount);
                                 // Partículas de cura
-                                for (let i = 0; i < 3; i++) { particleManager.createParticle(otherEnemy.x, otherEnemy.y, 'lime', 1); }
+                                for (let i = 0; i < 3; i++) { game.particleManager.createParticle(otherEnemy.x, otherEnemy.y, 'lime', 1); }
                             }
                         });
                         // --- FIM DA OTIMIZAÇÃO ---
@@ -1853,8 +1829,8 @@ window.onload = () => {
                     if (this.summonTimer <= 0) {
                         // Invoca um chaser ou speeder pequeno
                         const summonedType = Math.random() < 0.5 ? 'chaser' : 'speeder';
-                        enemies.push(new Enemy(this.x + (Math.random()-0.5)*50, this.y + (Math.random()-0.5)*50, summonedType));
-                        for (let i = 0; i < 5; i++) { particleManager.createParticle(this.x, this.y, 'brown', 2); } // <<<<<<< MUDANÇA 1
+                        game.enemies.push(new Enemy(this.x + (Math.random()-0.5)*50, this.y + (Math.random()-0.5)*50, summonedType));
+                        for (let i = 0; i < 5; i++) { game.particleManager.createParticle(this.x, this.y, 'brown', 2); }
                         this.summonTimer = this.summonCooldown;
                     }
                 }
@@ -1872,17 +1848,17 @@ window.onload = () => {
                 this.hitTimer = 5;
 
                 // Gera o número de dano
-                activeDamageNumbers.push(getFromPool(damageNumberPool, this.x, this.y, amount));
+                game.activeDamageNumbers.push(getFromPool(game.damageNumberPool, this.x, this.y, amount));
 
                 // Partículas de dano
                 for (let i = 0; i < 5; i++) {
-                    particleManager.createParticle(this.x, this.y, this.color, 1.8); // <<<<<<< MUDANÇA 1
+                    game.particleManager.createParticle(this.x, this.y, this.color, 1.8);
                 }
                 if (this.health <= 0) {
                     this.isDead = true;
                     // Garante que o XP Orb é criado e adicionado ao pool
-                    getFromPool(xpOrbPool, this.x, this.y, this.xpValue);
-                    score.kills++; // Contabiliza a morte para a pontuação da partida
+                    getFromPool(game.xpOrbPool, this.x, this.y, this.xpValue);
+                    game.score.kills++; // Contabiliza a morte para a pontuação da partida
 
                     // Lógica de Conquistas
                     if (playerAchievements && playerAchievements.stats) {
@@ -1892,24 +1868,24 @@ window.onload = () => {
 
                     // Partículas de morte do inimigo
                     for (let i = 0; i < 10; i++) {
-                        particleManager.createParticle(this.x, this.y, this.color, 3); // <<<<<<< MUDANÇA 1
+                        game.particleManager.createParticle(this.x, this.y, this.color, 3);
                     }
 
                     // ALTERAÇÃO 3: Efeito de explosão para inimigos explosivos
                     if(this.explodesOnDeath) {
                         const explosionRadius = this.type === 'reaper' ? 70 : 90;
-                        activeVortexes.push(new Vortex(this.x, this.y, {radius: explosionRadius, duration: 30, damage: this.damage, isExplosion:true, force: 0}));
+                        game.activeVortexes.push(new Vortex(this.x, this.y, {radius: explosionRadius, duration: 30, damage: this.damage, isExplosion:true, force: 0}));
                         // Efeito visual maior para a explosão
-                        for (let i = 0; i < 20; i++) { particleManager.createParticle(this.x, this.y, this.color, 4); } // <<<<<<< MUDANÇA 1
+                        for (let i = 0; i < 20; i++) { game.particleManager.createParticle(this.x, this.y, this.color, 4); }
                     }
 
-                    if(Math.random() < player.powerupDropChance){
-                        powerUps.push(new PowerUp(this.x, this.y, 'nuke'));
+                    if(Math.random() < game.player.powerupDropChance){
+                        game.powerUps.push(new PowerUp(this.x, this.y, 'nuke'));
                         showTemporaryMessage("NUKE!", "yellow"); // Feedback para power-up
                     }
 
                 // Lógica para o evento Frenesi Dourado
-                if (isGoldenFrenzyActive) {
+                if (game.isGoldenFrenzyActive) {
                     const gemChance = 0.1; // 10% de chance
                     if (Math.random() < gemChance) {
                         playerGems++;
@@ -1921,20 +1897,14 @@ window.onload = () => {
                     if (this.isElite) { // Larga gemas se for inimigo de elite
                         const gemsDropped = Math.floor(Math.random() * 3) + 1; // 1 a 3 gemas
                         playerGems += gemsDropped;
-                        // A mensagem temporária foi removida para dar lugar ao texto flutuante
-                        // showTemporaryMessage(`+${gemsDropped} Gemas!`, 'violet');
-
-                        // --- INÍCIO DA MODIFICAÇÃO: Feedback de Coleta de Gemas ---
                         const gemText = `+${gemsDropped} Gemas!`;
-                        activeDamageNumbers.push(getFromPool(damageNumberPool, this.x, this.y - 15, gemText, '#DA70D6')); // Cor violeta
-                        // --- FIM DA MODIFICAÇÃO ---
-
+                        game.activeDamageNumbers.push(getFromPool(game.damageNumberPool, this.x, this.y - 15, gemText, '#DA70D6')); // Cor violeta
                         savePermanentData(); // Salva os dados permanentes
                     }
 
                         // Lógica do Pacto Celestial para chance de gema extra
-                        if (player.skills['celestial_pact']) {
-                            const levelData = SKILL_DATABASE['celestial_pact'].levels[player.skills['celestial_pact'].level - 1];
+                        if (game.player.skills['celestial_pact']) {
+                            const levelData = SKILL_DATABASE['celestial_pact'].levels[game.player.skills['celestial_pact'].level - 1];
                             if (levelData.gemBonus && Math.random() < levelData.gemBonus) {
                                 playerGems++;
                                 showTemporaryMessage("+1 Gema (Pacto)!", 'violet');
@@ -1942,7 +1912,7 @@ window.onload = () => {
                             }
                         }
 
-                    waveEnemiesRemaining--; // Decrementa inimigos da onda
+                    game.waveEnemiesRemaining--; // Decrementa inimigos da onda
                 }
             }
 
@@ -1960,9 +1930,9 @@ window.onload = () => {
         class BossEnemy extends Entity {
             constructor(x, y) {
                 super(x, y, 40); // Raio grande
-                this.maxHealth = 1000 + (waveNumber * 150);
+                this.maxHealth = 1000 + (game.waveNumber * 150);
                 this.health = this.maxHealth;
-                    this.speed = 1.2 + (waveNumber * 0.02); // Aumentada a velocidade base
+                    this.speed = 1.2 + (game.waveNumber * 0.02); // Aumentada a velocidade base
                 this.damage = 25;
                 this.xpValue = 500;
                 this.color = '#8A2BE2'; // Roxo azulado
@@ -1977,13 +1947,10 @@ window.onload = () => {
 
             draw(ctx) {
                 ctx.save();
-                ctx.translate(this.x - camera.x, this.y - camera.y);
+                ctx.translate(this.x - game.camera.x, this.y - game.camera.y);
 
                 const color = this.hitTimer > 0 ? 'white' : this.color;
                 ctx.fillStyle = color;
-                // OTIMIZAÇÃO: shadowBlur removido
-                // ctx.shadowColor = 'magenta';
-                // ctx.shadowBlur = 30;
 
                 // Corpo principal rotativo
                 ctx.rotate(this.animationFrame * 0.01);
@@ -2056,21 +2023,21 @@ window.onload = () => {
             }
 
             executeAttack() {
-                const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
+                const angleToPlayer = Math.atan2(game.player.y - this.y, game.player.x - this.x);
 
                 if (this.currentAttack === 'chase') {
                     this.x += Math.cos(angleToPlayer) * this.speed;
                     this.y += Math.sin(angleToPlayer) * this.speed;
-                } else if (this.currentAttack === 'shoot_ring' && frameCount % 30 === 0) {
+                } else if (this.currentAttack === 'shoot_ring' && game.frameCount % 30 === 0) {
                     for(let i=0; i<8; i++) {
                         const angle = i * Math.PI / 4;
-                        getFromPool(enemyProjectilePool, this.x, this.y, angle, 3, 10);
+                        getFromPool(game.enemyProjectilePool, this.x, this.y, angle, 3, 10);
                     }
-                } else if (this.currentAttack === 'barrage' && frameCount % 10 === 0) {
-                    getFromPool(enemyProjectilePool, this.x, this.y, angleToPlayer + (Math.random() - 0.5) * 0.5, 5, 15);
+                } else if (this.currentAttack === 'barrage' && game.frameCount % 10 === 0) {
+                    getFromPool(game.enemyProjectilePool, this.x, this.y, angleToPlayer + (Math.random() - 0.5) * 0.5, 5, 15);
                 } else if (this.currentAttack === 'summon' && this.attackPatternTimer === 100) {
-                    enemies.push(new Enemy(this.x + (Math.random()-0.5)*50, this.y + (Math.random()-0.5)*50, 'speeder', true));
-                    enemies.push(new Enemy(this.x + (Math.random()-0.5)*50, this.y + (Math.random()-0.5)*50, 'chaser', true));
+                    game.enemies.push(new Enemy(this.x + (Math.random()-0.5)*50, this.y + (Math.random()-0.5)*50, 'speeder', true));
+                    game.enemies.push(new Enemy(this.x + (Math.random()-0.5)*50, this.y + (Math.random()-0.5)*50, 'chaser', true));
                 }
             }
 
@@ -2080,24 +2047,24 @@ window.onload = () => {
                 this.hitTimer = 5; // Feedback visual de dano
 
                 // Gera o número de dano
-                activeDamageNumbers.push(getFromPool(damageNumberPool, this.x, this.y, amount));
+                game.activeDamageNumbers.push(getFromPool(game.damageNumberPool, this.x, this.y, amount));
 
                 // Partículas de dano
                 for (let i = 0; i < 10; i++) {
-                    particleManager.createParticle(this.x, this.y, this.color, 2.5); // <<<<<<< MUDANÇA 1
+                    game.particleManager.createParticle(this.x, this.y, this.color, 2.5);
                 }
                 if (this.health <= 0) {
                     console.log("--- BOSS DERROTADO ---"); // DEBUG
                     this.isDead = true;
-                    getFromPool(xpOrbPool, this.x, this.y, this.xpValue);
-                    score.kills++;
-                    waveEnemiesRemaining--; // Conta o boss como 1 inimigo para a onda
-                    console.log(`Boss morreu. waveEnemiesRemaining é agora ${waveEnemiesRemaining}`); // DEBUG
+                    getFromPool(game.xpOrbPool, this.x, this.y, this.xpValue);
+                    game.score.kills++;
+                    game.waveEnemiesRemaining--; // Conta o boss como 1 inimigo para a onda
+                    console.log(`Boss morreu. waveEnemiesRemaining é agora ${game.waveEnemiesRemaining}`); // DEBUG
                     showTemporaryMessage("BOSS DERROTADO!", "gold");
-                    screenShake = { intensity: 20, duration: 60 };
+                    game.screenShake = { intensity: 20, duration: 60 };
                     // Partículas de morte do boss
                     for (let i = 0; i < 50; i++) {
-                        particleManager.createParticle(this.x, this.y, this.color, 5); // <<<<<<< MUDANÇA 1
+                        game.particleManager.createParticle(this.x, this.y, this.color, 5);
                     }
                     // Bosses largam mais gemas
                     const gemsDropped = Math.floor(Math.random() * 10) + 5; // 5 a 14 gemas
@@ -2112,7 +2079,6 @@ window.onload = () => {
             }
         }
 
-        // ALTERAÇÃO 2: Classe de Projétil modificada para lidar com o Raio Celestial
         class Projectile extends Entity {
             constructor() {
                 super();
@@ -2153,10 +2119,10 @@ window.onload = () => {
 
             draw(ctx) {
                 // Otimização: Só desenha se estiver na tela
-                const screenLeft = camera.x;
-                const screenRight = camera.x + canvas.width;
-                const screenTop = camera.y;
-                const screenBottom = camera.y + canvas.height;
+                const screenLeft = game.camera.x;
+                const screenRight = game.camera.x + canvas.width;
+                const screenTop = game.camera.y;
+                const screenBottom = game.camera.y + canvas.height;
                 const largerDimension = this.length || this.radius;
                 if (this.x + largerDimension < screenLeft || this.x - largerDimension > screenRight ||
                     this.y + largerDimension < screenTop || this.y - largerDimension > screenBottom) {
@@ -2164,7 +2130,7 @@ window.onload = () => {
                 }
 
                 ctx.save();
-                ctx.translate(this.x - camera.x, this.y - camera.y);
+                ctx.translate(this.x - game.camera.x, this.y - game.camera.y);
 
                 // Desenha o projétil principal
                 if (this.isBeam) {
@@ -2200,30 +2166,24 @@ window.onload = () => {
 
                 if (this.isBeam) {
                     this.duration--;
-                    this.x = player.x; // Segue o jogador
-                    this.y = player.y;
-                    this.angle = Math.atan2(player.lastMoveDirection.y, player.lastMoveDirection.x);
+                    this.x = game.player.x; // Segue o jogador
+                    this.y = game.player.y;
+                    this.angle = Math.atan2(game.player.lastMoveDirection.y, game.player.lastMoveDirection.x);
                     if (this.duration <= 0) {
                         this.isDead = true;
                         releaseToPool(this);
                     }
-                    // A colisão do feixe é tratada de forma diferente porque não se move.
-                    // A lógica em handlePlayerProjectiles já verifica a sobreposição, o que deve funcionar.
                 } else {
                     this.x += this.velocity.x;
                     this.y += this.velocity.y;
                 }
 
-
-                // <<<<<<< MUDANÇA 1: SOLICITA A CRIAÇÃO DE PARTÍCULAS AO GESTOR CENTRAL
-                if (frameCount % 3 === 0) {
+                if (game.frameCount % 3 === 0) {
                     const trailColor = `rgba(255, 255, ${Math.floor(Math.random() * 255)}, 0.5)`;
                     const trailRadius = this.radius * (Math.random() * 0.3 + 0.2);
-                    particleManager.createTrailParticle(this.x, this.y, trailColor, trailRadius);
+                    game.particleManager.createTrailParticle(this.x, this.y, trailColor, trailRadius);
                 }
 
-
-                // Verifica se o projétil saiu dos limites do mundo
                 const worldEdge = CONFIG.WORLD_BOUNDS.width / 2 + 200;
                 if (this.x < -worldEdge || this.x > worldEdge || this.y < -worldEdge || this.y > worldEdge) {
                     this.isDead = true;
@@ -2247,7 +2207,6 @@ window.onload = () => {
             constructor() {
                 super();
                 this.color = 'red';
-                // <<<<<<< MUDANÇA 1: RASTRO DE PARTÍCULAS REMOVIDO DAQUI
             }
 
             init(x, y, angle, speed, damage) {
@@ -2262,17 +2221,14 @@ window.onload = () => {
 
             draw(ctx) {
                 // Otimização: Só desenha se estiver na tela
-                const screenLeft = camera.x;
-                const screenRight = camera.x + canvas.width;
+                const screenLeft = game.camera.x;
+                const screenRight = game.camera.x + canvas.width;
                 if (this.x + this.radius < screenLeft || this.x - this.radius > screenRight) {
                     return;
                 }
 
                 ctx.save();
-                ctx.translate(-camera.x, -camera.y);
-
-                // <<<<<<< MUDANÇA 1: LÓGICA DE DESENHAR RASTRO REMOVIDA
-
+                ctx.translate(-game.camera.x, -game.camera.y);
                 ctx.fillStyle = this.color;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
@@ -2284,15 +2240,14 @@ window.onload = () => {
                 this.x += this.velocity.x;
                 this.y += this.velocity.y;
 
-                // <<<<<<< MUDANÇA 1: SOLICITA A CRIAÇÃO DE PARTÍCULAS AO GESTOR CENTRAL
-                if (frameCount % 3 === 0) {
+                if (game.frameCount % 3 === 0) {
                     const trailColor = `rgba(255, 0, 0, 0.5)`;
                     const trailRadius = this.radius * (Math.random() * 0.3 + 0.2);
-                    particleManager.createTrailParticle(this.x, this.y, trailColor, trailRadius);
+                    game.particleManager.createTrailParticle(this.x, this.y, trailColor, trailRadius);
                 }
 
                 // Verifica se o projétil saiu da tela
-                if (this.x < camera.x - 100 || this.x > camera.x + canvas.width + 100 || this.y < camera.y - 100 || this.y > camera.y + canvas.height + 100) {
+                if (this.x < game.camera.x - 100 || this.x > game.camera.x + canvas.width + 100 || this.y < game.camera.y - 100 || this.y > game.camera.y + canvas.height + 100) {
                     this.isDead = true;
                     releaseToPool(this);
                 }
@@ -2319,14 +2274,14 @@ window.onload = () => {
             }
             draw(ctx) {
                 // Otimização: Só desenha se estiver na tela
-                const screenLeft = camera.x;
-                const screenRight = camera.x + canvas.width;
+                const screenLeft = game.camera.x;
+                const screenRight = game.camera.x + canvas.width;
                 if (this.x + this.radius < screenLeft || this.x - this.radius > screenRight) {
                     return;
                 }
 
                 ctx.save();
-                ctx.translate(-camera.x, -camera.y); // Aplica o deslocamento da câmara
+                ctx.translate(-game.camera.x, -game.camera.y); // Aplica o deslocamento da câmara
                 ctx.fillStyle = 'cyan';
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
@@ -2336,15 +2291,15 @@ window.onload = () => {
             update() {
                 if (!this.active) return; // Garante que apenas orbes ativos são atualizados
 
-                const dist = Math.hypot(player.x - this.x, player.y - this.y);
+                const dist = Math.hypot(game.player.x - this.x, game.player.y - this.y);
 
-                if (dist < player.collectRadius) {
-                    const angle = Math.atan2(player.y - this.y, player.x - this.x);
+                if (dist < game.player.collectRadius) {
+                    const angle = Math.atan2(game.player.y - this.y, game.player.x - this.x);
                     this.x += Math.cos(angle) * 8; // Velocidade de atração
                     this.y += Math.sin(angle) * 8;
                 }
-                if (dist < player.radius + this.radius) { // Verificar colisão real para recolha
-                    player.addXp(this.value);
+                if (dist < game.player.radius + this.radius) { // Verificar colisão real para recolha
+                    game.player.addXp(this.value);
                     this.isDead = true; // Marcar para remoção
                     releaseToPool(this);
                 }
@@ -2355,7 +2310,6 @@ window.onload = () => {
             }
         }
 
-        // <<<<<<< MUDANÇA 1: PARTICLE MANAGER IMPLEMENTADO
         class ParticleManager {
             constructor(maxParticles = 500) {
                 this.maxParticles = maxParticles;
@@ -2373,7 +2327,6 @@ window.onload = () => {
                 this.activeParticles.push(p);
             }
 
-            // Cria uma partícula de rastro (que não tem velocidade inicial)
             createTrailParticle(x, y, color, radius) {
                 if (this.activeParticles.length >= this.maxParticles) {
                     const oldestParticle = this.activeParticles.shift();
@@ -2417,7 +2370,7 @@ window.onload = () => {
 
             draw(ctx) {
                 ctx.save();
-                ctx.translate(-camera.x, -camera.y); // Aplica o deslocamento da câmara
+                ctx.translate(-game.camera.x, -game.camera.y); // Aplica o deslocamento da câmara
                 ctx.globalAlpha = this.alpha;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
@@ -2454,7 +2407,7 @@ window.onload = () => {
             }
             draw(ctx) {
                 ctx.save();
-                    ctx.translate(this.x - camera.x, this.y - camera.y);
+                    ctx.translate(this.x - game.camera.x, this.y - game.camera.y);
 
                     if (this.type === 'heal_orb') {
                         ctx.fillStyle = `rgba(255, 0, 0, ${0.7 + Math.sin(this.animationFrame * 0.1) * 0.3})`;
@@ -2480,24 +2433,24 @@ window.onload = () => {
                     this.animationFrame++;
             }
             update() {
-                if (Math.hypot(player.x - this.x, player.y - this.y) < player.radius + this.radius) {
+                if (Math.hypot(game.player.x - this.x, game.player.y - this.y) < game.player.radius + this.radius) {
                     this.applyEffect();
                     this.isDead = true;
                 }
             }
             applyEffect() {
                     if (this.type === 'nuke') {
-                    enemies.forEach(e => {
+                    game.enemies.forEach(e => {
                             e.takeDamage(10000);
                             e.applyKnockback(this.x, this.y, CONFIG.ENEMY_KNOCKBACK_FORCE * 5);
                     });
                         SoundManager.play('nuke', '8n');
-                        screenShake = { intensity: 15, duration: 30 };
+                        game.screenShake = { intensity: 15, duration: 30 };
                     } else if (this.type === 'heal_orb') {
-                        player.health = Math.min(player.maxHealth, player.health + player.maxHealth * 0.10); // Cura 10%
+                        game.player.health = Math.min(game.player.maxHealth, game.player.health + game.player.maxHealth * 0.10); // Cura 10%
                         SoundManager.play('xp', 'A5'); // Som de recolha
                         for (let i = 0; i < 10; i++) {
-                            particleManager.createParticle(this.x, this.y, 'red', 1.5);
+                            game.particleManager.createParticle(this.x, this.y, 'red', 1.5);
                         }
                 }
             }
@@ -2513,45 +2466,75 @@ window.onload = () => {
                 this.maxRadius = levelData.radius;
                 this.isExplosion = levelData.isExplosion || false;
                 this.animationFrame = 0;
-                this.enemiesHitByExplosion = new Set(); // Armazena inimigos atingidos pela explosão
+                this.enemiesHitByExplosion = new Set();
+
+                this.isFused = levelData.isFused || false;
+                if (this.isFused) {
+                    this.lanceCooldown = levelData.lance_cooldown;
+                    this.lanceTimer = 0;
+                    this.lanceData = {
+                        count: levelData.lance_count,
+                        damage: levelData.lance_damage,
+                        pierce: levelData.lance_pierce
+                    };
+                }
             }
 
             update() {
                 this.duration--;
                 if (this.duration <= 0) {
                     this.isDead = true;
-                    // Limpeza: Ao morrer, remove a si mesmo do "hitBy" dos inimigos
                     this.enemiesHitByExplosion.forEach(enemy => {
                          if(enemy.hitBy) enemy.hitBy.delete(this);
                     });
-                    return; // Para a execução aqui
+                    return;
                 }
 
-                // A lógica de puxar/danificar inimigos continua aqui
-                enemies.forEach(enemy => {
+                game.enemies.forEach(enemy => {
                     const dist = Math.hypot(this.x - enemy.x, this.y - enemy.y);
                     if(dist < this.maxRadius){
                         if(this.isExplosion){
                             if(!enemy.hitBy.has(this)){
-                                enemy.takeDamage(this.damage * player.damageModifier); // Explosões também escalam com dano do jogador
+                                enemy.takeDamage(this.damage * game.player.damageModifier);
                                 enemy.applyKnockback(this.x, this.y, CONFIG.ENEMY_KNOCKBACK_FORCE * 2);
-                                enemy.hitBy.add(this); // Adiciona este vórtice ao conjunto do inimigo
-                                this.enemiesHitByExplosion.add(enemy); // Lembra quem foi atingido
+                                enemy.hitBy.add(this);
+                                this.enemiesHitByExplosion.add(enemy);
                             }
                         } else {
                             const angle = Math.atan2(this.y - enemy.y, this.x - enemy.x);
                             enemy.x += Math.cos(angle) * this.force;
                             enemy.y += Math.sin(angle) * this.force;
-                            if(frameCount % 60 === 0) enemy.takeDamage(this.damage * player.damageModifier);
+                            if(game.frameCount % 60 === 0) enemy.takeDamage(this.damage * game.player.damageModifier);
                         }
                     }
                 });
+
+                if (this.isFused) {
+                    this.lanceTimer--;
+                    if (this.lanceTimer <= 0) {
+                        this.lanceTimer = this.lanceCooldown;
+                        SoundManager.play('lance', 'A4');
+
+                        const lanceCount = this.lanceData.count;
+                        for (let i = 0; i < lanceCount; i++) {
+                            const angle = (i / lanceCount) * Math.PI * 2;
+                            const lanceDamage = this.lanceData.damage * game.player.damageModifier;
+                            const lanceLevelData = {
+                                damage: lanceDamage,
+                                pierce: this.lanceData.pierce,
+                                speed: 7
+                            };
+                            getFromPool(game.projectilePool, this.x, this.y, angle, lanceLevelData, 'divine_lance');
+                        }
+                    }
+                }
+
                 this.animationFrame++;
             }
 
             draw(ctx) {
                 ctx.save();
-                ctx.translate(this.x - camera.x, this.y - camera.y);
+                ctx.translate(this.x - game.camera.x, this.y - game.camera.y);
 
                 const lifeRatio = this.duration / this.initialDuration;
                 const currentRadius = this.maxRadius * (this.isExplosion ? (1-lifeRatio) : 1);
@@ -2588,12 +2571,12 @@ window.onload = () => {
 
             draw(ctx) {
                 ctx.save();
-                ctx.translate(this.x - camera.x, this.y - camera.y);
+                ctx.translate(this.x - game.camera.x, this.y - game.camera.y);
 
                 const lifeRatio = this.duration / SKILL_DATABASE['static_field'].levels[0].duration;
-                const currentRadius = this.radius * (0.5 + 0.5 * (1 - lifeRatio)); // Pulsa um pouco
+                const currentRadius = this.radius * (0.5 + 0.5 * (1 - lifeRatio));
 
-                ctx.strokeStyle = `rgba(0, 255, 255, ${lifeRatio * 0.5})`; // Ciano transparente
+                ctx.strokeStyle = `rgba(0, 255, 255, ${lifeRatio * 0.5})`;
                 ctx.lineWidth = 3;
                 ctx.beginPath();
                 ctx.arc(0, 0, currentRadius, 0, Math.PI * 2);
@@ -2617,10 +2600,9 @@ window.onload = () => {
                     this.regenBoost = levelData.regenBoost;
                     this.animationFrame = 0;
 
-                    // Lógica da evolução
                     this.evolved = levelData.evolved || false;
                     if (this.evolved) {
-                        this.dotDamage = 10; // Dano de luz por segundo
+                        this.dotDamage = 10;
                     }
                 }
 
@@ -2631,22 +2613,19 @@ window.onload = () => {
                         return;
                     }
 
-                    // Efeito no jogador
-                    if (Math.hypot(this.x - player.x, this.y - player.y) < this.radius) {
-                        const baseRegen = player.skills['health_regen'] ? SKILL_DATABASE['health_regen'].levels[player.skills['health_regen'].level - 1].regenPerSecond : 0;
-                        const totalRegen = (baseRegen + this.regenBoost) / 60; // por frame
-                        player.health = Math.min(player.maxHealth, player.health + totalRegen);
+                    if (Math.hypot(this.x - game.player.x, this.y - game.player.y) < this.radius) {
+                        const baseRegen = game.player.skills['health_regen'] ? SKILL_DATABASE['health_regen'].levels[game.player.skills['health_regen'].level - 1].regenPerSecond : 0;
+                        const totalRegen = (baseRegen + this.regenBoost) / 60;
+                        game.player.health = Math.min(game.player.maxHealth, game.player.health + totalRegen);
                     }
 
-                    // Efeito nos inimigos
-                    enemies.forEach(enemy => {
+                    game.enemies.forEach(enemy => {
                         if (Math.hypot(this.x - enemy.x, this.y - enemy.y) < this.radius) {
                             enemy.applySlow(60);
 
-                            // Lógica da evolução
-                            if (this.evolved && frameCount % 60 === 0) { // Dano a cada segundo
-                                enemy.takeDamage(this.dotDamage * player.damageModifier);
-                                particleManager.createParticle(enemy.x, enemy.y, 'yellow', 1);
+                            if (this.evolved && game.frameCount % 60 === 0) {
+                                enemy.takeDamage(this.dotDamage * game.player.damageModifier);
+                                game.particleManager.createParticle(enemy.x, enemy.y, 'yellow', 1);
                             }
                         }
                     });
@@ -2656,18 +2635,16 @@ window.onload = () => {
 
                 draw(ctx) {
                     ctx.save();
-                    ctx.translate(this.x - camera.x, this.y - camera.y);
+                    ctx.translate(this.x - game.camera.x, this.y - game.camera.y);
 
                     const lifeRatio = this.duration / SKILL_DATABASE['sanctuary'].levels[0].duration;
                     const pulse = 0.95 + Math.sin(this.animationFrame * 0.05) * 0.05;
 
-                    // Círculo externo (brilho)
                     ctx.fillStyle = `rgba(255, 255, 150, ${lifeRatio * 0.15})`;
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius * pulse, 0, Math.PI * 2);
                     ctx.fill();
 
-                    // Círculo interno (sólido)
                     ctx.fillStyle = `rgba(255, 255, 200, ${lifeRatio * 0.1})`;
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius * 0.8 * pulse, 0, Math.PI * 2);
@@ -2681,7 +2658,7 @@ window.onload = () => {
             constructor() {
                 super();
             }
-            init(x, y, life = 60) { // 1 segundo de aviso
+            init(x, y, life = 60) {
                 super.reset();
                 this.x = x;
                 this.y = y;
@@ -2693,19 +2670,17 @@ window.onload = () => {
                 this.life--;
                 if (this.life <= 0) {
                     this.isDead = true;
-                    // Spawna o meteoro vindo de cima
                     const meteorStartX = this.x;
-                    const meteorStartY = camera.y - 50; // Acima da tela
-                    getFromPool(enemyProjectilePool, meteorStartX, meteorStartY, Math.PI / 2, 8, 20); // angulo, velocidade, dano
+                    const meteorStartY = game.camera.y - 50;
+                    getFromPool(game.enemyProjectilePool, meteorStartX, meteorStartY, Math.PI / 2, 8, 20);
                 }
             }
             draw(ctx) {
-                // Desenha um círculo de aviso no chão
                 ctx.save();
-                ctx.translate(this.x - camera.x, this.y - camera.y);
+                ctx.translate(this.x - game.camera.x, this.y - game.camera.y);
                 const progress = this.life / this.initialLife;
-                const alpha = 1 - progress; // Fade in
-                const radius = this.radius * (1 - progress); // Cresce
+                const alpha = 1 - progress;
+                const radius = this.radius * (1 - progress);
                 ctx.strokeStyle = `rgba(255, 100, 0, ${alpha})`;
                 ctx.lineWidth = 3;
                 ctx.beginPath();
@@ -2717,18 +2692,17 @@ window.onload = () => {
 
         class DemoPlayer extends Entity {
             constructor(x, y) {
-                super(x, y, 25); // Um pouco maior que o jogador normal
+                super(x, y, 25);
                 this.animationFrame = 0;
                 this.angle = 0;
             }
             update() {
                 this.animationFrame++;
-                this.y += Math.sin(this.animationFrame * 0.02) * 0.5; // Movimento suave para cima e para baixo
+                this.y += Math.sin(this.animationFrame * 0.02) * 0.5;
             }
             draw(ctx) {
-                // Reutiliza o código de desenho do jogador normal, mas com algumas alterações
                 ctx.save();
-                ctx.translate(this.x, this.y); // Sem câmara
+                ctx.translate(this.x, this.y);
                 ctx.fillStyle = 'white';
                 ctx.strokeStyle = 'cyan';
                 ctx.lineWidth = 3;
@@ -2744,12 +2718,11 @@ window.onload = () => {
             }
         }
 
-        // --- ESTRUTURA DE DADOS PARA OTIMIZAR COLISÕES ---
         class Quadtree {
             constructor(bounds, capacity = 4) {
-                this.bounds = bounds; // { x, y, width, height }
-                this.capacity = capacity; // Quantos objetos antes de subdividir
-                this.points = []; // Objetos neste nó
+                this.bounds = bounds;
+                this.capacity = capacity;
+                this.points = [];
                 this.divided = false;
             }
 
@@ -2758,7 +2731,6 @@ window.onload = () => {
                 let w2 = width / 2;
                 let h2 = height / 2;
 
-                // Criar os 4 novos quadrantes
                 let ne = new Quadtree(new Rectangle(x + w2, y, w2, h2), this.capacity);
                 let nw = new Quadtree(new Rectangle(x, y, w2, h2), this.capacity);
                 let se = new Quadtree(new Rectangle(x + w2, y + h2, w2, h2), this.capacity);
@@ -2772,10 +2744,9 @@ window.onload = () => {
                 this.divided = true;
             }
 
-            // Insere um objeto (que deve ter propriedades x, y)
             insert(point) {
                 if (!this.bounds.contains(point)) {
-                    return false; // Simplesmente não insere se estiver fora dos limites
+                    return false;
                 }
 
                 if (this.points.length < this.capacity) {
@@ -2787,19 +2758,15 @@ window.onload = () => {
                     this.subdivide();
                 }
 
-                // Tenta inserir nos filhos e retorna true se bem-sucedido em qualquer um deles
                 if (this.northeast.insert(point) ||
                     this.northwest.insert(point) ||
                     this.southeast.insert(point) ||
                     this.southwest.insert(point)) {
                     return true;
                 }
-
-                // Se não couber em nenhum filho (caso raro de estar exatamente na fronteira)
                 return false;
             }
 
-            // Retorna todos os objetos dentro de um certo alcance (range)
             query(range, found = []) {
                 if (!this.bounds.intersects(range)) {
                     return found;
@@ -2822,7 +2789,6 @@ window.onload = () => {
             }
         }
 
-        // Funções de ajuda para os limites do Quadtree
         function Rectangle(x, y, w, h) {
             this.x = x;
             this.y = y;
@@ -2831,7 +2797,6 @@ window.onload = () => {
         }
 
         Rectangle.prototype.contains = function(point) {
-            // Para um ponto (x,y)
             return (point.x >= this.x &&
                     point.x < this.x + this.width &&
                     point.y >= this.y &&
@@ -2839,29 +2804,24 @@ window.onload = () => {
         };
 
         Rectangle.prototype.intersects = function(range) {
-            // Para outro retângulo (range)
             return !(range.x > this.x + this.width ||
                      range.x + range.width < this.x ||
                      range.y > this.y + this.height ||
                      range.y + range.height < this.y);
         };
 
-        // --- LÓGICA DO JOGO ---
         function initGame(characterId = 'SERAPH') {
-            // ALTERAÇÃO 1: Geração de plataformas aprimorada para um mundo maior
-            platforms = [];
+            game.platforms = [];
             const groundLevel = canvas.height * (1 - CONFIG.GROUND_HEIGHT_PERCENT);
 
-                // O chão principal, agora do tamanho exato da arena.
-            platforms.push(new Platform(
+            game.platforms.push(new Platform(
                     -CONFIG.WORLD_BOUNDS.width / 2,
                 groundLevel,
                     CONFIG.WORLD_BOUNDS.width,
                 CONFIG.WORLD_BOUNDS.height
             ));
 
-            // Geração de plataformas flutuantes
-                const platformCount = 12; // Reduzido para a arena menor
+            const platformCount = 12;
             const minGapX = 50;
             const minGapY = 40;
             let attempts = 0;
@@ -2873,7 +2833,7 @@ window.onload = () => {
                 const pY = groundLevel - (Math.random() * 400 + 80);
 
                 let overlaps = false;
-                for (const existingPlatform of platforms) {
+                for (const existingPlatform of game.platforms) {
                     if (pX < existingPlatform.x + existingPlatform.width + minGapX &&
                         pX + pWidth > existingPlatform.x - minGapX &&
                         pY < existingPlatform.y + existingPlatform.height + minGapY &&
@@ -2884,17 +2844,16 @@ window.onload = () => {
                 }
 
                 if (!overlaps) {
-                    platforms.push(new Platform(pX, pY, pWidth, pHeight));
+                    game.platforms.push(new Platform(pX, pY, pWidth, pHeight));
                 } else {
                     i--;
                 }
                 attempts++;
             }
 
-            // ALTERAÇÃO 4b: Gerar partículas de ambiente para o mundo expandido
-            ambientParticles = [];
+            game.ambientParticles = [];
             for(let i=0; i < 100; i++) {
-                ambientParticles.push({
+                game.ambientParticles.push({
                     x: Math.random() * CONFIG.WORLD_BOUNDS.width - (CONFIG.WORLD_BOUNDS.width/2),
                     y: Math.random() * CONFIG.WORLD_BOUNDS.height,
                     radius: Math.random() * 1.5,
@@ -2905,90 +2864,79 @@ window.onload = () => {
             }
 
 
-            player = new Player(characterId);
+            game.player = new Player(characterId);
 
-            // Inicializa os agrupamentos de objetos
-            particleManager = new ParticleManager(500); // <<<<<<< MUDANÇA 1: Inicializa o gestor de partículas
-            projectilePool = createPool(Projectile, 50);
-            enemyProjectilePool = createPool(EnemyProjectile, 50);
-            xpOrbPool = createPool(XPOrb, 100);
-            damageNumberPool = createPool(DamageNumber, 50);
-            meteorWarningPool = createPool(MeteorWarningIndicator, 20);
+            game.particleManager = new ParticleManager(500);
+            game.projectilePool = createPool(Projectile, 50);
+            game.enemyProjectilePool = createPool(EnemyProjectile, 50);
+            game.xpOrbPool = createPool(XPOrb, 100);
+            game.damageNumberPool = createPool(DamageNumber, 50);
+            game.meteorWarningPool = createPool(MeteorWarningIndicator, 20);
 
-            player.addSkill(CHARACTER_DATABASE[characterId].initialSkill);
+            game.player.addSkill(CHARACTER_DATABASE[characterId].initialSkill);
 
-            // Limpa todas as entidades ativas
-            enemies = [];
-            activeVortexes = [];
-            powerUps = [];
-            activeStaticFields = [];
-            activeDamageNumbers = [];
-            activeMeteorWarnings = [];
+            game.enemies = [];
+            game.activeVortexes = [];
+            game.powerUps = [];
+            game.activeStaticFields = [];
+            game.activeDamageNumbers = [];
+            game.activeMeteorWarnings = [];
 
-            // Limpa o HTML do HUD
             document.getElementById('skills-hud').innerHTML = '';
 
-            // Liberta todos os objetos de volta para os seus agrupamentos
-            // particlePool.forEach(p => releaseToPool(p)); // <<<<<<< MUDANÇA 1: Removido
-
-            // Lógica para desbloquear habilidade
             if (playerUpgrades.unlock_powerful_skill > 0) {
                 SKILL_DATABASE['celestial_beam'].unlocked = true;
             } else {
-                 SKILL_DATABASE['celestial_beam'].unlocked = false; // Garante que está bloqueado se não tiver a melhoria
+                 SKILL_DATABASE['celestial_beam'].unlocked = false;
             }
 
-            projectilePool.forEach(p => releaseToPool(p));
-            enemyProjectilePool.forEach(p => releaseToPool(p));
-            xpOrbPool.forEach(o => releaseToPool(o));
-            damageNumberPool.forEach(dn => releaseToPool(dn));
-            meteorWarningPool.forEach(p => releaseToPool(p));
+            game.projectilePool.forEach(p => releaseToPool(p));
+            game.enemyProjectilePool.forEach(p => releaseToPool(p));
+            game.xpOrbPool.forEach(o => releaseToPool(o));
+            game.damageNumberPool.forEach(dn => releaseToPool(dn));
+            game.meteorWarningPool.forEach(p => releaseToPool(p));
 
-            gameTime = 0; frameCount = 0;
-            score = { kills: 0, time: 0 };
-            screenShake = { intensity: 0, duration: 0 };
+            game.time = 0;
+            game.frameCount = 0;
+            game.score = { kills: 0, time: 0 };
+            game.screenShake = { intensity: 0, duration: 0 };
 
-            waveNumber = 0;
-            waveEnemiesRemaining = 0;
-            waveCooldownTimer = 0;
+            game.waveNumber = 0;
+            game.waveEnemiesRemaining = 0;
+            game.waveCooldownTimer = 0;
             startNextWave();
 
-            // Reinicia o gerenciador de eventos
             eventManager.currentEvent = null;
-            eventManager.timeUntilNextEvent = 120 * 60; // Reinicia o temporizador para o próximo jogo
+            eventManager.timeUntilNextEvent = 120 * 60;
 
             setGameState('playing');
         }
 
         function startNextWave() {
-            waveNumber++;
-            console.log(`--- Iniciando Onda ${waveNumber} ---`); // DEBUG
+            game.waveNumber++;
+            console.log(`--- Iniciando Onda ${game.waveNumber} ---`);
 
-            // A CADA 5 ONDAS, UMA ONDA DE BOSS
-            if (waveNumber > 0 && waveNumber % 5 === 0) {
+            if (game.waveNumber > 0 && game.waveNumber % 5 === 0) {
                 SoundManager.playBossBGM();
-                showTemporaryMessage(`BOSS - ONDA ${waveNumber}`, "red");
-                enemies.push(new BossEnemy(player.x + canvas.width / 2 + 100, player.y - 100));
-                waveEnemiesRemaining = 1;
-                currentWaveConfig = { enemies: [], eliteChance: 0 };
+                showTemporaryMessage(`BOSS - ONDA ${game.waveNumber}`, "red");
+                game.enemies.push(new BossEnemy(game.player.x + canvas.width / 2 + 100, game.player.y - 100));
+                game.waveEnemiesRemaining = 1;
+                game.currentWaveConfig = { enemies: [], eliteChance: 0 };
                 return;
             }
 
-            // Para ondas normais, toca a BGM principal e a evolui
             SoundManager.playMainBGM();
-            SoundManager.updateBGM(waveNumber);
+            SoundManager.updateBGM(game.waveNumber);
 
-            // Ondas pré-definidas
-            if (waveNumber <= WAVE_CONFIGS.length) {
-                const waveIndex = waveNumber - 1;
-                currentWaveConfig = JSON.parse(JSON.stringify(WAVE_CONFIGS[waveIndex]));
-            } else { // Geração de Ondas Infinitas
-                showTemporaryMessage(`ONDA ${waveNumber}! (Infinita)`, "cyan");
-                // ALTERAÇÃO 3: Adicionado 'reaper' ao pool de inimigos infinitos
+            if (game.waveNumber <= WAVE_CONFIGS.length) {
+                const waveIndex = game.waveNumber - 1;
+                game.currentWaveConfig = JSON.parse(JSON.stringify(WAVE_CONFIGS[waveIndex]));
+            } else {
+                showTemporaryMessage(`ONDA ${game.waveNumber}! (Infinita)`, "cyan");
                 const enemyTypes = ['chaser', 'speeder', 'tank', 'shooter', 'bomber', 'healer', 'summoner', 'reaper'];
-                const typesInThisWave = Math.min(2 + Math.floor(waveNumber / 7), 5);
+                const typesInThisWave = Math.min(2 + Math.floor(game.waveNumber / 7), 5);
 
-                currentWaveConfig = { enemies: [], eliteChance: Math.min(0.05 + (waveNumber - WAVE_CONFIGS.length) * 0.01, 0.25) };
+                game.currentWaveConfig = { enemies: [], eliteChance: Math.min(0.05 + (game.waveNumber - WAVE_CONFIGS.length) * 0.01, 0.25) };
 
                 let typesAdded = new Set();
                 for(let i = 0; i < typesInThisWave; i++) {
@@ -2999,84 +2947,77 @@ window.onload = () => {
                     typesAdded.add(enemyType);
 
                     const baseCount = 5;
-                        let enemyCount = baseCount + Math.floor(waveNumber * 0.8);
+                        let enemyCount = baseCount + Math.floor(game.waveNumber * 0.8);
 
-                        // Aplica o bónus do Pacto Celestial
-                        if (player.skills['celestial_pact']) {
-                            const levelData = SKILL_DATABASE['celestial_pact'].levels[player.skills['celestial_pact'].level - 1];
+                        if (game.player.skills['celestial_pact']) {
+                            const levelData = SKILL_DATABASE['celestial_pact'].levels[game.player.skills['celestial_pact'].level - 1];
                             enemyCount *= (1 + levelData.enemyBonus);
                         }
 
-                    currentWaveConfig.enemies.push({
+                    game.currentWaveConfig.enemies.push({
                         type: enemyType,
                             count: Math.floor(enemyCount),
-                        spawnInterval: Math.max(20, 100 - waveNumber * 2)
+                        spawnInterval: Math.max(20, 100 - game.waveNumber * 2)
                     });
                 }
             }
 
-            waveEnemiesRemaining = 0;
-            currentWaveConfig.enemies.forEach(enemyType => {
-                waveEnemiesRemaining += enemyType.count;
-                enemyType.spawnTimer = Math.random() * enemyType.spawnInterval; // <<<<<<< MUDANÇA 3: Inicializa o timer de spawn individual
+            game.waveEnemiesRemaining = 0;
+            game.currentWaveConfig.enemies.forEach(enemyType => {
+                game.waveEnemiesRemaining += enemyType.count;
+                enemyType.spawnTimer = Math.random() * enemyType.spawnInterval;
             });
 
 
-            if (waveNumber <= WAVE_CONFIGS.length) {
-                showTemporaryMessage(`ONDA ${waveNumber}!`, "gold");
+            if (game.waveNumber <= WAVE_CONFIGS.length) {
+                showTemporaryMessage(`ONDA ${game.waveNumber}!`, "gold");
             }
-            if (DEBUG_MODE) console.log(`Iniciando Onda ${waveNumber}. Total de inimigos: ${waveEnemiesRemaining}`);
+            if (DEBUG_MODE) console.log(`Iniciando Onda ${game.waveNumber}. Total de inimigos: ${game.waveEnemiesRemaining}`);
         }
 
-        // <<<<<<< MUDANÇA 3: LÓGICA DE SPAWN REFEITA
         function spawnEnemies() {
-            // console.log(`spawnEnemies check: waveEnemiesRemaining=${waveEnemiesRemaining}, enemies.length=${enemies.length}`); // DEBUG intensivo
-            // Lógica de pausa entre ondas
-            if (waveEnemiesRemaining <= 0 && enemies.length === 0) {
-                if (waveCooldownTimer <= 0) {
-                    waveCooldownTimer = 180; // 3 segundos de pausa entre ondas
+            if (game.waveEnemiesRemaining <= 0 && game.enemies.length === 0) {
+                if (game.waveCooldownTimer <= 0) {
+                    game.waveCooldownTimer = 180;
                     showTemporaryMessage("PAUSA ENTRE ONDAS", "white");
-                    console.log("Iniciando cooldown entre ondas."); // DEBUG
+                    console.log("Iniciando cooldown entre ondas.");
                 } else {
-                    waveCooldownTimer--;
-                    if (waveCooldownTimer <= 0) {
-                        console.log("Cooldown finalizado. Chamando startNextWave."); // DEBUG
+                    game.waveCooldownTimer--;
+                    if (game.waveCooldownTimer <= 0) {
+                        console.log("Cooldown finalizado. Chamando startNextWave.");
                         startNextWave();
                     }
                 }
-                return; // Não spawna inimigos durante o cooldown
+                return;
             }
 
-            if (!currentWaveConfig.enemies) return;
+            if (!game.currentWaveConfig.enemies) return;
 
-            // Itera sobre cada tipo de inimigo na configuração da onda
-            currentWaveConfig.enemies.forEach(enemyConfig => {
+            game.currentWaveConfig.enemies.forEach(enemyConfig => {
                 if (enemyConfig.count > 0) {
                     enemyConfig.spawnTimer--;
 
                     if (enemyConfig.spawnTimer <= 0) {
-                        // Lógica para encontrar uma posição de spawn fora da tela
                         let x, y;
                         const spawnSide = Math.floor(Math.random() * 4);
                         const spawnMargin = 50;
-                        const camX = camera.x, camY = camera.y, camW = canvas.width, camH = canvas.height;
+                        const camX = game.camera.x, camY = game.camera.y, camW = canvas.width, camH = canvas.height;
 
                         if (spawnSide === 0) { x = camX - spawnMargin; y = camY + Math.random() * camH; }
                         else if (spawnSide === 1) { x = camX + camW + spawnMargin; y = camY + Math.random() * camH; }
                         else if (spawnSide === 2) { x = camX + Math.random() * camW; y = camY - spawnMargin; }
                         else { x = camX + Math.random() * camW; y = camY + camH + spawnMargin; }
 
-                            // Garante que o spawn ocorra dentro dos limites do mundo
                             const halfWorldWidth = CONFIG.WORLD_BOUNDS.width / 2;
                             const halfWorldHeight = CONFIG.WORLD_BOUNDS.height / 2;
                             x = Math.max(-halfWorldWidth, Math.min(x, halfWorldWidth));
                             y = Math.max(-halfWorldHeight, Math.min(y, halfWorldHeight));
 
-                        const isElite = Math.random() < currentWaveConfig.eliteChance;
-                        enemies.push(new Enemy(x, y, enemyConfig.type, isElite));
+                        const isElite = Math.random() < game.currentWaveConfig.eliteChance;
+                        game.enemies.push(new Enemy(x, y, enemyConfig.type, isElite));
 
                         enemyConfig.count--;
-                        enemyConfig.spawnTimer = enemyConfig.spawnInterval; // Reinicia o timer para este tipo específico
+                        enemyConfig.spawnTimer = enemyConfig.spawnInterval;
                     }
                 }
             });
@@ -3084,7 +3025,7 @@ window.onload = () => {
 
         function chainLightningEffect(source, initialTarget, levelData) {
             if (SKILL_DATABASE['chain_lightning'].causesHitStop) {
-                hitStopTimer = 4;
+                game.hitStopTimer = 4;
             }
 
             let currentTarget = initialTarget;
@@ -3094,22 +3035,18 @@ window.onload = () => {
             for (let i = 0; i <= levelData.chains; i++) {
                 if (!currentTarget) break;
 
-                currentTarget.takeDamage(levelData.damage * player.damageModifier);
+                currentTarget.takeDamage(levelData.damage * game.player.damageModifier);
                 createLightningBolt(lastPosition, currentTarget);
 
                 lastPosition = { x: currentTarget.x, y: currentTarget.y };
                 let nextTarget = null;
                 let nearestDistSq = Infinity;
 
-                // --- INÍCIO DA OTIMIZAÇÃO ---
-                // 1. Define a área de busca (um quadrado à volta do alvo atual)
                 const searchRadius = levelData.chainRadius;
                 const searchArea = new Rectangle(currentTarget.x - searchRadius, currentTarget.y - searchRadius, searchRadius * 2, searchRadius * 2);
 
-                // 2. Pede ao Quadtree apenas os inimigos na área
-                const candidates = qtree.query(searchArea);
+                const candidates = game.qtree.query(searchArea);
 
-                // 3. Itera apenas sobre os candidatos (muito menos inimigos)
                 for (const enemy of candidates) {
                     if (!targetsHit.has(enemy) && !enemy.isDead) {
                         const distSq = Math.hypot(currentTarget.x - enemy.x, currentTarget.y - enemy.y);
@@ -3119,7 +3056,6 @@ window.onload = () => {
                         }
                     }
                 }
-                // --- FIM DA OTIMIZAÇÃO ---
 
                 currentTarget = nextTarget;
                 if (currentTarget) targetsHit.add(currentTarget);
@@ -3127,11 +3063,9 @@ window.onload = () => {
         }
 
         function createLightningBolt(startPos, endPos) {
-                // Esta função será desenhada diretamente no canvas principal durante o loop de desenho,
-                // por isso precisamos guardar os seus pontos em uma array global temporária.
                 const bolt = {
                     points: [],
-                    life: 5 // Duração do raio em frames
+                    life: 5
                 };
 
             const dx = endPos.x - startPos.x;
@@ -3149,7 +3083,6 @@ window.onload = () => {
                     const x = startPos.x + dx * t;
                     const y = startPos.y + dy * t;
 
-                    // Adiciona jitter (tremor) perpendicular ao raio
                     const jitter = (Math.random() - 0.5) * 15;
                     const jitterX = x + Math.cos(angle + Math.PI / 2) * jitter;
                     const jitterY = y + Math.sin(angle + Math.PI / 2) * jitter;
@@ -3158,9 +3091,7 @@ window.onload = () => {
             }
 
                 bolt.points.push({x: endPos.x, y: endPos.y});
-
-                // Adiciona o raio a uma lista para ser desenhado
-                activeLightningBolts.push(bolt);
+                game.activeLightningBolts.push(bolt);
         }
 
             function createSlashEffect(x, y, angle, range, arc) {
@@ -3172,31 +3103,30 @@ window.onload = () => {
                     const pX = x + Math.cos(particleAngle) * particleRange;
                     const pY = y + Math.sin(particleAngle) * particleRange;
 
-                    const particle = getFromPool(particleManager.pool);
+                    const particle = getFromPool(game.particleManager.pool);
                     if (particle) {
                         particle.init(pX, pY, 'white', 1.5);
                         const speed = 1.5;
                         particle.velocity.x = Math.cos(particleAngle) * speed;
                         particle.velocity.y = Math.sin(particleAngle) * speed;
-                        particleManager.activeParticles.push(particle);
+                        game.particleManager.activeParticles.push(particle);
                     }
                 }
             }
 
         function handleCollisions() {
-            handlePlayerProjectiles(qtree);
-            handlePlayerCollisions(qtree);
+            handlePlayerProjectiles(game.qtree);
+            handlePlayerCollisions(game.qtree);
             handleEnemyProjectiles();
         }
 
         function handlePlayerProjectiles(qtree) {
-            if (!projectilePool) return;
+            if (!game.projectilePool) return;
 
-            for (const proj of projectilePool) {
+            for (const proj of game.projectilePool) {
                 if (!proj.active) continue;
 
-                // Otimização: Apenas inimigos próximos são verificados
-                let searchRadius = (proj.length || proj.radius) + 30; // Usa o comprimento se existir
+                let searchRadius = (proj.length || proj.radius) + 30;
                 let range = new Rectangle(proj.x - searchRadius, proj.y - searchRadius, searchRadius * 2, searchRadius * 2);
                 let nearbyEnemies = qtree.query(range);
 
@@ -3204,10 +3134,8 @@ window.onload = () => {
                     if (proj.isDead || proj.piercedEnemies.has(enemy)) continue;
 
                     let hit = false;
-                    // NOVA LÓGICA DE COLISÃO PARA O RAIO
                     if (proj.skillId === 'celestial_ray' || proj.skillId === 'celestial_beam') {
-                        // Trata o raio como uma série de pontos e verifica a colisão para cada um
-                        const segments = 5; // Verificamos 5 pontos ao longo do raio
+                        const segments = 5;
                         for (let i = 0; i <= segments; i++) {
                             const checkX = proj.x + (i / segments - 0.5) * proj.length * Math.cos(proj.angle);
                             const checkY = proj.y + (i / segments - 0.5) * proj.length * Math.sin(proj.angle);
@@ -3216,24 +3144,24 @@ window.onload = () => {
                                 break;
                             }
                         }
-                    } else { // Lógica de colisão original para projéteis circulares
+                    } else {
                         if (Math.hypot(proj.x - enemy.x, proj.y - enemy.y) < proj.radius + enemy.radius) {
                             hit = true;
                         }
                     }
 
-                    if (hit) { // Se a colisão ocorreu
+                    if (hit) {
                         enemy.takeDamage(proj.damage);
                         enemy.applyKnockback(proj.x, proj.y, CONFIG.ENEMY_KNOCKBACK_FORCE);
 
                         if (proj.skillId && SKILL_DATABASE[proj.skillId]?.causesHitStop) {
-                            hitStopTimer = 4;
+                            game.hitStopTimer = 4;
                         }
 
-                        const skillState = player.skills[proj.skillId];
+                        const skillState = game.player.skills[proj.skillId];
                         if (skillState && skillState.evolved) {
                             const lifestealAmount = proj.damage * 0.05;
-                            player.health = Math.min(player.maxHealth, player.health + lifestealAmount);
+                            game.player.health = Math.min(game.player.maxHealth, game.player.health + lifestealAmount);
                         }
 
                         proj.piercedEnemies.add(enemy);
@@ -3248,18 +3176,17 @@ window.onload = () => {
         }
 
         function handlePlayerCollisions(qtree) {
-            if (!player) return;
+            if (!game.player) return;
 
-            let searchRadius = player.radius + 50;
-            let range = new Rectangle(player.x - searchRadius, player.y - searchRadius, searchRadius * 2, searchRadius * 2);
+            let searchRadius = game.player.radius + 50;
+            let range = new Rectangle(game.player.x - searchRadius, game.player.y - searchRadius, searchRadius * 2, searchRadius * 2);
             let nearbyEnemies = qtree.query(range);
 
             for (let enemy of nearbyEnemies) {
                 if (enemy.isDead) continue;
-                if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < player.radius + enemy.radius) {
-                    player.takeDamage(enemy.damage, enemy); // Passa o inimigo como fonte do dano
-                    // O knockback do inimigo já é aplicado no takeDamage do inimigo, mas podemos manter um pequeno empurrão para separação
-                    const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+                if (Math.hypot(game.player.x - enemy.x, game.player.y - enemy.y) < game.player.radius + enemy.radius) {
+                    game.player.takeDamage(enemy.damage, enemy);
+                    const angle = Math.atan2(enemy.y - game.player.y, enemy.x - game.player.x);
                     enemy.x += Math.cos(angle) * 5;
                     enemy.y += Math.sin(angle) * 5;
                 }
@@ -3267,14 +3194,14 @@ window.onload = () => {
         }
 
         function handleEnemyProjectiles() {
-            if (!enemyProjectilePool || !player) return;
+            if (!game.enemyProjectilePool || !game.player) return;
 
-            for (const eProj of enemyProjectilePool) {
+            for (const eProj of game.enemyProjectilePool) {
                 if (!eProj.active) continue;
-                if (Math.hypot(player.x - eProj.x, player.y - eProj.y) < player.radius + eProj.radius) {
-                    player.takeDamage(eProj.damage, eProj); // Passa o projétil inimigo como fonte do dano
+                if (Math.hypot(game.player.x - eProj.x, game.player.y - eProj.y) < game.player.radius + eProj.radius) {
+                    game.player.takeDamage(eProj.damage, eProj);
                     for (let i = 0; i < 10; i++) {
-                        if (particleManager) particleManager.createParticle(eProj.x, eProj.y, 'orange', 1.5); // <<<<<<< MUDANÇA 1
+                        if (game.particleManager) game.particleManager.createParticle(eProj.x, eProj.y, 'orange', 1.5);
                     }
                     eProj.isDead = true;
                     releaseToPool(eProj);
@@ -3284,7 +3211,6 @@ window.onload = () => {
 
         let demoPlayer;
 
-        // OTIMIZAÇÃO: Função genérica para remover entidades mortas de forma eficiente
         function removeDeadEntities(array) {
             for (let i = array.length - 1; i >= 0; i--) {
                 if (array[i].isDead) {
@@ -3295,7 +3221,7 @@ window.onload = () => {
 
         function populateAchievementsScreen() {
             const container = document.getElementById('achievements-list');
-            container.innerHTML = ''; // Limpa para garantir que não há duplicados
+            container.innerHTML = '';
 
             for (const id in ACHIEVEMENT_DATABASE) {
                 const ach = ACHIEVEMENT_DATABASE[id];
@@ -3321,99 +3247,90 @@ window.onload = () => {
         }
 
         function updateGame(deltaTime) {
-            // Lógica de Hit Stop: se o temporizador estiver ativo, pausa a lógica do jogo.
-            if (hitStopTimer > 0) {
-                hitStopTimer--;
-                return; // Pula o resto da função de atualização
+            if (game.hitStopTimer > 0) {
+                game.hitStopTimer--;
+                return;
             }
 
-            gameTime += deltaTime;
-            frameCount++;
+            game.time += deltaTime;
+            game.frameCount++;
 
             eventManager.update();
 
-            // Redefinir e preencher o Quadtree em cada frame
             const worldBounds = new Rectangle(-CONFIG.WORLD_BOUNDS.width, -CONFIG.WORLD_BOUNDS.height, CONFIG.WORLD_BOUNDS.width * 2, CONFIG.WORLD_BOUNDS.height * 2);
-            qtree = new Quadtree(worldBounds, 4);
+            game.qtree = new Quadtree(worldBounds, 4);
 
-            for (const enemy of enemies) {
+            for (const enemy of game.enemies) {
                 if (!enemy.isDead) {
-                    qtree.insert(enemy);
+                    game.qtree.insert(enemy);
                 }
             }
 
-            if (player) player.update();
-            if (camera) camera.update();
+            if (game.player) game.player.update();
+            if (game.camera) game.camera.update();
 
-            enemies.forEach(e => e.update());
-            for (const p of projectilePool) { if (p.active) p.update(); }
-            for (const p of enemyProjectilePool) { if (p.active) p.update(); }
-            for (const o of xpOrbPool) { if (o.active) o.update(); }
-            particleManager.update(); // <<<<<<< MUDANÇA 1
-            activeDamageNumbers.forEach(dn => dn.update());
+            game.enemies.forEach(e => e.update());
+            for (const p of game.projectilePool) { if (p.active) p.update(); }
+            for (const p of game.enemyProjectilePool) { if (p.active) p.update(); }
+            for (const o of game.xpOrbPool) { if (o.active) o.update(); }
+            game.particleManager.update();
+            game.activeDamageNumbers.forEach(dn => dn.update());
 
-            powerUps.forEach(p => p.update());
-            activeVortexes.forEach(v => v.update());
-            activeStaticFields.forEach(sf => sf.update());
-                activeSanctuaryZones.forEach(s => s.update());
-            activeMeteorWarnings.forEach(w => w.update());
+            game.powerUps.forEach(p => p.update());
+            game.activeVortexes.forEach(v => v.update());
+            game.activeStaticFields.forEach(sf => sf.update());
+            game.activeSanctuaryZones.forEach(s => s.update());
+            game.activeMeteorWarnings.forEach(w => w.update());
 
-                for (let i = activeLightningBolts.length - 1; i >= 0; i--) {
-                    const bolt = activeLightningBolts[i];
-                    bolt.life--;
-                    if (bolt.life <= 0) {
-                        activeLightningBolts.splice(i, 1);
-                    }
+            for (let i = game.activeLightningBolts.length - 1; i >= 0; i--) {
+                const bolt = game.activeLightningBolts[i];
+                bolt.life--;
+                if (bolt.life <= 0) {
+                    game.activeLightningBolts.splice(i, 1);
                 }
+            }
 
             spawnEnemies();
             handleCollisions();
 
-            // OTIMIZAÇÃO: Substituindo .filter() por loops `for` reversos com `splice()`
-            removeDeadEntities(enemies);
-            removeDeadEntities(powerUps);
-            removeDeadEntities(activeVortexes);
-            removeDeadEntities(activeStaticFields);
-                removeDeadEntities(activeSanctuaryZones);
-            removeDeadEntities(activeDamageNumbers);
-            removeDeadEntities(activeMeteorWarnings);
+            removeDeadEntities(game.enemies);
+            removeDeadEntities(game.powerUps);
+            removeDeadEntities(game.activeVortexes);
+            removeDeadEntities(game.activeStaticFields);
+            removeDeadEntities(game.activeSanctuaryZones);
+            removeDeadEntities(game.activeDamageNumbers);
+            removeDeadEntities(game.activeMeteorWarnings);
 
-            if (screenShake.duration > 0) {
-                screenShake.duration--;
-                if (screenShake.duration <= 0) screenShake.intensity = 0;
+            if (game.screenShake.duration > 0) {
+                game.screenShake.duration--;
+                if (game.screenShake.duration <= 0) game.screenShake.intensity = 0;
             }
         }
 
         function drawGame() {
-            // ALTERAÇÃO 4a: Lógica do Parallax melhorada
-            if (player) {
-                // Camada 1 (nebulosa) - movimento muito lento
-                const parallaxX1 = -camera.x * 0.02;
-                const parallaxY1 = -camera.y * 0.02;
+            if (game.player) {
+                const parallaxX1 = -game.camera.x * 0.02;
+                const parallaxY1 = -game.camera.y * 0.02;
 
-                // Camada 2 (estrelas médias) - movimento médio
-                const parallaxX2 = -camera.x * 0.05;
-                const parallaxY2 = -camera.y * 0.05;
+                const parallaxX2 = -game.camera.x * 0.05;
+                const parallaxY2 = -game.camera.y * 0.05;
 
-                // Camada 3 (estrelas próximas) - movimento mais rápido
-                const parallaxX3 = -camera.x * 0.1;
-                const parallaxY3 = -camera.y * 0.1;
+                const parallaxX3 = -game.camera.x * 0.1;
+                const parallaxY3 = -game.camera.y * 0.1;
 
-                // Combina todas as posições numa única string
                 gameContainer.style.backgroundPosition =
-                    `${parallaxX1}px ${parallaxY1}px, ` + // Nebulosa
-                    `${parallaxX2}px ${parallaxY2}px, ` + // Estrelas 1
-                    `${parallaxX3}px ${parallaxY3}px, ` + // Estrelas 2
-                    `${parallaxX3 * 1.5}px ${parallaxY3 * 1.5}px`; // Estrelas 3 (ainda mais rápidas)
+                    `${parallaxX1}px ${parallaxY1}px, ` +
+                    `${parallaxX2}px ${parallaxY2}px, ` +
+                    `${parallaxX3}px ${parallaxY3}px, ` +
+                    `${parallaxX3 * 1.5}px ${parallaxY3 * 1.5}px`;
             }
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.save();
 
-            // ALTERAÇÃO 4b: Desenhar Partículas de Ambiente
             ctx.save();
-            ctx.translate(-camera.x * 0.5, -camera.y * 0.5); // Um parallax mais lento para elas
-            ambientParticles.forEach(p => {
+            ctx.translate(-game.camera.x * 0.5, -game.camera.y * 0.5);
+            game.ambientParticles.forEach(p => {
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
                 ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
@@ -3422,63 +3339,62 @@ window.onload = () => {
             ctx.restore();
 
 
-            if (screenShake.intensity > 0) {
-                ctx.translate((Math.random() - 0.5) * screenShake.intensity, (Math.random() - 0.5) * screenShake.intensity);
+            if (game.screenShake.intensity > 0) {
+                ctx.translate((Math.random() - 0.5) * game.screenShake.intensity, (Math.random() - 0.5) * game.screenShake.intensity);
             }
 
-            platforms.forEach(p => p.draw(ctx));
+            game.platforms.forEach(p => p.draw(ctx));
 
-            for (const o of xpOrbPool) { if (o.active) o.draw(ctx); }
-            powerUps.forEach(p => p.draw(ctx));
-                activeVortexes.forEach(v => v.draw(ctx));
-                activeStaticFields.forEach(sf => sf.draw(ctx));
-                activeSanctuaryZones.forEach(s => s.draw(ctx));
-            activeMeteorWarnings.forEach(w => w.draw(ctx));
+            for (const o of game.xpOrbPool) { if (o.active) o.draw(ctx); }
+            game.powerUps.forEach(p => p.draw(ctx));
+            game.activeVortexes.forEach(v => v.draw(ctx));
+            game.activeStaticFields.forEach(sf => sf.draw(ctx));
+            game.activeSanctuaryZones.forEach(s => s.draw(ctx));
+            game.activeMeteorWarnings.forEach(w => w.draw(ctx));
 
-                // Desenha os raios
-                ctx.save();
-                ctx.translate(-camera.x, -camera.y);
-                ctx.strokeStyle = 'white';
-                ctx.lineWidth = 3;
-                ctx.shadowColor = '#00FFFF';
-                ctx.shadowBlur = 10;
-                activeLightningBolts.forEach(bolt => {
-                    ctx.globalAlpha = bolt.life / 5.0; // Efeito de fade out
-                    ctx.beginPath();
-                    ctx.moveTo(bolt.points[0].x, bolt.points[0].y);
-                    for (let i = 1; i < bolt.points.length; i++) {
-                        ctx.lineTo(bolt.points[i].x, bolt.points[i].y);
-                    }
-                    ctx.stroke();
-                });
-                ctx.restore();
+            ctx.save();
+            ctx.translate(-game.camera.x, -game.camera.y);
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#00FFFF';
+            ctx.shadowBlur = 10;
+            game.activeLightningBolts.forEach(bolt => {
+                ctx.globalAlpha = bolt.life / 5.0;
+                ctx.beginPath();
+                ctx.moveTo(bolt.points[0].x, bolt.points[0].y);
+                for (let i = 1; i < bolt.points.length; i++) {
+                    ctx.lineTo(bolt.points[i].x, bolt.points[i].y);
+                }
+                ctx.stroke();
+            });
+            ctx.restore();
 
-            enemies.forEach(e => e.draw(ctx));
-            for (const p of projectilePool) { if (p.active) p.draw(ctx); }
-            for (const p of enemyProjectilePool) { if (p.active) p.draw(ctx); }
-            particleManager.draw(ctx); // <<<<<<< MUDANÇA 1
+            game.enemies.forEach(e => e.draw(ctx));
+            for (const p of game.projectilePool) { if (p.active) p.draw(ctx); }
+            for (const p of game.enemyProjectilePool) { if (p.active) p.draw(ctx); }
+            game.particleManager.draw(ctx);
 
-            activeDamageNumbers.forEach(dn => dn.draw(ctx));
+            game.activeDamageNumbers.forEach(dn => dn.draw(ctx));
 
-            if (player) player.draw(ctx);
+            if (game.player) game.player.draw(ctx);
 
-            if (player && player.skills) {
-                Object.keys(player.skills).forEach(skillId => {
+            if (game.player && game.player.skills) {
+                Object.keys(game.player.skills).forEach(skillId => {
                     const skillData = SKILL_DATABASE[skillId];
-                    if (skillData.type === 'orbital' && player.skills[skillId].orbs) {
-                        const skillState = player.skills[skillId];
+                    if (skillData.type === 'orbital' && game.player.skills[skillId].orbs) {
+                        const skillState = game.player.skills[skillId];
                         const levelData = skillData.levels[skillState.level - 1];
                         skillState.orbs.forEach(orb => {
-                            const orbX = player.x + Math.cos(orb.angle) * levelData.radius;
-                            const orbY = player.y + Math.sin(orb.angle) * levelData.radius;
-                            const screenLeft = camera.x;
-                            const screenRight = camera.x + canvas.width;
+                            const orbX = game.player.x + Math.cos(orb.angle) * levelData.radius;
+                            const orbY = game.player.y + Math.sin(orb.angle) * levelData.radius;
+                            const screenLeft = game.camera.x;
+                            const screenRight = game.camera.x + canvas.width;
 
                             if (orbX + 20 < screenLeft || orbX - 20 > screenRight) return;
 
                             ctx.save();
-                            ctx.translate(orbX - camera.x, orbY - camera.y);
-                            ctx.rotate(orb.angle + Math.PI / 2); // Alinha o orbital
+                            ctx.translate(orbX - game.camera.x, orbY - game.camera.y);
+                            ctx.rotate(orb.angle + Math.PI / 2);
 
                             if (skillId === 'orbital_shield') {
                                 ctx.beginPath();
@@ -3489,15 +3405,12 @@ window.onload = () => {
                                 ctx.lineWidth = 1;
                                 ctx.stroke();
                             } else if (skillId === 'celestial_hammer') {
-                                // Desenha o martelo
-                                ctx.fillStyle = '#C0C0C0'; // Prata
-                                ctx.strokeStyle = '#A9A9A9'; // Cinza escuro
+                                ctx.fillStyle = '#C0C0C0';
+                                ctx.strokeStyle = '#A9A9A9';
                                 ctx.lineWidth = 2;
-                                // Cabeça do martelo
                                 ctx.fillRect(-12, -20, 24, 15);
                                 ctx.strokeRect(-12, -20, 24, 15);
-                                // Cabo do martelo
-                                ctx.fillStyle = '#8B4513'; // Castanho
+                                ctx.fillStyle = '#8B4513';
                                 ctx.fillRect(-4, -5, 8, 20);
                                 ctx.strokeRect(-4, -5, 8, 20);
                             }
@@ -3514,26 +3427,25 @@ window.onload = () => {
         function gameLoop(currentTime) {
             requestAnimationFrame(gameLoop);
 
-            if (!lastFrameTime) lastFrameTime = currentTime;
-            const deltaTime = (currentTime - lastFrameTime) / 1000.0;
-            lastFrameTime = currentTime;
+            if (!game.lastFrameTime) game.lastFrameTime = currentTime;
+            const deltaTime = (currentTime - game.lastFrameTime) / 1000.0;
+            game.lastFrameTime = currentTime;
 
-            if (gameState === 'menu') {
+            if (game.state === 'menu') {
                 if (!demoPlayer) {
                     demoPlayer = new DemoPlayer(canvas.width / 2, canvas.height / 2);
                 }
                 demoPlayer.update();
 
-                // Animação de fundo para o menu
-                const parallaxX = Math.cos(frameCount * 0.002) * 20;
-                const parallaxY = Math.sin(frameCount * 0.002) * 10;
+                const parallaxX = Math.cos(game.frameCount * 0.002) * 20;
+                const parallaxY = Math.sin(game.frameCount * 0.002) * 10;
                  gameContainer.style.backgroundPosition = `${parallaxX}px ${parallaxY}px, ${parallaxX*2}px ${parallaxY*2}px, ${parallaxX*3}px ${parallaxY*3}px, ${parallaxX*4}px ${parallaxY*4}px`;
 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 demoPlayer.draw(ctx);
             }
 
-            if (gameState === 'playing') {
+            if (game.state === 'playing') {
                 try {
                     updateGame(deltaTime);
                 } catch (error) {
@@ -3542,7 +3454,7 @@ window.onload = () => {
                 }
             }
 
-            if (gameState !== 'menu') {
+            if (game.state !== 'menu') {
                  try {
                     drawGame();
                 } catch (error) {
@@ -3551,7 +3463,6 @@ window.onload = () => {
             }
         }
 
-        // --- UI E GESTÃO DE ESTADO DO JOGO ---
         const ui = {
             layer: document.getElementById('ui-layer'),
             mainMenu: document.getElementById('main-menu'),
@@ -3581,7 +3492,7 @@ window.onload = () => {
 
         function populateCharacterSelectScreen() {
             const container = document.getElementById('character-options');
-            container.innerHTML = ''; // Limpa opções anteriores
+            container.innerHTML = '';
 
             for (const characterId in CHARACTER_DATABASE) {
                 const char = CHARACTER_DATABASE[characterId];
@@ -3596,18 +3507,17 @@ window.onload = () => {
                 container.appendChild(card);
             }
 
-            // Adiciona event listeners para os novos botões
             container.querySelectorAll('.select-button').forEach(button => {
                 button.onclick = () => {
                     const charId = button.getAttribute('data-character-id');
                     initGame(charId);
-                    lastFrameTime = 0; // Reseta o cálculo do delta time
+                    game.lastFrameTime = 0;
                 };
             });
         }
 
         function setGameState(newState) {
-            if (['menu', 'paused', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades', 'characterSelect'].includes(newState) && newState !== gameState) {
+            if (['menu', 'paused', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades', 'characterSelect'].includes(newState) && newState !== game.state) {
                 SoundManager.play('uiClick', 'C6');
             }
 
@@ -3615,7 +3525,7 @@ window.onload = () => {
                 demoPlayer = null;
             }
 
-            gameState = newState;
+            game.state = newState;
 
             if (newState === 'playing' && debugStatus) {
                 debugStatus.style.display = 'none';
@@ -3628,7 +3538,6 @@ window.onload = () => {
             ui.layer.style.backgroundColor = (newState === 'menu') ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.7)';
             ui.layer.classList.toggle('active-menu', isMenuState);
 
-            // <<<<<<< MUDANÇA 4: Lógica do HUD e Botão de Dash unificada
             const showHud = (newState === 'playing' || newState === 'paused');
             ui.hud.classList.toggle('hidden', !showHud);
             ui.dashButtonMobile.classList.toggle('hidden', !isMobile || !showHud);
@@ -3646,9 +3555,9 @@ window.onload = () => {
             } else if (newState === 'paused') {
                 ui.pauseMenu.classList.remove('hidden');
             } else if (newState === 'gameOver') {
-                const finalTimeInSeconds = Math.floor(gameTime);
+                const finalTimeInSeconds = Math.floor(game.time);
                 document.getElementById('final-time').innerText = formatTime(finalTimeInSeconds);
-                document.getElementById('final-kills').innerText = score.kills;
+                document.getElementById('final-kills').innerText = game.score.kills;
                 checkAchievements('survivalTime', finalTimeInSeconds);
                 ui.gameOverScreen.classList.remove('hidden');
                 saveScore();
@@ -3699,30 +3608,24 @@ window.onload = () => {
         }
 
         function updateHUD() {
-            if (player) {
-                document.getElementById('health-bar').style.width = `${(player.health / player.maxHealth) * 100}%`;
-                document.getElementById('xp-bar').style.width = `${(player.xp / player.xpToNextLevel) * 100}%`;
+            if (game.player) {
+                document.getElementById('health-bar').style.width = `${(game.player.health / game.player.maxHealth) * 100}%`;
+                document.getElementById('xp-bar').style.width = `${(game.player.xp / game.player.xpToNextLevel) * 100}%`;
 
-                // --- INÍCIO DA LÓGICA DA VIGNETTE ---
-                const healthPercentage = player.health / player.maxHealth;
+                const healthPercentage = game.player.health / game.player.maxHealth;
                 const vignette = document.getElementById('vignette-overlay');
                 if (vignette) {
-                    // A opacidade aumenta à medida que a vida diminui abaixo de 35%
                     if (healthPercentage < 0.35) {
-                        vignette.style.opacity = (1 - (healthPercentage / 0.35)) * 0.8; // 0.8 é a intensidade máxima
+                        vignette.style.opacity = (1 - (healthPercentage / 0.35)) * 0.8;
                     } else {
                         vignette.style.opacity = 0;
                     }
                 }
-                // --- FIM DA LÓGICA DA VIGNETTE ---
-
-                // <<<<<<< MUDANÇA 4: Lógica do cooldown do botão de dash movida para cá
                 if (isMobile) {
-                    ui.dashButtonMobile.classList.toggle('on-cooldown', player.dashCooldown > 0);
+                    ui.dashButtonMobile.classList.toggle('on-cooldown', game.player.dashCooldown > 0);
                 }
             }
-            // O gameTime já está em segundos, basta arredondar.
-            document.getElementById('timer').innerText = formatTime(Math.floor(gameTime));
+            document.getElementById('timer').innerText = formatTime(Math.floor(game.time));
 
             updateEventHUD();
             updateSkillsHUD();
@@ -3754,26 +3657,24 @@ window.onload = () => {
             let options = [];
             let evolutionOptions = [];
 
-            // 1. Verifica por evoluções disponíveis
             for (const evoId in EVOLUTION_DATABASE) {
                 const evo = EVOLUTION_DATABASE[evoId];
-                const baseSkillState = player.skills[evo.baseSkill];
-                const passiveSkillState = player.skills[evo.passiveReq];
+                const baseSkillState = game.player.skills[evo.baseSkill];
+                const passiveSkillState = game.player.skills[evo.passiveReq];
 
                 if (baseSkillState && baseSkillState.level === SKILL_DATABASE[evo.baseSkill].levels.length && passiveSkillState && !baseSkillState.evolved) {
                     evolutionOptions.push({ ...evo, id: evoId, type: 'evolution' });
                 }
             }
 
-            // 2. Adiciona evoluções como a primeira opção, se disponíveis
             evolutionOptions.forEach(evo => {
                 const card = document.createElement('div');
                 card.className = 'skill-card';
-                card.style.borderColor = 'gold'; // Destaque especial
+                card.style.borderColor = 'gold';
                 card.innerHTML = `<h3>EVOLUÇÃO: ${evo.name}</h3><p>${evo.description}</p>`;
                 card.onclick = (event) => {
                     event.stopPropagation();
-                    const baseSkill = player.skills[evo.baseSkill];
+                    const baseSkill = game.player.skills[evo.baseSkill];
                     baseSkill.evolved = true;
                     if (baseSkill.hudElement) {
                         baseSkill.hudElement.style.borderColor = 'gold';
@@ -3781,25 +3682,61 @@ window.onload = () => {
                     }
                     showTemporaryMessage(`Evoluiu: ${evo.name}!`, 'gold');
                     setGameState('playing');
-                    lastFrameTime = 0;
+                    game.lastFrameTime = 0;
                 };
                 container.appendChild(card);
             });
 
-            // 3. Preenche com opções normais se houver espaço
-            const optionsToDisplay = 3 - evolutionOptions.length;
+            let fusionOptions = [];
+            for (const fusionId in FUSION_DATABASE) {
+                const fusion = FUSION_DATABASE[fusionId];
+                const skillAState = game.player.skills[fusion.skillA];
+                const skillBState = game.player.skills[fusion.skillB];
+
+                if (skillAState && skillAState.level === SKILL_DATABASE[fusion.skillA].levels.length &&
+                    skillBState && skillBState.level === SKILL_DATABASE[fusion.skillB].levels.length &&
+                    !game.player.skills[fusion.newSkill]) {
+                    fusionOptions.push({ ...fusion, id: fusionId, type: 'fusion' });
+                }
+            }
+
+            fusionOptions.forEach(fusion => {
+                const card = document.createElement('div');
+                card.className = 'skill-card';
+                card.style.borderColor = 'fuchsia';
+                card.style.boxShadow = '0 0 15px fuchsia';
+                card.innerHTML = `<h3>FUSÃO: ${fusion.name}</h3><p>${fusion.description}</p>`;
+                card.onclick = (event) => {
+                    event.stopPropagation();
+                    delete game.player.skills[fusion.skillA];
+                    delete game.player.skills[fusion.skillB];
+
+                    const hudA = document.getElementById(`hud-skill-${fusion.skillA}`);
+                    if (hudA) hudA.remove();
+                    const hudB = document.getElementById(`hud-skill-${fusion.skillB}`);
+                    if (hudB) hudB.remove();
+                    
+                    game.player.addSkill(fusion.newSkill);
+                    
+                    showTemporaryMessage(`Fusão: ${fusion.name}!`, 'fuchsia');
+                    setGameState('playing');
+                    game.lastFrameTime = 0;
+                };
+                container.appendChild(card);
+            });
+
+            const optionsToDisplay = 3 - evolutionOptions.length - fusionOptions.length;
             if (optionsToDisplay > 0) {
-                for(const skillId in player.skills){
+                for(const skillId in game.player.skills){
                     const skillData = SKILL_DATABASE[skillId];
-                    // Não oferece upgrade para habilidades que podem evoluir
                     const canEvolve = Object.values(EVOLUTION_DATABASE).some(e => e.baseSkill === skillId);
-                    if(player.skills[skillId].level < skillData.levels.length && !canEvolve) {
+                    if(game.player.skills[skillId].level < skillData.levels.length && !canEvolve) {
                         options.push(skillId);
                     }
                 }
                 for(const skillId in SKILL_DATABASE){
                     const skillData = SKILL_DATABASE[skillId];
-                    if(!player.skills[skillId] && skillData.type !== 'utility' && (skillData.unlocked !== false) && !options.includes(skillId)) {
+                    if(!game.player.skills[skillId] && skillData.type !== 'utility' && (skillData.unlocked !== false) && !options.includes(skillId)) {
                         options.push(skillId);
                     }
                 }
@@ -3812,13 +3749,12 @@ window.onload = () => {
                     const skill = SKILL_DATABASE[skillId];
                     const card = document.createElement('div');
                     card.className = 'skill-card';
-                    const currentLevel = player.skills[skillId]?.level || 0;
-                    const nextLevel = currentLevel; // The level we are about to get
+                    const currentLevel = game.player.skills[skillId]?.level || 0;
+                    const nextLevel = currentLevel;
 
                     let levelText = skill.type !== 'utility' || (skill.levels && skill.levels.length > 1) ? ` (Nível ${currentLevel + 1})` : '';
                     let descText = skill.desc || (skill.levels && skill.levels[nextLevel] ? skill.levels[nextLevel].desc : '');
 
-                    // --- INÍCIO DA MODIFICAÇÃO: Adicionar estatísticas detalhadas ---
                     let statsHTML = '<div class="skill-stats">';
                     if (skill.levels && skill.levels[nextLevel]) {
                         const levelData = skill.levels[nextLevel];
@@ -3832,30 +3768,28 @@ window.onload = () => {
                         if (levelData.regenPerSecond) statsHTML += `<span><strong>Regen:</strong> ${levelData.regenPerSecond}/s</span>`;
                     }
                     statsHTML += '</div>';
-                    // --- FIM DA MODIFICAÇÃO ---
 
                     card.innerHTML = `<h3>${skill.name}${levelText}</h3><p>${descText}</p>${statsHTML}`;
                     card.onclick = (event) => {
                         event.stopPropagation();
-                        player.addSkill(skillId);
+                        game.player.addSkill(skillId);
                         setGameState('playing');
-                        lastFrameTime = 0;
+                        game.lastFrameTime = 0;
                     };
                     container.appendChild(card);
                 });
             }
 
-            // Adiciona o botão de Reroll se houver rerolls disponíveis
-            if (player.freeRerolls > 0) {
+            if (game.player.freeRerolls > 0) {
                 const rerollButton = document.createElement('button');
                 rerollButton.className = 'ui-button reroll-button';
-                rerollButton.textContent = `Rerolar Opções (${player.freeRerolls})`;
+                rerollButton.textContent = `Rerolar Opções (${game.player.freeRerolls})`;
                 rerollButton.onclick = (event) => {
                     event.stopPropagation();
-                    if (player.freeRerolls > 0) {
-                        player.freeRerolls--;
+                    if (game.player.freeRerolls > 0) {
+                        game.player.freeRerolls--;
                         SoundManager.play('uiClick', 'E5');
-                        populateLevelUpOptions(); // Simplesmente chama a função de novo
+                        populateLevelUpOptions();
                     }
                 };
                 container.appendChild(rerollButton);
@@ -3863,10 +3797,10 @@ window.onload = () => {
         }
 
         function updateSkillsHUD() {
-            if (!player || !player.skills) return;
+            if (!game.player || !game.player.skills) return;
 
-            for (const skillId in player.skills) {
-                const skillState = player.skills[skillId];
+            for (const skillId in game.player.skills) {
+                const skillState = game.player.skills[skillId];
                 const skillData = SKILL_DATABASE[skillId];
 
                 if (!skillState.hudElement) continue;
@@ -3880,14 +3814,14 @@ window.onload = () => {
         }
 
         function saveScore() {
-            const currentTimeInSeconds = Math.floor(gameTime / (1000.0 / 60.0));
+            const currentTimeInSeconds = Math.floor(game.time / (1000.0 / 60.0));
             const bestTime = parseInt(localStorage.getItem('bestTime') || '0');
             const totalKills = parseInt(localStorage.getItem('totalKills') || '0');
 
             if (currentTimeInSeconds > bestTime) {
                 localStorage.setItem('bestTime', currentTimeInSeconds);
             }
-            localStorage.setItem('totalKills', totalKills + score.kills);
+            localStorage.setItem('totalKills', totalKills + game.score.kills);
         }
 
 
@@ -3920,7 +3854,7 @@ window.onload = () => {
                             playerGems -= nextLevelData.cost;
                             playerUpgrades[key]++;
                             savePermanentData();
-                            SoundManager.play('levelUp', ['C5', 'G5']); // Som de sucesso
+                            SoundManager.play('levelUp', ['C5', 'G5']);
                             populateUpgradesMenu();
                             updateGemDisplay();
                         };
@@ -3937,24 +3871,23 @@ window.onload = () => {
             }
         }
 
-        // --- CONTROLOS MÓVEIS (JOYSTICKS DINÂMICOS) ---
         function handleMobileInput() {
             const existingJoysticks = gameContainer.querySelectorAll('.joystick-base');
             existingJoysticks.forEach(joy => joy.remove());
-            activeTouches.clear();
+            game.activeTouches.clear();
 
             gameContainer.addEventListener('touchstart', (e) => {
                 if (e.target.classList.contains('ui-button')) {
                     return;
                 }
-                if (gameState !== 'playing') return;
+                if (game.state !== 'playing') return;
                 e.preventDefault();
 
                 Array.from(e.changedTouches).forEach(touch => {
                     const joystickType = 'move';
 
                     let existingJoystick = false;
-                    for (let [id, joy] of activeTouches) {
+                    for (let [id, joy] of game.activeTouches) {
                         if (joy.joystickType === joystickType) {
                             existingJoystick = true;
                             break;
@@ -3974,7 +3907,7 @@ window.onload = () => {
                     base.style.top = `${touch.clientY - CONFIG.JOYSTICK_RADIUS}px`;
                     gameContainer.appendChild(base);
 
-                    activeTouches.set(touch.identifier, {
+                    game.activeTouches.set(touch.identifier, {
                         joystickType: joystickType,
                         startX: touch.clientX,
                         startY: touch.clientY,
@@ -3985,11 +3918,11 @@ window.onload = () => {
             }, { passive: false });
 
             gameContainer.addEventListener('touchmove', (e) => {
-                if (gameState !== 'playing') return;
+                if (game.state !== 'playing') return;
                 e.preventDefault();
 
                 Array.from(e.touches).forEach(touch => {
-                    const joy = activeTouches.get(touch.identifier);
+                    const joy = game.activeTouches.get(touch.identifier);
                     if (!joy) return;
 
                     const dx = touch.clientX - joy.startX;
@@ -4006,33 +3939,32 @@ window.onload = () => {
                     const normalizedDx = limitedDist > CONFIG.JOYSTICK_DEAD_ZONE ? dx / CONFIG.JOYSTICK_RADIUS : 0;
                     const normalizedDy = limitedDist > CONFIG.JOYSTICK_DEAD_ZONE ? dy / CONFIG.JOYSTICK_RADIUS : 0;
 
-                    movementVector = { x: normalizedDx, y: normalizedDy };
+                    game.movementVector = { x: normalizedDx, y: normalizedDy };
                 });
             }, { passive: false });
 
             gameContainer.addEventListener('touchend', (e) => {
                 Array.from(e.changedTouches).forEach(touch => {
-                    const joy = activeTouches.get(touch.identifier);
+                    const joy = game.activeTouches.get(touch.identifier);
                     if (joy) {
                         joy.baseElement.remove();
-                        activeTouches.delete(touch.identifier);
-                        movementVector = { x: 0, y: 0 };
+                        game.activeTouches.delete(touch.identifier);
+                        game.movementVector = { x: 0, y: 0 };
                     }
                 });
             });
             gameContainer.addEventListener('touchcancel', (e) => {
                 Array.from(e.changedTouches).forEach(touch => {
-                    const joy = activeTouches.get(touch.identifier);
+                    const joy = game.activeTouches.get(touch.identifier);
                     if (joy) {
                         joy.baseElement.remove();
-                        activeTouches.delete(touch.identifier);
-                        movementVector = { x: 0, y: 0 };
+                        game.activeTouches.delete(touch.identifier);
+                        game.movementVector = { x: 0, y: 0 };
                     }
                 });
             });
         }
 
-        // --- FUNÇÃO DE ECRÃ INTEIRO ---
         function toggleFullscreen() {
             const elem = document.documentElement;
             try {
@@ -4062,7 +3994,6 @@ window.onload = () => {
             }
         }
 
-        // --- LISTENERS DE EVENTOS GERAIS ---
         function setupEventListeners() {
             window.addEventListener('resize', () => {
                 canvas.width = window.innerWidth;
@@ -4074,42 +4005,40 @@ window.onload = () => {
                 handleMobileInput();
                 ui.dashButtonMobile.addEventListener('touchstart', (e) => {
                     e.preventDefault();
-                    if (gameState === 'playing' && player) {
-                        player.dash();
+                    if (game.state === 'playing' && game.player) {
+                        game.player.dash();
                     }
                 });
             } else {
                 window.addEventListener('keydown', (e) => {
                     const key = e.key.toLowerCase();
-                    keys[key] = true;
-                    if(key === 'shift') keys['shift'] = true;
+                    game.keys[key] = true;
+                    if(key === 'shift') game.keys['shift'] = true;
 
-                    if (e.key === 'Escape' && gameState === 'playing') {
+                    if (e.key === 'Escape' && game.state === 'playing') {
                         setGameState('paused');
-                    } else if (e.key === 'Escape' && gameState === 'paused') {
-                        lastFrameTime = 0;
+                    } else if (e.key === 'Escape' && game.state === 'paused') {
+                        game.lastFrameTime = 0;
                         setGameState('playing');
                     }
                 });
                 window.addEventListener('keyup', (e) => {
                     const key = e.key.toLowerCase();
-                    keys[key] = false;
-                    if(key === 'shift') keys['shift'] = false;
+                    game.keys[key] = false;
+                    if(key === 'shift') game.keys['shift'] = false;
                 });
             }
             window.addEventListener('blur', () => {
-                if(gameState === 'playing') setGameState('paused');
+                if(game.state === 'playing') setGameState('paused');
             });
 
-            // O botão de jogar agora leva para a seleção de personagem
             document.getElementById('play-button').onclick = () => setGameState('characterSelect');
 
-            // Botões de reiniciar ainda iniciam o jogo diretamente (com o último personagem selecionado, que será o padrão)
             document.getElementById('restart-button-pause').onclick = () => initGame();
             document.getElementById('restart-button-gameover').onclick = () => initGame();
 
             document.getElementById('resume-button').onclick = () => {
-                lastFrameTime = 0;
+                game.lastFrameTime = 0;
                 setGameState('playing');
             };
 
@@ -4125,7 +4054,7 @@ window.onload = () => {
             document.getElementById('back-to-menu-from-select-button').onclick = () => setGameState('menu');
             document.getElementById('achievements-button').onclick = () => setGameState('achievements');
             document.getElementById('back-from-achievements-button').onclick = () => setGameState('menu');
-            document.getElementById('pause-button').onclick = () => { if(gameState === 'playing') setGameState('paused'); };
+            document.getElementById('pause-button').onclick = () => { if(game.state === 'playing') setGameState('paused'); };
             document.getElementById('fullscreen-button').onclick = toggleFullscreen;
 
             document.getElementById('upgrades-button').onclick = () => {
@@ -4138,9 +4067,8 @@ window.onload = () => {
         setupEventListeners();
         setGameState('menu');
 
-        // Inicia o game loop principal
         let initialTime = performance.now();
-        lastFrameTime = initialTime;
+        game.lastFrameTime = initialTime;
         requestAnimationFrame(gameLoop);
 
 
