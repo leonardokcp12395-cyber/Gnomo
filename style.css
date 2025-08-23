@@ -1,0 +1,519 @@
+/* --- ESTILOS GERAIS (CSS) --- */
+body, html {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #000;
+    color: #FFF;
+    font-family: 'Courier New', Courier, monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    width: 100vw;
+}
+/* ALTERAÇÃO 4a: Fundo com Efeito Parallax */
+#game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #020011; /* Um azul bem escuro para o fundo mais distante */
+
+    /* Camada 1: Nebulosa distante (lenta) */
+    background-image: radial-gradient(ellipse at 70% 30%, rgba(50, 60, 150, 0.2) 0%, transparent 70%),
+    /* Camada 2: Estrelas médias (velocidade média) */
+                      radial-gradient(circle at 10% 20%, rgba(255,255,255,0.1) 1px, transparent 1%),
+                      radial-gradient(circle at 90% 80%, rgba(255,255,255,0.1) 1px, transparent 1%),
+    /* Camada 3: Estrelas próximas (rápidas) */
+                      radial-gradient(circle at 50% 50%, rgba(255,255,255,0.3) 1px, transparent 1%);
+
+    background-size: 100% 100%, /* Tamanho da nebulosa */
+                     200px 200px, /* Tamanho das estrelas médias */
+                     300px 300px,
+                     80px 80px;  /* Tamanho das estrelas próximas */
+
+    /* A posição será controlada via JavaScript */
+    background-position: 0 0;
+    transition: background-position 0.1s linear; /* Para suavizar o movimento */
+}
+
+canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: transparent; /* Fundo do canvas transparente para ver o background do container */
+    z-index: 1;
+    touch-action: none; /* Permite que os eventos de toque sejam processados pelo JS */
+}
+.hidden {
+    display: none !important; /* Força a ocultação */
+}
+
+/* Estilos para as estatísticas das habilidades no ecrã de Level Up */
+.skill-stats {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px; /* Espaçamento entre linhas e colunas */
+    font-size: 0.85em;
+    color: #b0e0e6; /* Azul claro, para um toque celestial */
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    padding-top: 8px;
+}
+
+.skill-stats span {
+    display: inline-block;
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.skill-stats strong {
+    color: #ffffff;
+    font-weight: bold;
+}
+
+/* Camada de UI que aparece sobre o jogo */
+.ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: none; /* Por padrão, a ui-layer está oculta */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    text-align: center;
+    z-index: 10; /* UI fica na frente do canvas */
+    pointer-events: none; /* Por padrão, não permite cliques na UI principal, só nos painéis */
+    background-color: rgba(0, 0, 0, 0); /* Fundo transparente por padrão */
+    transition: background-color 0.3s ease; /* Transição suave para o fundo */
+}
+.ui-layer.active-menu {
+    display: flex; /* Exibe a ui-layer quando um menu está ativo */
+    pointer-events: auto; /* Reativa cliques quando um menu está ativo */
+    /* A cor de fundo será agora controlada por JavaScript */
+    background-color: rgba(0, 0, 0, 0.7);
+}
+.ui-panel {
+    background-color: rgba(10, 10, 10, 0.9);
+    border: 2px solid #00FFFF; /* Borda ciano para destaque */
+    padding: 1.5em;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.7); /* Brilho ciano mais forte */
+    border-radius: 15px; /* Cantos mais arredondados */
+    animation: panel-fade-in 0.5s ease-out;
+}
+
+@keyframes panel-fade-in {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.ui-panel h1, .ui-panel h2 {
+    margin-top: 0;
+    color: #00FFFF;
+    text-shadow: 0 0 15px #00FFFF; /* Sombra mais intensa */
+    margin-bottom: 20px;
+}
+.ui-button {
+    background-color: transparent;
+    border: 2px solid #00FFFF; /* Botões com borda ciano */
+    color: #00FFFF;
+    padding: 15px 30px;
+    font-size: 1.2em;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all 0.2s ease-in-out;
+    width: 80%;
+    max-width: 300px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); /* Sombra mais visível */
+    border-radius: 8px; /* Cantos arredondados */
+    font-weight: bold;
+}
+.ui-button:hover {
+    background-color: #00FFFF;
+    color: #000;
+    box-shadow: 0 0 25px #00FFFF; /* Brilho mais forte no hover */
+    transform: translateY(-3px) scale(1.02); /* Pequeno efeito de elevação */
+}
+.ui-button:active {
+    transform: translateY(0) scale(0.98); /* Efeito de clique */
+    box-shadow: 0 0 15px #00FFFF;
+}
+
+/* HUD */
+#hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: 15px;
+    box-sizing: border-box;
+    pointer-events: none; /* Não bloqueia cliques no jogo */
+    z-index: 5; /* HUD fica entre o canvas e a UI principal */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Para empurrar skills para baixo */
+}
+#top-hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+#stats-bars {
+    flex-grow: 1; /* Ocupa o espaço restante */
+    margin-right: 20px;
+}
+#health-bar-container, #xp-bar-container {
+    width: 100%;
+    height: 18px; /* Barras mais altas */
+    border: 2px solid #888; /* Borda mais grossa */
+    background: #333;
+    margin-bottom: 8px; /* Mais espaço */
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+#health-bar {
+    background-color: #FF4D4D; /* Vermelho vibrante */
+    height: 100%;
+    width: 100%;
+    transition: width 0.1s ease-out;
+    border-radius: 3px;
+}
+#xp-bar {
+    background-color: #00FFFF; /* Ciano vibrante */
+    height: 100%;
+    width: 0%;
+    transition: width 0.2s ease-out;
+    border-radius: 3px;
+}
+#pause-button {
+    pointer-events: auto; /* Permite clique no botão de pausa */
+    font-size: 1.8em; /* Ícone de pausa maior */
+    padding: 8px 15px;
+    margin: 0;
+    width: auto;
+    border-radius: 8px;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    background-color: rgba(0,0,0,0.5); /* Fundo semi-transparente */
+}
+#timer {
+    font-size: 3em; /* Timer maior */
+    text-shadow: 0 0 10px #FFF;
+    text-align: center;
+    margin-top: 15px;
+    width: 100%;
+    font-weight: bold;
+}
+#event-display {
+    text-align: center;
+    margin-top: 5px;
+    font-size: 1.5em;
+    color: #FFD700; /* Dourado */
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.7);
+    font-weight: bold;
+}
+#skills-hud {
+    display: flex;
+    gap: 12px; /* Mais espaço entre ícones */
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+.skill-hud-icon {
+    width: 55px; /* Ícones maiores */
+    height: 55px;
+    background: rgba(0,0,0,0.8); /* Fundo mais escuro */
+    border: 3px solid #00FFFF; /* Borda ciano mais grossa */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2em; /* Ícone maior */
+    font-weight: bolder;
+    color: #00FFFF;
+    text-shadow: 0 0 8px #00FFFF;
+    border-radius: 10px; /* Cantos arredondados */
+    position: relative;
+    box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+}
+.skill-hud-icon sub {
+    position: absolute;
+    bottom: 3px;
+    right: 3px;
+    font-size: 0.7em;
+    color: #FFF;
+    text-shadow: none;
+}
+.skill-hud-icon.on-cooldown::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.8em;
+    color: white;
+    animation: cooldown-fill 1s linear forwards; /* Removed for now, will re-add if needed */
+}
+/* No animation for cooldown-fill, just visual overlay */
+
+
+/* Level Up Screen */
+#level-up-screen .skill-card, #upgrades-menu .skill-card, .character-card {
+    background-color: #1a1a1a; /* Fundo mais escuro */
+    border: 2px solid #00FFFF; /* Borda ciano */
+    text-align: left;
+    padding: 1.2em;
+    margin-top: 18px;
+    transition: all 0.2s;
+    cursor: pointer;
+    border-radius: 12px; /* Cantos arredondados */
+    box-shadow: 0 0 12px rgba(0,0,0,0.7);
+}
+#level-up-screen .skill-card:hover, #upgrades-menu .skill-card:hover, .character-card:hover {
+    border-color: #FFF; /* Borda branca no hover */
+    box-shadow: 0 0 20px rgba(0, 255, 255, 1); /* Brilho intenso */
+    transform: translateY(-2px);
+}
+.character-card h3, .skill-card h3 {
+    margin: 0 0 8px;
+    color: #00FFFF;
+    text-shadow: 0 0 8px #00FFFF;
+    font-size: 1.3em;
+}
+.skill-card p, .character-card p {
+    margin: 0;
+    font-size: 1em;
+    color: #e0e0e0; /* Cor mais clara para o texto */
+}
+
+#character-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    margin-top: 20px;
+}
+
+.character-card p {
+    margin-bottom: 15px;
+}
+
+.character-card .select-button {
+    width: 100%;
+    padding: 12px;
+    font-size: 1.1em;
+    margin-top: 10px;
+}
+
+#achievements-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    margin-top: 20px;
+}
+.achievement-card {
+    background-color: #2a2a2a;
+    border: 2px solid #888;
+    padding: 1em;
+    border-radius: 10px;
+    opacity: 0.7;
+}
+.achievement-card.unlocked {
+    border-color: #FFD700; /* Gold */
+    background-color: #1a1a1a;
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+.achievement-card h3 {
+    margin: 0 0 5px;
+    color: #ccc;
+}
+.achievement-card.unlocked h3 {
+    color: #FFD700;
+}
+.achievement-card p {
+    margin: 0;
+    font-size: 0.9em;
+    color: #aaa;
+}
+.achievement-card.unlocked p {
+    color: #e0e0e0;
+}
+
+
+/* Joysticks Dinâmicos */
+.joystick-base {
+    position: absolute;
+    width: 140px; /* Joystick maior */
+    height: 140px;
+    background-color: rgba(255, 255, 255, 0.1); /* Mais transparente */
+    border-radius: 50%;
+    border: 2px solid rgba(0, 255, 255, 0.5); /* Borda ciano semi-transparente */
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+}
+.joystick-handle {
+    width: 70px; /* Handle maior */
+    height: 70px;
+    background-color: rgba(0, 255, 255, 0.6); /* Ciano semi-transparente */
+    border-radius: 50%;
+    transform: translate(0, 0); /* Reset inicial */
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+}
+/* joystick-direction-line is no longer needed as attack is automatic */
+
+/* Estilo para game over e rank */
+#game-over-screen p, #rank-screen p {
+    font-size: 1.2em;
+    margin: 12px 0;
+}
+#game-over-screen strong, #rank-screen strong {
+    color: #00FFFF;
+    text-shadow: 0 0 8px #00FFFF;
+    font-size: 1.3em;
+}
+
+/* Botão de Dash para Mobile */
+#dash-button-mobile {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: rgba(0, 255, 255, 0.6);
+    border: 2px solid #00FFFF;
+    color: #FFF;
+    font-size: 2.5em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
+    z-index: 10;
+    pointer-events: auto; /* Permite o clique */
+    transition: background-color 0.1s ease, transform 0.1s ease;
+}
+#dash-button-mobile:hover {
+    background-color: rgba(0, 255, 255, 0.8);
+}
+#dash-button-mobile:active {
+    transform: scale(0.95);
+}
+#dash-button-mobile.on-cooldown {
+    background-color: rgba(50, 50, 50, 0.6);
+    border-color: #888;
+    color: #888;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Mensagens temporárias no centro da tela */
+#temporary-message {
+    position: absolute;
+    top: 40%; /* Alterado de 50% para 40% para não cobrir o timer */
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 3.5em; /* Tamanho grande */
+    font-weight: bold;
+    color: #FFD700; /* Dourado */
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.8); /* Brilho dourado */
+    z-index: 1000;
+    pointer-events: none; /* Não bloqueia cliques */
+    opacity: 0; /* Começa invisível */
+    transition: opacity 0.5s ease-out;
+    white-space: nowrap; /* Impede quebra de linha */
+}
+#temporary-message.show {
+    opacity: 1;
+}
+
+/* --- FORÇAR MODO PAISAGEM / MENSAGEM --- */
+@media (orientation: portrait) {
+    body::before {
+        content: "Por favor, gire seu dispositivo para o modo paisagem para jogar.";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.98); /* Fundo quase preto */
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.8em; /* Texto maior */
+        text-align: center;
+        padding: 20px;
+        box-sizing: border-box;
+        z-index: 9999; /* Garante que fique acima de tudo */
+    }
+    #game-container {
+        display: none; /* Esconde o jogo em modo retrato */
+    }
+}
+
+/* --- ESTILOS DO MENU MELHORADO --- */
+#main-menu {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    text-align: center;
+}
+.title-container {
+    position: relative;
+    margin-bottom: 40px;
+}
+.title-container h1 {
+    font-size: 4em;
+    margin: 0;
+    color: #FFF;
+    text-transform: uppercase;
+    animation: glow 2s ease-in-out infinite alternate;
+}
+.title-container h1.celestial-title {
+    color: #00FFFF;
+    animation-delay: 0.2s;
+}
+
+@keyframes glow {
+    from { text-shadow: 0 0 10px #FFF, 0 0 20px #FFF, 0 0 30px #00FFFF; }
+    to { text-shadow: 0 0 20px #FFF, 0 0 30px #00FFFF, 0 0 40px #00FFFF; }
+}
+@keyframes glitch-anim-1 {
+    0%, 100% { clip-path: inset(45% 0 50% 0); }
+    20% { clip-path: inset(10% 0 85% 0); }
+    40% { clip-path: inset(60% 0 30% 0); }
+    60% { clip-path: inset(25% 0 70% 0); }
+    80% { clip-path: inset(80% 0 10% 0); }
+}
+@keyframes glitch-anim-2 {
+    0%, 100% { clip-path: inset(5% 0 90% 0); }
+    20% { clip-path: inset(95% 0 2% 0); }
+    40% { clip-path: inset(40% 0 55% 0); }
+    60% { clip-path: inset(15% 0 80% 0); }
+    80% { clip-path: inset(70% 0 20% 0); }
+}
