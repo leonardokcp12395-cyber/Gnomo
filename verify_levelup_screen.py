@@ -28,16 +28,11 @@ async def main():
         # Wait for the HUD to appear, indicating the game is playing
         await expect(page.locator('#hud')).to_be_visible()
 
-        # --- This is the key step to force the level-up screen ---
-        # Execute JavaScript to manually change the game state
-        await page.evaluate("() => setGameState('levelUp')")
+        # Wait for 5 seconds to let enemies spawn
+        await page.wait_for_timeout(5000)
 
-        # Wait for the level-up screen to be visible
-        level_up_screen = page.locator('#level-up-screen')
-        await expect(level_up_screen).to_be_visible()
-
-        # Take a screenshot
-        screenshot_path = 'jules-scratch/verification/level_up_screen.png'
+        # Take a screenshot of the gameplay
+        screenshot_path = 'jules-scratch/verification/gameplay_with_new_assets.png'
         await page.screenshot(path=screenshot_path)
         print(f"Screenshot saved to {screenshot_path}")
 

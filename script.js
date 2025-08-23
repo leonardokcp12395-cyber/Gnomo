@@ -1,6 +1,18 @@
 // Variável de depuração global
 const DEBUG_MODE = false; // Altere para true para ver logs no console
 
+const playerImgRight = new Image();
+playerImgRight.src = 'assets/mago direita.png';
+const playerImgLeft = new Image();
+playerImgLeft.src = 'assets/mago esquerda.png';
+
+const mobLvl1Img = new Image();
+mobLvl1Img.src = 'assets/moblvl1.png';
+const mobLvl2Img = new Image();
+mobLvl2Img.src = 'assets/moblvl2.png';
+const chainLightningImg = new Image();
+chainLightningImg.src = 'assets/Skillrelampago_em_cadeia_vertical.gif';
+
 // Variáveis globais que serão inicializadas dentro de window.onload ou initGame
 let player;
 let platforms = []; // Nova variável para todas as plataformas
@@ -495,110 +507,72 @@ window.onload = () => {
             }
         };
 
-        // --- GESTOR DE SOM (VERSÃO MELHORADA) ---
+        // --- GESTOR DE SOM SIMPLIFICADO ---
         const SoundManager = {
+            bgm: [],
+            currentTrack: null,
             initialized: false,
-            sfx: {},
-            bgm: { main: null, boss: null, bass: null }, // Objeto para armazenar loops de BGM
-            bgmNotes: ["C3", "E3", "G3"], // Notas iniciais
 
             init() {
                 if (this.initialized) return;
+
+                const track1 = new Audio('assets/Bloody Stream [8-Bit_ VRC6] - JoJo_s Bizarre Adventure OP 2(M4A_128K).m4a');
+                const track2 = new Audio('assets/Fun Epic 8-Bit Music - Boss Time _ Royalty Free boss battle music(M4A_128K).m4a');
+                const track3 = new Audio('assets/Giorno_s Theme _ _il vento d_oro_ [8-Bit_ VRC6] - JoJo_s Bizarre Adventure_ Golden Wind(M4A_128K).m4a');
+
+                this.bgm = [track1, track2, track3];
+                this.bgm.forEach(track => {
+                    track.loop = false; // We will handle looping manually to shuffle
+                    track.volume = 0.3; // Set a reasonable volume
+                    track.addEventListener('ended', () => this.playNext());
+                });
+
                 this.initialized = true;
-
-                const masterVolume = new Tone.Volume(-10).toDestination();
-                const sfxVolume = new Tone.Volume(-5).connect(masterVolume);
-                const bgmVolumeNode = new Tone.Volume(-20).connect(masterVolume);
-
-                // SFX...
-                this.sfx.xp = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 }, volume: -12 }).connect(sfxVolume);
-                this.sfx.levelUp = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "triangle" }, envelope: { attack: 0.02, decay: 0.2, sustain: 0.1, release: 0.3 }, volume: -8 }).connect(sfxVolume);
-                this.sfx.damage = new Tone.NoiseSynth({ noise: { type: "brown" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }, volume: -3 }).connect(sfxVolume);
-                this.sfx.lance = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 8, envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.4 }, volume: -15 }).connect(sfxVolume);
-                this.sfx.nuke = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.01, decay: 0.8, sustain: 0, release: 1 }, volume: 0 }).connect(sfxVolume);
-                this.sfx.enemyShot = new Tone.Synth({ oscillator: { type: "square" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 }, volume: -10 }).connect(sfxVolume);
-                this.sfx.particleBurst = new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.3 }, volume: -5 }).connect(sfxVolume);
-                this.sfx.uiClick = new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.1 }, volume: -20 }).connect(sfxVolume);
-                this.sfx.land = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 }, volume: -15 }).connect(sfxVolume);
-
-                // BGM Principal
-                const mainSynth = new Tone.Synth({ oscillator: { type: 'sine' } }).connect(bgmVolumeNode);
-                this.bgm.main = new Tone.Loop(time => {
-                    mainSynth.triggerAttackRelease(this.bgmNotes[Math.floor(Math.random() * this.bgmNotes.length)], "2n", time);
-                }, "2n");
-
-                // Linha de Baixo (para evolução)
-                const bassSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, volume: -10 }).connect(bgmVolumeNode);
-                this.bgm.bass = new Tone.Loop(time => {
-                    bassSynth.triggerAttackRelease("C2", "1n", time);
-                }, "1n");
-
-                // BGM do Chefe
-                const bossSynth = new Tone.FMSynth({ harmonicity: 3, modulationIndex: 10, envelope: { attack: 0.01, decay: 0.2 }, modulationEnvelope: { attack: 0.01, decay: 0.2 } }).connect(bgmVolumeNode);
-                this.bgm.boss = new Tone.Loop(time => {
-                    const notes = ["C2", "G2", "C2", "Ab2"];
-                    bossSynth.triggerAttackRelease(notes[Math.floor(Math.random() * notes.length)], "8n", time);
-                }, "4n");
-
-                Tone.Transport.pause();
             },
 
-            updateBGM(waveNumber) {
-                if (waveNumber >= 5 && waveNumber < 10) {
-                    this.bgmNotes = ["C3", "E3", "G3", "A3", "B3"];
-                } else if (waveNumber >= 10) {
-                    this.bgmNotes = ["C3", "E3", "G3", "A3", "B3", "D4", "F4"];
-                    if (this.bgm.bass.state !== 'started') {
-                        this.bgm.bass.start(0);
-                    }
+            start() {
+                if (!this.initialized) this.init();
+                // Attempt to play the first track, requires user interaction
+                this.playNext();
+            },
+
+            playNext() {
+                if (this.bgm.length === 0) return;
+
+                // Stop current track if any is playing
+                if (this.currentTrack) {
+                    this.currentTrack.pause();
+                }
+
+                // Shuffle tracks
+                this.bgm.sort(() => Math.random() - 0.5);
+
+                this.currentTrack = this.bgm[0];
+                this.currentTrack.currentTime = 0;
+
+                // Play returns a promise, handle potential errors
+                const playPromise = this.currentTrack.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.log("Audio playback failed, likely requires user interaction.", error);
+                        // We can't autoplay, so we'll wait for the user to click something.
+                        // A common practice is to start music on the first click.
+                        const startMusicOnClick = () => {
+                            this.currentTrack.play().catch(e => console.error("Could not start music even after interaction.", e));
+                            window.removeEventListener('click', startMusicOnClick);
+                        };
+                        window.addEventListener('click', startMusicOnClick, { once: true });
+                    });
                 }
             },
 
-            playMainBGM() {
-                this.startAudioContext();
-                if (this.bgm.boss.state === 'started') this.bgm.boss.stop();
-                if (this.bgm.main.state !== 'started') this.bgm.main.start(0);
-            },
-
-            playBossBGM() {
-                this.startAudioContext();
-                if (this.bgm.main.state === 'started') this.bgm.main.stop();
-                if (this.bgm.bass && this.bgm.bass.state === 'started') this.bgm.bass.stop();
-                if (this.bgm.boss.state !== 'started') this.bgm.boss.start(0);
-            },
-
-            async startAudioContext() {
-                if (Tone.context.state !== 'running') {
-                    try {
-                        await Tone.start();
-                        Tone.Transport.start();
-                    } catch (e) {
-                        if (DEBUG_MODE) console.error("Falha ao iniciar/resumir o contexto de áudio:", e);
-                    }
-                }
-            },
-
-            play(effectName, noteOrDuration = null) {
-                this.startAudioContext();
-                const sfx = this.sfx[effectName];
-                if (sfx) {
-                    try {
-                        if (sfx instanceof Tone.NoiseSynth) {
-                            sfx.triggerAttackRelease(noteOrDuration || "8n");
-                        } else if (sfx instanceof Tone.MembraneSynth) {
-                            sfx.triggerAttackRelease(noteOrDuration || "C4", "8n");
-                        } else {
-                            sfx.triggerAttackRelease(noteOrDuration || "C5", "8n");
-                        }
-                    } catch (e) {
-                        if (DEBUG_MODE) console.error(`Erro ao reproduzir o efeito sonoro '${effectName}':`, e);
-                    }
+            stop() {
+                if (this.currentTrack) {
+                    this.currentTrack.pause();
+                    this.currentTrack.currentTime = 0;
                 }
             }
         };
-
-        // Inicializa os instrumentos assim que o script corre
-        SoundManager.init();
 
         // --- AGRUPAMENTO DE OBJETOS ---
         // Funções genéricas para gerir agrupamentos de objetos
@@ -849,78 +823,23 @@ window.onload = () => {
                     scaleX = 1 + (0.3 * Math.sin(Math.PI * progress));
                     this.squashStretchTimer--;
                 }
-                ctx.scale(this.facingRight ? scaleX : -scaleX, scaleY);
+                ctx.scale(scaleX, scaleY);
 
-                /*
-                // --- LÓGICA DO CONTORNO (Desativada para teste de performance) ---
-                const contourColor = this.invincibilityTimer > 0 ? 'gold' : 'white';
-                ctx.strokeStyle = contourColor;
-                ctx.lineWidth = 3; // Reduzido para melhor performance
-                ctx.lineJoin = 'round'; // Para cantos mais suaves
+                const img = this.facingRight ? playerImgRight : playerImgLeft;
+                const aspectRatio = img.height / img.width;
+                const drawWidth = this.radius * 4;
+                const drawHeight = drawWidth * aspectRatio;
 
-                ctx.beginPath();
-                // Corpo
-                ctx.moveTo(0, -this.radius * 1.5);
-                ctx.lineTo(this.radius * 1.2, this.radius * 0.8);
-                ctx.lineTo(-this.radius * 1.2, this.radius * 0.8);
-                ctx.closePath();
-                // Asa Direita
-                ctx.moveTo(this.radius * 0.8, -this.radius * 0.5);
-                ctx.quadraticCurveTo(this.radius * 2, -this.radius * 1.5, this.radius * 1.5, this.radius * 0.5);
-                ctx.lineTo(this.radius * 0.8, this.radius * 0.8);
-                ctx.closePath();
-                // Asa Esquerda
-                ctx.moveTo(-this.radius * 0.8, -this.radius * 0.5);
-                ctx.quadraticCurveTo(-this.radius * 2, -this.radius * 1.5, -this.radius * 1.5, this.radius * 0.5);
-                ctx.lineTo(-this.radius * 0.8, this.radius * 0.8);
-                ctx.closePath();
-                ctx.stroke();
-                */
-
-                // --- LÓGICA DE DESENHO ORIGINAL ---
                 if (this.hitTimer > 0) {
-                    ctx.fillStyle = 'red';
+                    // Apply a red tint effect
+                    ctx.filter = 'sepia(1) saturate(10) hue-rotate(-50deg) brightness(0.8)';
                     this.hitTimer--;
-                } else {
-                    ctx.fillStyle = 'white';
                 }
 
-                // Corpo principal
-                ctx.beginPath();
-                ctx.moveTo(0, -this.radius * 1.5);
-                ctx.lineTo(this.radius * 1.2, this.radius * 0.8);
-                ctx.lineTo(-this.radius * 1.2, this.radius * 0.8);
-                ctx.closePath();
-                ctx.fill();
-                ctx.strokeStyle = 'cyan';
-                ctx.lineWidth = 2;
-                ctx.stroke();
+                ctx.drawImage(img, -drawWidth / 2, -drawHeight / 1.5, drawWidth, drawHeight);
 
-                // Detalhe "cockpit"
-                ctx.fillStyle = '#00FFFF';
-                ctx.beginPath();
-                ctx.moveTo(0, -this.radius * 0.5);
-                ctx.lineTo(this.radius * 0.4, this.radius * 0.2);
-                ctx.lineTo(-this.radius * 0.4, this.radius * 0.2);
-                ctx.closePath();
-                ctx.fill();
-
-                // Asas
-                ctx.beginPath();
-                ctx.moveTo(this.radius * 0.8, -this.radius * 0.5);
-                ctx.quadraticCurveTo(this.radius * 2, -this.radius * 1.5, this.radius * 1.5, this.radius * 0.5);
-                ctx.lineTo(this.radius * 0.8, this.radius * 0.8);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.moveTo(-this.radius * 0.8, -this.radius * 0.5);
-                ctx.quadraticCurveTo(-this.radius * 2, -this.radius * 1.5, -this.radius * 1.5, this.radius * 0.5);
-                ctx.lineTo(-this.radius * 0.8, this.radius * 0.8);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
+                // Reset filter
+                ctx.filter = 'none';
 
                 // Escudo
                 if (this.shielded) {
@@ -1066,7 +985,6 @@ window.onload = () => {
                                 if (!wasOnGround) {
                                     this.jumpsAvailable = (this.skills['double_jump'] ? 2 : 1);
                                     this.squashStretchTimer = CONFIG.PLAYER_LANDING_SQUASH_DURATION;
-                                    SoundManager.play('land', '16n');
                                 }
                             }
                             collided = true;
@@ -1101,8 +1019,6 @@ window.onload = () => {
                 if (this.dashDirection.x === 0 && this.dashDirection.y === 0) {
                     this.dashDirection.x = this.facingRight ? 1 : -1;
                 }
-
-                SoundManager.play('uiClick', 'F5');
 
                 // Lógica para Rastro Ardente
                 if (this.skills['scorched_earth']) {
@@ -1143,7 +1059,6 @@ window.onload = () => {
                         if (!wasOnGround) { // Acabou de aterrar
                             this.jumpsAvailable = (this.skills['double_jump'] ? SKILL_DATABASE['double_jump'].levels[0].jumps : 1);
                             this.squashStretchTimer = CONFIG.PLAYER_LANDING_SQUASH_DURATION;
-                            SoundManager.play('land', '16n');
 
                             // Lógica do Jump Buffering: se há um pulo no buffer, executa-o
                             if (this.jumpBufferTimer > 0) {
@@ -1190,7 +1105,6 @@ window.onload = () => {
 
                 this.health -= amount;
                 this.hitTimer = 30;
-                SoundManager.play('damage', '8n');
                 screenShake = { intensity: 5, duration: 15 };
 
                 // Ativa I-Frames
@@ -1213,7 +1127,6 @@ window.onload = () => {
 
             addXp(amount) {
                 this.xp += amount * this.xpModifier; // Aplica o bónus de XP
-                SoundManager.play('xp', 'C5'); // Som de XP
                 // Partículas de XP ao recolher
                 for (let i = 0; i < 4; i++) {
                     particleManager.createParticle(this.x, this.y, 'cyan', 2); // <<<<<<< MUDANÇA 1
@@ -1223,7 +1136,6 @@ window.onload = () => {
                     this.level++;
                     this.xp -= this.xpToNextLevel;
                     this.xpToNextLevel = Math.floor(this.xpToNextLevel * CONFIG.XP_TO_NEXT_LEVEL_MULTIPLIER);
-                    SoundManager.play('levelUp', ['C6', 'E6', 'G6']); // Som de Subir de Nível
                     setGameState('levelUp');
                 }
             }
@@ -1233,7 +1145,6 @@ window.onload = () => {
                 if (skillData.type === 'utility' && skillData.instant) {
                     if (skillId === 'heal') this.health = Math.min(this.maxHealth, this.health + this.maxHealth * 0.25);
                     if (skillId === 'black_hole') { // Habilidade Buraco Negro
-                        SoundManager.play('nuke', '8n'); // Som de nuke para o buraco negro
                         screenShake = { intensity: 15, duration: 30 };
                         enemies.forEach(e => {
                             e.takeDamage(SKILL_DATABASE['black_hole'].levels[0].damage * this.damageModifier); // Aplica modificador de dano
@@ -1309,7 +1220,6 @@ window.onload = () => {
                                     // Passa o skillId para o projétil
                                     getFromPool(projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage }, skillId);
                                 }
-                                SoundManager.play('lance', 'C4'); // Som de lança
                                 skillState.timer = skillData.cooldown;
                             } else {
                                 skillState.timer = 10; // Tenta a cada 10 frames
@@ -1319,12 +1229,10 @@ window.onload = () => {
                             const rayDamage = levelData.damage * this.damageModifier;
                             // Passa o skillId para o projétil
                             getFromPool(projectilePool, this.x, this.y, rayAngle, { ...levelData, damage: rayDamage }, skillId);
-                            SoundManager.play('lance', 'E5'); // Som diferente para o raio
                             skillState.timer = skillData.cooldown;
                         } else if (skillId === 'chain_lightning') { // NOVA HABILIDADE
                             const targetEnemy = this.findNearestEnemy();
                             if (targetEnemy) {
-                                SoundManager.play('lance', 'A5'); // Som agudo
                                 chainLightningEffect(this, targetEnemy, levelData);
                                 skillState.timer = skillData.cooldown;
                             } else {
@@ -1344,7 +1252,6 @@ window.onload = () => {
                         activeVortexes.push(new Vortex(this.x, this.y, { ...levelData, damage: vortexDamage }));
                         skillState.timer = skillData.cooldown;
                     } else if (skillData.type === 'aura' && skillId === 'particle_burst') { // Nova habilidade
-                        SoundManager.play('particleBurst', '8n'); // Passa uma duração para o NoiseSynth
                         enemies.forEach(enemy => {
                             if (Math.hypot(this.x - enemy.x, this.y - enemy.y) < levelData.radius) {
                                 enemy.takeDamage(levelData.damage * this.damageModifier); // Aplica modificador de dano
@@ -1646,58 +1553,36 @@ window.onload = () => {
                 ctx.save();
                 ctx.translate(this.x - camera.x, this.y - camera.y); // Aplica o deslocamento da câmara
 
-                const color = this.hitTimer > 0 ? 'white' : this.color;
-                ctx.fillStyle = color;
-
-                // OTIMIZAÇÃO: Animação de pulso com shadowBlur removida
-                // ctx.shadowColor = color;
-                // const pulse = Math.sin(this.animationFrame * 0.1) * 3 + 7;
-                // ctx.shadowBlur = pulse;
-
-                ctx.beginPath();
-                if (this.shape === 'square') { // Tanque
-                    ctx.rect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
-                } else if (this.shape === 'diamond') {
-                    ctx.moveTo(0, -this.radius);
-                    ctx.lineTo(this.radius * 0.7, 0);
-                    ctx.lineTo(0, this.radius);
-                    ctx.lineTo(-this.radius * 0.7, 0);
-                    ctx.closePath();
-                } else if (this.shape === 'triangle') {
-                    // Triângulo aponta para o jogador (relativo ao inimigo)
-                    const angle = Math.atan2(player.y - this.y, player.x - this.x);
-                    ctx.moveTo(Math.cos(angle) * this.radius, Math.sin(angle) * this.radius);
-                    ctx.lineTo(Math.cos(angle + 2*Math.PI/3) * this.radius, Math.sin(angle + 2*Math.PI/3) * this.radius);
-                    ctx.lineTo(Math.cos(angle + 4*Math.PI/3) * this.radius, Math.sin(angle + 4*Math.PI/3) * this.radius);
-                } else if (this.shape === 'pentagon') {
-                    for(let i=0; i<5; i++) ctx.lineTo(Math.cos(i*2*Math.PI/5) * this.radius, Math.sin(i*2*Math.PI/5) * this.radius);
-                } else if (this.shape === 'hexagon') { // Para o Charger
-                    for(let i=0; i<6; i++) ctx.lineTo(Math.cos(i*Math.PI/3) * this.radius, Math.sin(i*Math.PI/3) * this.radius);
-                } else if (this.shape === 'star') { // Desenha uma estrela para o atirador
-                    const numPoints = 5;
-                    const outerRadius = this.radius;
-                    const innerRadius = this.radius / 2;
-                    ctx.rotate(this.animationFrame * 0.02);
-                    for (let i = 0; i < numPoints * 2; i++) {
-                        const radius = i % 2 === 0 ? outerRadius : innerRadius;
-                        const angle = Math.PI / numPoints * i - Math.PI/2;
-                        ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
-                    }
-                } else if (this.shape === 'cross') { // Curandeiro
-                    ctx.rect(-this.radius / 3, -this.radius, this.radius * 2 / 3, this.radius * 2);
-                    ctx.rect(-this.radius, -this.radius / 3, this.radius * 2, this.radius * 2 / 3);
-                } else if (this.shape === 'pyramid') { // Invocador
-                    ctx.moveTo(0, -this.radius);
-                    ctx.lineTo(this.radius, this.radius);
-                    ctx.lineTo(-this.radius, this.radius);
-                    ctx.closePath();
-                } else { // Círculo (Chaser)
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                let img;
+                switch(this.type) {
+                    case 'chaser':
+                    case 'speeder':
+                        img = mobLvl1Img;
+                        break;
+                    case 'tank':
+                    case 'bomber':
+                    case 'shooter':
+                    case 'healer':
+                    case 'summoner':
+                    case 'charger':
+                    case 'reaper':
+                        img = mobLvl2Img;
+                        break;
+                    default:
+                        img = mobLvl1Img;
                 }
-                ctx.closePath();
-                ctx.fill();
 
-                if (this.hitTimer > 0) this.hitTimer--;
+                const drawWidth = this.radius * 3;
+                const drawHeight = this.radius * 3;
+
+                if (this.hitTimer > 0) {
+                    ctx.filter = 'brightness(1.5) contrast(1.5)';
+                    this.hitTimer--;
+                }
+
+                ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+                ctx.filter = 'none';
+
                 this.animationFrame++;
 
                 // Desenha aura de elite
@@ -1823,7 +1708,6 @@ window.onload = () => {
                     if (this.attackTimer <= 0) {
                         const angle = Math.atan2(player.y - this.y, player.x - this.x);
                         getFromPool(enemyProjectilePool, this.x, this.y, angle, this.projectileSpeed, this.projectileDamage); // Usa o agrupamento
-                        SoundManager.play('enemyShot', 'D4'); // Som de disparo do inimigo
                         this.attackTimer = this.attackCooldown;
                     }
                 }
@@ -2485,11 +2369,9 @@ window.onload = () => {
                             e.takeDamage(10000);
                             e.applyKnockback(this.x, this.y, CONFIG.ENEMY_KNOCKBACK_FORCE * 5);
                     });
-                        SoundManager.play('nuke', '8n');
                         screenShake = { intensity: 15, duration: 30 };
                     } else if (this.type === 'heal_orb') {
                         player.health = Math.min(player.maxHealth, player.health + player.maxHealth * 0.10); // Cura 10%
-                        SoundManager.play('xp', 'A5'); // Som de recolha
                         for (let i = 0; i < 10; i++) {
                             particleManager.createParticle(this.x, this.y, 'red', 1.5);
                         }
@@ -2951,6 +2833,7 @@ window.onload = () => {
             eventManager.currentEvent = null;
             eventManager.timeUntilNextEvent = 120 * 60; // Reinicia o temporizador para o próximo jogo
 
+            SoundManager.start();
             setGameState('playing');
         }
 
@@ -2960,7 +2843,6 @@ window.onload = () => {
 
             // A CADA 5 ONDAS, UMA ONDA DE BOSS
             if (waveNumber > 0 && waveNumber % 5 === 0) {
-                SoundManager.playBossBGM();
                 showTemporaryMessage(`BOSS - ONDA ${waveNumber}`, "red");
                 enemies.push(new BossEnemy(player.x + canvas.width / 2 + 100, player.y - 100));
                 waveEnemiesRemaining = 1;
@@ -2969,8 +2851,6 @@ window.onload = () => {
             }
 
             // Para ondas normais, toca a BGM principal e a evolui
-            SoundManager.playMainBGM();
-            SoundManager.updateBGM(waveNumber);
 
             // Ondas pré-definidas
             if (waveNumber <= WAVE_CONFIGS.length) {
@@ -3403,21 +3283,23 @@ window.onload = () => {
                 activeSanctuaryZones.forEach(s => s.draw(ctx));
             activeMeteorWarnings.forEach(w => w.draw(ctx));
 
-                // Desenha os raios
+                // Desenha os raios (agora com a imagem)
                 ctx.save();
                 ctx.translate(-camera.x, -camera.y);
-                ctx.strokeStyle = 'white';
-                ctx.lineWidth = 3;
-                ctx.shadowColor = '#00FFFF';
-                ctx.shadowBlur = 10;
                 activeLightningBolts.forEach(bolt => {
                     ctx.globalAlpha = bolt.life / 5.0; // Efeito de fade out
-                    ctx.beginPath();
-                    ctx.moveTo(bolt.points[0].x, bolt.points[0].y);
-                    for (let i = 1; i < bolt.points.length; i++) {
-                        ctx.lineTo(bolt.points[i].x, bolt.points[i].y);
+                    for (let i = 0; i < bolt.points.length - 1; i++) {
+                        const p1 = bolt.points[i];
+                        const p2 = bolt.points[i+1];
+                        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                        const distance = Math.hypot(p2.y - p1.y, p2.x - p1.x);
+
+                        ctx.save();
+                        ctx.translate(p1.x, p1.y);
+                        ctx.rotate(angle);
+                        ctx.drawImage(chainLightningImg, 0, -chainLightningImg.height / 2, distance, chainLightningImg.height);
+                        ctx.restore();
                     }
-                    ctx.stroke();
                 });
                 ctx.restore();
 
@@ -3576,7 +3458,6 @@ window.onload = () => {
 
         function setGameState(newState) {
             if (['menu', 'paused', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades', 'characterSelect'].includes(newState) && newState !== gameState) {
-                SoundManager.play('uiClick', 'C6');
             }
 
             if (newState === 'playing' && demoPlayer) {
@@ -3614,6 +3495,7 @@ window.onload = () => {
             } else if (newState === 'paused') {
                 ui.pauseMenu.classList.remove('hidden');
             } else if (newState === 'gameOver') {
+                SoundManager.stop();
                 const finalTimeInSeconds = Math.floor(gameTime);
                 document.getElementById('final-time').innerText = formatTime(finalTimeInSeconds);
                 document.getElementById('final-kills').innerText = score.kills;
@@ -3639,6 +3521,7 @@ window.onload = () => {
                 ui.achievementsScreen.classList.remove('hidden');
             }
         }
+        window.setGameState = setGameState; // Make it accessible for verification script
 
         let lastEventName = '';
         let lastEventTime = -1;
@@ -3809,7 +3692,6 @@ window.onload = () => {
                     event.stopPropagation();
                     if (player.freeRerolls > 0) {
                         player.freeRerolls--;
-                        SoundManager.play('uiClick', 'E5');
                         populateLevelUpOptions(); // Simplesmente chama a função de novo
                     }
                 };
@@ -3875,7 +3757,6 @@ window.onload = () => {
                             playerGems -= nextLevelData.cost;
                             playerUpgrades[key]++;
                             savePermanentData();
-                            SoundManager.play('levelUp', ['C5', 'G5']); // Som de sucesso
                             populateUpgradesMenu();
                             updateGemDisplay();
                         };
