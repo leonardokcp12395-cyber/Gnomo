@@ -1179,15 +1179,15 @@ window.onload = () => {
                     SoundManager.playSfx('levelUp'); // Toca o som de level up
 
                     // --- INÍCIO DA SUGESTÃO: Efeito de Onda de Choque ---
-                    const shockwaveParticles = 30; // Número de partículas na onda
+                    const shockwaveParticles = 15; // Reduzido de 30
                     for (let i = 0; i < shockwaveParticles; i++) {
                         const angle = (i / shockwaveParticles) * Math.PI * 2;
                         const particle = getFromPool(particleManager.pool);
                         if (particle) {
                             // Inicializa a partícula no jogador
-                            particle.init(this.x, this.y, '#FFD700', 2); // Cor dourada, tamanho 2
+                            particle.init(this.x, this.y, '#FFD700', 1.5); // Tamanho reduzido de 2
                             // Define a velocidade para se expandir em anel
-                            const speed = 4;
+                            const speed = 2.5; // Reduzido de 4
                             particle.velocity.x = Math.cos(angle) * speed;
                             particle.velocity.y = Math.sin(angle) * speed;
                             particleManager.activeParticles.push(particle);
@@ -2368,7 +2368,7 @@ window.onload = () => {
                 this.velocity.y *= this.friction;
                 this.x += this.velocity.x;
                 this.y += this.velocity.y;
-                this.alpha -= 0.02; // Desaparece mais lentamente para ser visível
+                this.alpha -= 0.04; // Desaparece mais rápido
                 if (this.alpha <= 0) {
                     this.isDead = true;
                     releaseToPool(this); // Libertar para o agrupamento
@@ -4001,9 +4001,6 @@ window.onload = () => {
                     if(key === 'shift') keys['shift'] = false;
                 });
             }
-            window.addEventListener('blur', () => {
-                if(gameState === 'playing') setGameState('paused');
-            });
 
             // O botão de jogar agora leva para a seleção de personagem
             document.getElementById('play-button').onclick = () => setGameState('characterSelect');
