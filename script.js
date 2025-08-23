@@ -3966,13 +3966,34 @@ window.onload = () => {
             }
         }
 
-        // --- LISTENERS DE EVENTOS GERAIS ---
+        // --- INÍCIO DA CORREÇÃO: Lógica de Auto-Pause Inteligente ---
         function setupEventListeners() {
             window.addEventListener('resize', () => {
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
             });
             window.dispatchEvent(new Event('resize'));
+
+            // Variável para guardar o nosso temporizador de pausa
+            let pauseOnBlurTimeout;
+
+            // NOVO: Escutador de 'blur' (perder foco) com atraso
+            window.addEventListener('blur', () => {
+                if(gameState === 'playing') {
+                    // Espera 100ms antes de pausar
+                    pauseOnBlurTimeout = setTimeout(() => {
+                        setGameState('paused');
+                    }, 100);
+                }
+            });
+
+            // NOVO: Escutador de 'focus' (recuperar foco) para cancelar a pausa
+            window.addEventListener('focus', () => {
+                if (pauseOnBlurTimeout) {
+                    clearTimeout(pauseOnBlurTimeout);
+                }
+            });
+
 
             if (isMobile) {
                 handleMobileInput();
@@ -4002,18 +4023,14 @@ window.onload = () => {
                 });
             }
 
-            // O botão de jogar agora leva para a seleção de personagem
+            // O resto dos seus botões continua igual
             document.getElementById('play-button').onclick = () => setGameState('characterSelect');
-
-            // Botões de reiniciar ainda iniciam o jogo diretamente (com o último personagem selecionado, que será o padrão)
             document.getElementById('restart-button-pause').onclick = () => initGame();
             document.getElementById('restart-button-gameover').onclick = () => initGame();
-
             document.getElementById('resume-button').onclick = () => {
                 lastFrameTime = 0;
                 setGameState('playing');
             };
-
             document.getElementById('back-to-menu-button-pause').onclick = () => setGameState('menu');
             document.getElementById('back-to-menu-button-gameover').onclick = () => setGameState('menu');
             document.getElementById('guide-button').onclick = () => setGameState('guide');
@@ -4028,13 +4045,13 @@ window.onload = () => {
             document.getElementById('back-from-achievements-button').onclick = () => setGameState('menu');
             document.getElementById('pause-button').onclick = () => { if(gameState === 'playing') setGameState('paused'); };
             document.getElementById('fullscreen-button').onclick = toggleFullscreen;
-
             document.getElementById('upgrades-button').onclick = () => {
                 populateUpgradesMenu();
                 setGameState('upgrades');
             };
             document.getElementById('back-from-upgrades-button').onclick = () => setGameState('menu');
         }
+        // --- FIM DA CORREÇÃO ---
 
         setupEventListeners();
         setGameState('menu');
