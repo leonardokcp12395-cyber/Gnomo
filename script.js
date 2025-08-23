@@ -1175,6 +1175,26 @@ window.onload = () => {
                     this.level++;
                     this.xp -= this.xpToNextLevel;
                     this.xpToNextLevel = Math.floor(this.xpToNextLevel * CONFIG.XP_TO_NEXT_LEVEL_MULTIPLIER);
+
+                    SoundManager.playSfx('levelUp'); // Toca o som de level up
+
+                    // --- INÍCIO DA SUGESTÃO: Efeito de Onda de Choque ---
+                    const shockwaveParticles = 30; // Número de partículas na onda
+                    for (let i = 0; i < shockwaveParticles; i++) {
+                        const angle = (i / shockwaveParticles) * Math.PI * 2;
+                        const particle = getFromPool(particleManager.pool);
+                        if (particle) {
+                            // Inicializa a partícula no jogador
+                            particle.init(this.x, this.y, '#FFD700', 2); // Cor dourada, tamanho 2
+                            // Define a velocidade para se expandir em anel
+                            const speed = 4;
+                            particle.velocity.x = Math.cos(angle) * speed;
+                            particle.velocity.y = Math.sin(angle) * speed;
+                            particleManager.activeParticles.push(particle);
+                        }
+                    }
+                    // --- FIM DA SUGESTÃO ---
+
                     setGameState('levelUp');
                 }
             }
