@@ -1,11 +1,6 @@
 // Variável de depuração global
 const DEBUG_MODE = false; // Altere para true para ver logs no console
 
-const playerImgRight = new Image();
-playerImgRight.src = 'assets/mago direita.png';
-const playerImgLeft = new Image();
-playerImgLeft.src = 'assets/mago esquerda.png';
-
 const mobLvl1Img = new Image();
 mobLvl1Img.src = 'assets/moblvl1.png';
 const mobLvl2Img = new Image();
@@ -755,7 +750,17 @@ window.onload = () => {
 
         class Player extends Entity {
             constructor(characterId = 'SERAPH') {
-                super(0, 0, 15);
+                super(0, 0, 22); // Aumenta o raio de colisão para ~22 pixels
+
+                // --- INÍCIO DA ALTERAÇÃO 1: Carregar as imagens ---
+                this.spriteRight = new Image();
+                this.spriteRight.src = 'assets/mago direita.png';
+                this.spriteLeft = new Image();
+                this.spriteLeft.src = 'assets/mago esquerda.png';
+                this.spriteWidth = 50; // Largura aproximada da sua imagem em pixels
+                this.spriteHeight = 50; // Altura aproximada da sua imagem em pixels
+                // --- FIM DA ALTERAÇÃO 1 ---
+
                 const characterData = CHARACTER_DATABASE[characterId];
 
                 // Aplica melhorias permanentes
@@ -804,17 +809,19 @@ window.onload = () => {
                 this.jumpBufferTimer = 0; // Para "Jump Buffering"
             }
 
+            // --- INÍCIO DA ALTERAÇÃO 2: Nova função de desenho com sprites ---
             draw(ctx) {
-                // Adiciona efeito de piscar para I-Frames
+                // Efeito de piscar para invencibilidade (I-Frames)
                 if (this.invincibilityTimer > 0 && frameCount % 8 < 4) {
                     this.animationFrame++;
                     return; // Pula o desenho, criando o efeito de piscar
                 }
 
                 ctx.save();
+                // Move o canvas para a posição do jogador
                 ctx.translate(this.x - camera.x, this.y - camera.y);
 
-                // Squash and Stretch
+                // Efeito "Squash and Stretch" ao aterrar (opcional, mas mantém o feeling)
                 let scaleX = 1;
                 let scaleY = 1;
                 if (this.squashStretchTimer > 0) {
@@ -825,23 +832,30 @@ window.onload = () => {
                 }
                 ctx.scale(scaleX, scaleY);
 
-                const img = this.facingRight ? playerImgRight : playerImgLeft;
-                const aspectRatio = img.height / img.width;
-                const drawWidth = this.radius * 4;
-                const drawHeight = drawWidth * aspectRatio;
+                // Escolhe a imagem correta (direita ou esquerda)
+                const currentSprite = this.facingRight ? this.spriteRight : this.spriteLeft;
 
+                // Efeito de "flash" vermelho ao levar dano
                 if (this.hitTimer > 0) {
-                    // Apply a red tint effect
-                    ctx.filter = 'sepia(1) saturate(10) hue-rotate(-50deg) brightness(0.8)';
+                    // Desenha uma versão vermelha da sprite por baixo para o efeito de dano
+                    ctx.globalCompositeOperation = 'source-atop';
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                    ctx.fillRect(-this.spriteWidth / 2, -this.spriteHeight / 2, this.spriteWidth, this.spriteHeight);
+                    ctx.globalCompositeOperation = 'source-over'; // Reseta para o normal
                     this.hitTimer--;
                 }
 
-                ctx.drawImage(img, -drawWidth / 2, -drawHeight / 1.5, drawWidth, drawHeight);
+                // Desenha a imagem do mago
+                // O ponto (0,0) é agora o centro do jogador, então desenhamos a partir de metade da largura/altura
+                ctx.drawImage(
+                    currentSprite,
+                    -this.spriteWidth / 2,
+                    -this.spriteHeight / 2,
+                    this.spriteWidth,
+                    this.spriteHeight
+                );
 
-                // Reset filter
-                ctx.filter = 'none';
-
-                // Escudo
+                // Lógica para desenhar o escudo (Aegis Shield)
                 if (this.shielded) {
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius * 1.5, 0, Math.PI * 2);
@@ -853,6 +867,7 @@ window.onload = () => {
                 ctx.restore();
                 this.animationFrame++;
             }
+            // --- FIM DA ALTERAÇÃO 2 ---
 
             update() {
                 // Decrementa o temporizador de invencibilidade
