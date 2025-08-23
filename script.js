@@ -3024,7 +3024,7 @@ window.onload = () => {
             let targetsHit = new Set([currentTarget]);
             let lastPosition = { x: source.x, y: source.y };
 
-            for (let i = 0; i <= levelData.chains; i++) {
+            for (let i = 0; i < levelData.chains; i++) {
                 if (!currentTarget) break;
 
                 // Causa dano e cria o efeito visual
