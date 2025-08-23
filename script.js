@@ -3342,22 +3342,34 @@ window.onload = () => {
                 activeSanctuaryZones.forEach(s => s.draw(ctx));
             activeMeteorWarnings.forEach(w => w.draw(ctx));
 
-                // Desenha os raios (agora com a imagem)
+                // Desenha os raios (efeito refeito)
                 ctx.save();
                 ctx.translate(-camera.x, -camera.y);
                 activeLightningBolts.forEach(bolt => {
                     ctx.globalAlpha = bolt.life / 5.0; // Efeito de fade out
+
                     for (let i = 0; i < bolt.points.length - 1; i++) {
                         const p1 = bolt.points[i];
                         const p2 = bolt.points[i+1];
                         const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
                         const distance = Math.hypot(p2.y - p1.y, p2.x - p1.x);
+                        const thickness = 15; // Aumenta a espessura base do raio
 
-                        ctx.save();
-                        ctx.translate(p1.x, p1.y);
-                        ctx.rotate(angle);
-                        ctx.drawImage(chainLightningImg, 0, -chainLightningImg.height / 2, distance, chainLightningImg.height);
-                        ctx.restore();
+                        const numLines = Math.floor(Math.random() * 3) + 2; // 2 a 4 "linhas"
+
+                        for (let j = 0; j < numLines; j++) {
+                            ctx.save();
+
+                            // Aplica um desvio perpendicular para criar o efeito de múltiplas linhas
+                            const offset = (Math.random() - 0.5) * thickness * 0.7;
+                            ctx.translate(p1.x + offset * Math.cos(angle + Math.PI/2), p1.y + offset * Math.sin(angle + Math.PI/2));
+                            ctx.rotate(angle);
+
+                            // Desenha o GIF esticado
+                            ctx.drawImage(chainLightningImg, 0, -thickness / 2, distance, thickness);
+
+                            ctx.restore();
+                        }
                     }
                 });
                 ctx.restore();
