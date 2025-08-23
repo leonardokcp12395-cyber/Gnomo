@@ -502,69 +502,93 @@ window.onload = () => {
             }
         };
 
-        // --- GESTOR DE SOM SIMPLIFICADO ---
+        // --- GESTOR DE SOM OTIMIZADO ---
         const SoundManager = {
-            bgm: [],
-            currentTrack: null,
+            sfx: {
+                xp: 'assets/xp.wav',
+                levelUp: 'assets/levelUp.wav',
+                damage: 'assets/damage.wav',
+                lance: 'assets/lance.wav',
+                nuke: 'assets/nuke.wav',
+                uiClick: 'assets/uiClick.wav',
+                land: 'assets/land.wav',
+            },
+            bgmTracks: [
+                'assets/Bloody Stream [8-Bit_ VRC6] - JoJo_s Bizarre Adventure OP 2(M4A_128K).m4a',
+                'assets/Fun Epic 8-Bit Music - Boss Time _ Royalty Free boss battle music(M4A_128K).m4a',
+                'assets/Giorno_s Theme _ _il vento d_oro_ [8-Bit_ VRC6] - JoJo_s Bizarre Adventure_ Golden Wind(M4A_128K).m4a'
+            ],
+
+            _audioPool: {},
+            _bgmPool: [],
+            _currentBgm: null,
             initialized: false,
 
             init() {
                 if (this.initialized) return;
+                console.log("A pré-carregar sons...");
 
-                const track1 = new Audio('assets/Bloody Stream [8-Bit_ VRC6] - JoJo_s Bizarre Adventure OP 2(M4A_128K).m4a');
-                const track2 = new Audio('assets/Fun Epic 8-Bit Music - Boss Time _ Royalty Free boss battle music(M4A_128K).m4a');
-                const track3 = new Audio('assets/Giorno_s Theme _ _il vento d_oro_ [8-Bit_ VRC6] - JoJo_s Bizarre Adventure_ Golden Wind(M4A_128K).m4a');
+                // Pre-load SFX
+                for (const effectName in this.sfx) {
+                    const path = this.sfx[effectName];
+                    this._audioPool[effectName] = new Audio(path);
+                    this._audioPool[effectName].volume = 0.4;
+                }
 
-                this.bgm = [track1, track2, track3];
-                this.bgm.forEach(track => {
-                    track.loop = false; // We will handle looping manually to shuffle
-                    track.volume = 0.3; // Set a reasonable volume
-                    track.addEventListener('ended', () => this.playNext());
+                // Pre-load BGM
+                this.bgmTracks.forEach(path => {
+                    const audio = new Audio(path);
+                    audio.volume = 0.3;
+                    audio.loop = false; // We handle looping manually to shuffle
+                    audio.addEventListener('ended', () => this.playNextBgm());
+                    this._bgmPool.push(audio);
                 });
 
                 this.initialized = true;
+                console.log("Sons carregados!");
             },
 
-            start() {
+            playSfx(effectName) {
                 if (!this.initialized) this.init();
-                // Attempt to play the first track, requires user interaction
-                this.playNext();
+                const audio = this._audioPool[effectName];
+                if (audio) {
+                    audio.currentTime = 0;
+                    audio.play().catch(e => {}); // Ignore play errors for SFX
+                } else {
+                    if(DEBUG_MODE) console.warn(`Efeito sonoro não encontrado: ${effectName}`);
+                }
             },
 
-            playNext() {
-                if (this.bgm.length === 0) return;
+            startBgm() {
+                if (!this.initialized) this.init();
+                this.playNextBgm();
+            },
 
-                // Stop current track if any is playing
-                if (this.currentTrack) {
-                    this.currentTrack.pause();
+            playNextBgm() {
+                if (this._bgmPool.length === 0) return;
+                if (this._currentBgm) {
+                    this._currentBgm.pause();
                 }
+                this._bgmPool.sort(() => Math.random() - 0.5);
+                this._currentBgm = this._bgmPool[0];
+                this._currentBgm.currentTime = 0;
 
-                // Shuffle tracks
-                this.bgm.sort(() => Math.random() - 0.5);
-
-                this.currentTrack = this.bgm[0];
-                this.currentTrack.currentTime = 0;
-
-                // Play returns a promise, handle potential errors
-                const playPromise = this.currentTrack.play();
+                const playPromise = this._currentBgm.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
-                        console.log("Audio playback failed, likely requires user interaction.", error);
-                        // We can't autoplay, so we'll wait for the user to click something.
-                        // A common practice is to start music on the first click.
+                        if(DEBUG_MODE) console.log("BGM playback failed, requires user interaction.", error);
                         const startMusicOnClick = () => {
-                            this.currentTrack.play().catch(e => console.error("Could not start music even after interaction.", e));
-                            window.removeEventListener('click', startMusicOnClick);
+                            this._currentBgm.play().catch(e => { if(DEBUG_MODE) console.error("Could not start BGM even after interaction.", e) });
                         };
                         window.addEventListener('click', startMusicOnClick, { once: true });
                     });
                 }
             },
 
-            stop() {
-                if (this.currentTrack) {
-                    this.currentTrack.pause();
-                    this.currentTrack.currentTime = 0;
+            stopBgm() {
+                if (this._currentBgm) {
+                    this._currentBgm.pause();
+                    this._currentBgm.currentTime = 0;
                 }
             }
         };
@@ -2848,7 +2872,7 @@ window.onload = () => {
             eventManager.currentEvent = null;
             eventManager.timeUntilNextEvent = 120 * 60; // Reinicia o temporizador para o próximo jogo
 
-            SoundManager.start();
+            SoundManager.startBgm();
             setGameState('playing');
         }
 
@@ -3510,7 +3534,7 @@ window.onload = () => {
             } else if (newState === 'paused') {
                 ui.pauseMenu.classList.remove('hidden');
             } else if (newState === 'gameOver') {
-                SoundManager.stop();
+                SoundManager.stopBgm();
                 const finalTimeInSeconds = Math.floor(gameTime);
                 document.getElementById('final-time').innerText = formatTime(finalTimeInSeconds);
                 document.getElementById('final-kills').innerText = score.kills;
@@ -3518,6 +3542,15 @@ window.onload = () => {
                 ui.gameOverScreen.classList.remove('hidden');
                 saveScore();
             } else if (newState === 'levelUp') {
+                const flash = document.getElementById('flash-overlay');
+                if (flash) {
+                    flash.style.transition = 'opacity 0.1s ease-out';
+                    flash.style.opacity = 0.7; // Intensidade do flash
+                    setTimeout(() => {
+                        flash.style.opacity = 0;
+                    }, 100); // Duração do flash (100ms)
+                }
+
                 populateLevelUpOptions();
                 ui.levelUpScreen.classList.remove('hidden');
             } else if (newState === 'guide') {
