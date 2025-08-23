@@ -3061,27 +3061,7 @@ window.onload = () => {
 
             const dx = endPos.x - startPos.x;
             const dy = endPos.y - startPos.y;
-                const distance = Math.hypot(dx, dy);
-                const angle = Math.atan2(dy, dx);
-
-                const segmentLength = 15;
-                const numSegments = Math.ceil(distance / segmentLength);
-                
                 bolt.points.push({x: startPos.x, y: startPos.y});
-
-                for (let i = 1; i < numSegments; i++) {
-                    const t = i / numSegments;
-                    const x = startPos.x + dx * t;
-                    const y = startPos.y + dy * t;
-                    
-                    // Adiciona jitter (tremor) perpendicular ao raio
-                    const jitter = (Math.random() - 0.5) * 15;
-                    const jitterX = x + Math.cos(angle + Math.PI / 2) * jitter;
-                    const jitterY = y + Math.sin(angle + Math.PI / 2) * jitter;
-                    
-                    bolt.points.push({x: jitterX, y: jitterY});
-            }
-                
                 bolt.points.push({x: endPos.x, y: endPos.y});
                 
                 // Adiciona o raio a uma lista para ser desenhado
@@ -3342,32 +3322,35 @@ window.onload = () => {
                 activeSanctuaryZones.forEach(s => s.draw(ctx));
             activeMeteorWarnings.forEach(w => w.draw(ctx));
 
-                // Desenha os raios (efeito refeito)
+                // Desenha os raios (efeito de blocos)
                 ctx.save();
                 ctx.translate(-camera.x, -camera.y);
                 activeLightningBolts.forEach(bolt => {
                     ctx.globalAlpha = bolt.life / 5.0; // Efeito de fade out
 
-                    for (let i = 0; i < bolt.points.length - 1; i++) {
-                        const p1 = bolt.points[i];
-                        const p2 = bolt.points[i+1];
+                    const p1 = bolt.points[0];
+                    const p2 = bolt.points[1];
+
+                    const numBeams = Math.floor(Math.random() * 2) + 2; // 2 ou 3 raios
+
+                    for(let j = 0; j < numBeams; j++) {
                         const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
                         const distance = Math.hypot(p2.y - p1.y, p2.x - p1.x);
-                        const thickness = 15; // Aumenta a espessura base do raio
+                        const blockHeight = chainLightningImg.height || 20; // Altura do GIF como um bloco
+                        const offset = (Math.random() - 0.5) * 15; // Desvio perpendicular
 
-                        const numLines = Math.floor(Math.random() * 3) + 2; // 2 a 4 "linhas"
+                        const startX = p1.x + offset * Math.cos(angle + Math.PI/2);
+                        const startY = p1.y + offset * Math.sin(angle + Math.PI/2);
 
-                        for (let j = 0; j < numLines; j++) {
+                        // Desenha o GIF em blocos ao longo da linha
+                        for (let i = 0; i < distance; i += blockHeight) {
                             ctx.save();
+                            const currentX = startX + i * Math.cos(angle);
+                            const currentY = startY + i * Math.sin(angle);
+                            ctx.translate(currentX, currentY);
+                            ctx.rotate(angle + Math.PI / 2); // Rotaciona o GIF vertical para o ângulo certo
 
-                            // Aplica um desvio perpendicular para criar o efeito de múltiplas linhas
-                            const offset = (Math.random() - 0.5) * thickness * 0.7;
-                            ctx.translate(p1.x + offset * Math.cos(angle + Math.PI/2), p1.y + offset * Math.sin(angle + Math.PI/2));
-                            ctx.rotate(angle);
-
-                            // Desenha o GIF esticado
-                            ctx.drawImage(chainLightningImg, 0, -thickness / 2, distance, thickness);
-
+                            ctx.drawImage(chainLightningImg, -chainLightningImg.width / 2, -blockHeight / 2);
                             ctx.restore();
                         }
                     }
@@ -3985,27 +3968,6 @@ window.onload = () => {
                 canvas.height = window.innerHeight;
             });
             window.dispatchEvent(new Event('resize'));
-
-            // Variável para guardar o nosso temporizador de pausa
-            let pauseOnBlurTimeout;
-
-            // NOVO: Escutador de 'blur' (perder foco) com atraso
-            window.addEventListener('blur', () => {
-                if(gameState === 'playing') {
-                    // Espera 100ms antes de pausar
-                    pauseOnBlurTimeout = setTimeout(() => {
-                        setGameState('paused');
-                    }, 100);
-                }
-            });
-
-            // NOVO: Escutador de 'focus' (recuperar foco) para cancelar a pausa
-            window.addEventListener('focus', () => {
-                if (pauseOnBlurTimeout) {
-                    clearTimeout(pauseOnBlurTimeout);
-                }
-            });
-
 
             if (isMobile) {
                 handleMobileInput();
