@@ -773,8 +773,8 @@ window.onload = () => {
 
                 if (this.isGround) {
                     if (chaoImg.complete && chaoImg.naturalHeight > 0) {
-                        const tileWidth = chaoImg.naturalWidth;
-                        const tileHeight = chaoImg.naturalHeight;
+                        const tileHeight = 64; // Altura fixa para os blocos
+                        const tileWidth = tileHeight * (chaoImg.naturalWidth / chaoImg.naturalHeight); // Largura baseada na proporção
 
                         for (let x = this.x; x < this.x + this.width; x += tileWidth) {
                             for (let y = this.y; y < this.y + this.height; y += tileHeight) {
@@ -3757,7 +3757,7 @@ window.onload = () => {
                     }
                     showTemporaryMessage(`Evoluiu: ${evo.name}!`, 'gold');
                     setGameState('playing');
-                    lastFrameTime = 0;
+                    lastFrameTime = performance.now();
                 };
                 container.appendChild(card);
             });
