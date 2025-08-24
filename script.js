@@ -1,49 +1,31 @@
 // Variável de depuração global
 const DEBUG_MODE = false; // Altere para true para ver logs no console
 
-const mobLvl1Img = new Image();
-mobLvl1Img.src = 'assets/moblvl1.png';
-const mobLvl2Img = new Image();
-mobLvl2Img.src = 'assets/moblvl2.png';
+// Enemy Sprites
+const chaserImg = new Image();
+chaserImg.src = 'assets/chaser_esquerda.png';
+const speederImg = new Image();
+speederImg.src = 'assets/speeder_direita.png';
+const shooterImg = new Image();
+shooterImg.src = 'assets/Shooter.png';
+const summonerImg = new Image();
+summonerImg.src = 'assets/Summoner.png';
+const bomberImg = new Image();
+bomberImg.src = 'assets/bomber.png';
+const chargerImg = new Image();
+chargerImg.src = 'assets/changer.png'; // Assuming this is for the charger
+const healerImg = new Image();
+healerImg.src = 'assets/healer.png';
+const tankImg = new Image(); // Reusing bomber sprite for tank
+tankImg.src = 'assets/bomber.png';
+const reaperImg = new Image(); // Reusing summoner sprite for reaper
+reaperImg.src = 'assets/Summoner.png';
+
+// Other assets
 const chainLightningImg = new Image();
 chainLightningImg.src = 'assets/Skillrelampago_em_cadeia_vertical.gif';
-const groundTileImg = new Image();
-groundTileImg.src = 'assets/Chãoblocoretangulo.png';
-
-// --- CONFIGURAÇÃO DE SPRITES DOS INIMIGOS ---
-const ENEMY_SPRITES_CONFIG = {
-    'mago': { left: 'assets/mago esquerda.png', right: 'assets/mago direita.png', width: 50, height: 50 },
-    'chaser': { src: 'assets/chaser_esquerda.png', baseDirection: 'left', width: 40, height: 40 },
-    'speeder': { src: 'assets/speeder_direita.png', baseDirection: 'right', width: 40, height: 40 },
-    'bomber': { src: 'assets/bomber.png', width: 50, height: 50 },
-    'changer': { src: 'assets/changer.png', width: 50, height: 50 },
-    'healer': { src: 'assets/healer.png', width: 50, height: 50 },
-    'shooter': { src: 'assets/Shooter.png', width: 50, height: 50 },
-    'summoner': { src: 'assets/Summoner.png', width: 60, height: 60 }
-};
-
-const ENEMY_SPRITES = {};
-
-// Pré-carrega todos os sprites dos inimigos para evitar pop-in
-for (const type in ENEMY_SPRITES_CONFIG) {
-    const config = ENEMY_SPRITES_CONFIG[type];
-    ENEMY_SPRITES[type] = { ...config, images: {} };
-    if (config.src) {
-        const img = new Image();
-        img.src = config.src;
-        ENEMY_SPRITES[type].images.default = img;
-    }
-    if (config.left) {
-        const imgLeft = new Image();
-        imgLeft.src = config.left;
-        ENEMY_SPRITES[type].images.left = imgLeft;
-    }
-    if (config.right) {
-        const imgRight = new Image();
-        imgRight.src = config.right;
-        ENEMY_SPRITES[type].images.right = imgRight;
-    }
-}
+const chaoImg = new Image();
+chaoImg.src = 'assets/Chãoblocoretangulo.png';
 
 // Variáveis globais que serão inicializadas dentro de window.onload ou initGame
 let player;
@@ -775,6 +757,7 @@ window.onload = () => {
                 this.width = width;
                 this.height = height;
                 this.color = color;
+                this.isGround = false;
             }
 
             draw(ctx) {
@@ -788,37 +771,40 @@ window.onload = () => {
                 ctx.save();
                 ctx.translate(-camera.x, -camera.y); // Aplica o deslocamento da câmara
 
-                // Verifica se é a plataforma principal do chão
-                if (this.height > 100 && groundTileImg.complete && groundTileImg.naturalHeight > 0) {
-                    const tileWidth = groundTileImg.width;
-                    const tileHeight = groundTileImg.height;
+                if (this.isGround) {
+                    if (chaoImg.complete && chaoImg.naturalHeight > 0) {
+                        const tileWidth = chaoImg.naturalWidth;
+                        const tileHeight = chaoImg.naturalHeight;
 
-                    // Desenha a textura em blocos para preencher a plataforma
-                    for (let y = this.y; y < this.y + this.height; y += tileHeight) {
                         for (let x = this.x; x < this.x + this.width; x += tileWidth) {
-                            // Otimização: só desenha o tile se estiver visível na câmara
-                            if (x + tileWidth > screenLeft && x < screenRight) {
-                                ctx.drawImage(groundTileImg, x, y, tileWidth, tileHeight);
+                            for (let y = this.y; y < this.y + this.height; y += tileHeight) {
+                                // Otimização: Desenha apenas tiles que estão visíveis na câmara
+                                if (x + tileWidth > camera.x && x < camera.x + canvas.width &&
+                                    y + tileHeight > camera.y && y < camera.y + canvas.height) {
+                                    ctx.drawImage(chaoImg, x, y, tileWidth, tileHeight);
+                                }
                             }
                         }
+                    } else {
+                        // Fallback se a imagem não estiver carregada
+                        ctx.fillStyle = this.color;
+                        ctx.fillRect(this.x, this.y, this.width, this.height);
                     }
                 } else {
-                    // Lógica original para as outras plataformas
                     const gradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.height);
                     gradient.addColorStop(0, '#3CB371');
                     gradient.addColorStop(0.5, this.color);
                     gradient.addColorStop(1, '#1E593F');
                     ctx.fillStyle = gradient;
                     ctx.fillRect(this.x, this.y, this.width, this.height);
-                }
 
-                // Mantém a linha de contorno verde no topo
-                ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(this.x, this.y);
-                ctx.lineTo(this.x + this.width, this.y);
-                ctx.stroke();
+                    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.x + this.width, this.y);
+                    ctx.stroke();
+                }
 
                 ctx.restore();
             }
@@ -833,8 +819,6 @@ window.onload = () => {
                 this.spriteRight.src = 'assets/mago direita.png';
                 this.spriteLeft = new Image();
                 this.spriteLeft.src = 'assets/mago esquerda.png';
-                this.spriteWidth = 50; // Largura aproximada da sua imagem em pixels
-                this.spriteHeight = 50; // Altura aproximada da sua imagem em pixels
                 // --- FIM DA ALTERAÇÃO 1 ---
 
                 const characterData = CHARACTER_DATABASE[characterId];
@@ -897,29 +881,39 @@ window.onload = () => {
                 // Move o canvas para a posição do jogador
                 ctx.translate(this.x - camera.x, this.y - camera.y);
 
-                // O efeito "Squash and Stretch" foi removido para evitar a distorção da imagem.
-
                 // Escolhe a imagem correta (direita ou esquerda)
                 const currentSprite = this.facingRight ? this.spriteRight : this.spriteLeft;
+
+                // Calcula as dimensões de desenho para manter a proporção da imagem
+                let drawWidth, drawHeight;
+                const desiredHeight = this.radius * 2.5; // Ajuste este multiplicador se necessário
+                if (currentSprite && currentSprite.naturalHeight > 0) {
+                    const aspectRatio = currentSprite.naturalWidth / currentSprite.naturalHeight;
+                    drawHeight = desiredHeight;
+                    drawWidth = drawHeight * aspectRatio;
+                } else {
+                    // Fallback se a imagem não estiver carregada
+                    drawWidth = this.radius * 2;
+                    drawHeight = this.radius * 2;
+                }
 
                 // Efeito de "flash" vermelho ao levar dano
                 if (this.hitTimer > 0) {
                     // Desenha uma versão vermelha da sprite por baixo para o efeito de dano
                     ctx.globalCompositeOperation = 'source-atop';
                     ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-                    ctx.fillRect(-this.spriteWidth / 2, -this.spriteHeight / 2, this.spriteWidth, this.spriteHeight);
+                    ctx.fillRect(-drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
                     ctx.globalCompositeOperation = 'source-over'; // Reseta para o normal
                     this.hitTimer--;
                 }
 
                 // Desenha a imagem do mago
-                // O ponto (0,0) é agora o centro do jogador, então desenhamos a partir de metade da largura/altura
                 ctx.drawImage(
                     currentSprite,
-                    -this.spriteWidth / 2,
-                    -this.spriteHeight / 2,
-                    this.spriteWidth,
-                    this.spriteHeight
+                    -drawWidth / 2, // Centraliza a imagem
+                    -drawHeight / 2, // Centraliza a imagem
+                    drawWidth,
+                    drawHeight
                 );
 
                 // Lógica para desenhar o escudo (Aegis Shield)
@@ -1568,11 +1562,10 @@ window.onload = () => {
                 super(x, y, 10);
                 this.type = type;
                 this.isElite = isElite; // Propriedade para inimigos de elite
+                this.facingRight = true;
                 this.hitTimer = 0;
                 this.hitBy = new Set(); // Para dano por tick
                 this.animationFrame = 0; // Para animações de pulso
-                this.facingRight = true; // Direção inicial
-                this.spriteConfig = ENEMY_SPRITES[type]; // Guarda a configuração do sprite para este inimigo
                 this.attackTimer = 0; // Para inimigos atiradores
                 this.knockbackVelocity = { x: 0, y: 0 }; // Para efeito de recuo
                 this.orbHitCooldown = 0; // Cooldown para ser atingido por orbes
@@ -1655,58 +1648,69 @@ window.onload = () => {
                 }
 
                 ctx.save();
-                ctx.translate(this.x - camera.x, this.y - camera.y);
+                ctx.translate(this.x - camera.x, this.y - camera.y); // Aplica o deslocamento da câmara
 
-                // Se este tipo de inimigo tem uma configuração de sprite personalizada, use-a
-                if (this.spriteConfig) {
-                    const config = this.spriteConfig;
-                    const images = config.images;
-                    let currentSprite;
-
-                    if (images.left && images.right) {
-                        // Caso 1: Tem sprites separados para esquerda e direita (ex: 'mago')
-                        currentSprite = this.facingRight ? images.right : images.left;
-                    } else {
-                        // Caso 2 & 3: Tem um único sprite padrão
-                        currentSprite = images.default;
-                    }
-
-                    if (currentSprite && currentSprite.complete && currentSprite.naturalHeight > 0) {
-                        const drawWidth = config.width || this.radius * 2.5;
-                        const drawHeight = config.height || this.radius * 2.5;
-
-                        ctx.save(); // Guarda o contexto para uma possível inversão
-
-                        // Caso 2: Necessita de lógica de inversão
-                        if (config.baseDirection) {
-                            const needsFlip = (this.facingRight && config.baseDirection === 'left') ||
-                                              (!this.facingRight && config.baseDirection === 'right');
-                            if (needsFlip) {
-                                ctx.scale(-1, 1);
-                            }
-                        }
-
-                        if (this.hitTimer > 0) {
-                            ctx.filter = 'brightness(1.8)';
-                            this.hitTimer--;
-                        }
-
-                        ctx.drawImage(currentSprite, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-                        ctx.filter = 'none';
-
-                        ctx.restore(); // Restaura a partir da possível inversão
-                    } else {
-                        // Fallback para a lógica de desenho antiga se a imagem ainda não carregou
-                        this.drawFallback(ctx);
-                    }
-                } else {
-                    // Fallback para inimigos sem sprites personalizados (tank, reaper, etc.)
-                    this.drawFallback(ctx);
+                if (!this.facingRight) {
+                    ctx.scale(-1, 1);
                 }
+
+                let img;
+                switch(this.type) {
+                    case 'chaser':
+                        img = chaserImg;
+                        break;
+                    case 'speeder':
+                        img = speederImg;
+                        break;
+                    case 'tank':
+                        img = tankImg;
+                        break;
+                    case 'bomber':
+                        img = bomberImg;
+                        break;
+                    case 'shooter':
+                        img = shooterImg;
+                        break;
+                    case 'healer':
+                        img = healerImg;
+                        break;
+                    case 'summoner':
+                        img = summonerImg;
+                        break;
+                    case 'charger':
+                        img = chargerImg;
+                        break;
+                    case 'reaper':
+                        img = reaperImg;
+                        break;
+                    default:
+                        img = chaserImg; // Default to chaser
+                }
+
+                // Calcula as dimensões de desenho para manter a proporção da imagem
+                let drawWidth, drawHeight;
+                const desiredHeight = this.radius * 2.5; // Ajuste este multiplicador
+                if (img && img.naturalHeight > 0) {
+                    const aspectRatio = img.naturalWidth / img.naturalHeight;
+                    drawHeight = desiredHeight;
+                    drawWidth = drawHeight * aspectRatio;
+                } else {
+                    // Fallback
+                    drawWidth = this.radius * 2;
+                    drawHeight = this.radius * 2;
+                }
+
+                if (this.hitTimer > 0) {
+                    ctx.filter = 'brightness(1.5) contrast(1.5)';
+                    this.hitTimer--;
+                }
+
+                ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+                ctx.filter = 'none';
 
                 this.animationFrame++;
 
-                // Mantém a aura de elite e a barra de vida
+                // Desenha aura de elite
                 if (this.isElite) {
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius * 1.2, 0, Math.PI * 2);
@@ -1714,6 +1718,7 @@ window.onload = () => {
                     ctx.lineWidth = 3;
                     ctx.stroke();
 
+                    // Adiciona a barra de vida para elites
                     const healthBarWidth = this.radius * 2;
                     const healthPercentage = this.health / this.maxHealth;
                     ctx.fillStyle = '#333';
@@ -1723,38 +1728,6 @@ window.onload = () => {
                 }
 
                 ctx.restore();
-            }
-
-            drawFallback(ctx) {
-                let img;
-                switch(this.type) {
-                    case 'chaser':
-                    case 'speeder':
-                        img = mobLvl1Img;
-                        break;
-                    case 'tank':
-                    case 'bomber':
-                    case 'shooter':
-                    case 'healer':
-                    case 'summoner':
-                    case 'charger':
-                    case 'reaper':
-                        img = mobLvl2Img;
-                        break;
-                    default:
-                        img = mobLvl1Img;
-                }
-
-                const drawWidth = this.radius * 3;
-                const drawHeight = this.radius * 3;
-
-                if (this.hitTimer > 0) {
-                    ctx.filter = 'brightness(1.5) contrast(1.5)';
-                    this.hitTimer--;
-                }
-
-                ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-                ctx.filter = 'none';
             }
 
             update() {
@@ -1821,7 +1794,6 @@ window.onload = () => {
                 // Inimigos voadores movem-se em direção ao jogador em X e Y, a menos que estejam em knockback forte
                 if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 5) { // Só se move se o knockback for pequeno
                     let angle = Math.atan2(player.y - this.y, player.x - this.x);
-                    this.facingRight = (player.x > this.x); // Atualiza a direção do inimigo
                     let currentSpeed = this.speed;
 
                     // Lógica específica para o 'shooter'
@@ -1851,7 +1823,14 @@ window.onload = () => {
                     }
                     currentSpeed *= (1 - finalSlowFactor);
 
-                    this.x += Math.cos(angle) * currentSpeed;
+                    const vx = Math.cos(angle) * currentSpeed;
+                    if (vx > 0.1) {
+                        this.facingRight = true;
+                    } else if (vx < -0.1) {
+                        this.facingRight = false;
+                    }
+
+                    this.x += vx;
                     this.y += Math.sin(angle) * currentSpeed;
                 }
 
@@ -2882,12 +2861,14 @@ window.onload = () => {
             const groundLevel = canvas.height * (1 - CONFIG.GROUND_HEIGHT_PERCENT);
 
                 // O chão principal, agora do tamanho exato da arena.
-            platforms.push(new Platform(
+            const groundPlatform = new Platform(
                     -CONFIG.WORLD_BOUNDS.width / 2,
                 groundLevel,
                     CONFIG.WORLD_BOUNDS.width,
                 CONFIG.WORLD_BOUNDS.height
-            ));
+            );
+            groundPlatform.isGround = true;
+            platforms.push(groundPlatform);
 
             // Geração de plataformas flutuantes
                 const platformCount = 12; // Reduzido para a arena menor
@@ -3599,7 +3580,7 @@ window.onload = () => {
                 button.onclick = () => {
                     const charId = button.getAttribute('data-character-id');
                     initGame(charId);
-                    lastFrameTime = 0; // Reseta o cálculo do delta time
+                    lastFrameTime = performance.now(); // CORREÇÃO: Evita um grande deltaTime
                 };
             });
         }
@@ -3834,7 +3815,7 @@ window.onload = () => {
                         event.stopPropagation();
                         player.addSkill(skillId);
                         setGameState('playing');
-                        lastFrameTime = 0;
+                        lastFrameTime = performance.now(); // CORREÇÃO: Evita um grande deltaTime
                     };
                     container.appendChild(card);
                 });
@@ -4080,7 +4061,7 @@ window.onload = () => {
                     if (e.key === 'Escape' && gameState === 'playing') {
                         setGameState('paused');
                     } else if (e.key === 'Escape' && gameState === 'paused') {
-                        lastFrameTime = 0;
+                        lastFrameTime = performance.now(); // CORREÇÃO: Evita um grande deltaTime
                         setGameState('playing');
                     }
                 });
@@ -4096,7 +4077,7 @@ window.onload = () => {
             document.getElementById('restart-button-pause').onclick = () => initGame();
             document.getElementById('restart-button-gameover').onclick = () => initGame();
             document.getElementById('resume-button').onclick = () => {
-                lastFrameTime = 0;
+                lastFrameTime = performance.now(); // CORREÇÃO: Evita um grande deltaTime
                 setGameState('playing');
             };
             document.getElementById('back-to-menu-button-pause').onclick = () => setGameState('menu');
