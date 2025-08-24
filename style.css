@@ -52,6 +52,24 @@ canvas {
     display: none !important; /* Força a ocultação */
 }
 
+#loading-screen {
+    text-align: center;
+}
+
+#loading-progress-bar-container {
+    width: 80%;
+    height: 30px;
+    border: 2px solid white;
+    margin: 20px auto;
+}
+
+#loading-progress-bar {
+    width: 0%;
+    height: 100%;
+    background-color: cyan;
+    transition: width 0.1s linear;
+}
+
 /* Estilos para as estatísticas das habilidades no ecrã de Level Up */
 .skill-stats {
     margin-top: 8px;

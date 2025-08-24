@@ -1,31 +1,102 @@
 // Variável de depuração global
 const DEBUG_MODE = false; // Altere para true para ver logs no console
 
-// Enemy Sprites
-const chaserImg = new Image();
-chaserImg.src = 'assets/chaser_esquerda.png';
-const speederImg = new Image();
-speederImg.src = 'assets/speeder_direita.png';
-const shooterImg = new Image();
-shooterImg.src = 'assets/Shooter.png';
-const summonerImg = new Image();
-summonerImg.src = 'assets/Summoner.png';
-const bomberImg = new Image();
-bomberImg.src = 'assets/bomber.png';
-const chargerImg = new Image();
-chargerImg.src = 'assets/changer.png'; // Assuming this is for the charger
-const healerImg = new Image();
-healerImg.src = 'assets/healer.png';
-const tankImg = new Image(); // Reusing bomber sprite for tank
-tankImg.src = 'assets/bomber.png';
-const reaperImg = new Image(); // Reusing summoner sprite for reaper
-reaperImg.src = 'assets/Summoner.png';
+// --- GESTOR DE ASSETS ---
+const AssetManager = {
+    images: {},
+    sounds: {},
+    totalAssets: 0,
+    loadedAssets: 0,
+    _imagePaths: {
+        playerRight: 'assets/mago direita.png',
+        playerLeft: 'assets/mago esquerda.png',
+        chaser_left: 'assets/chaser_esquerda.png',
+        speeder_right: 'assets/speeder_direita.png',
+        shooter: 'assets/Shooter.png',
+        summoner: 'assets/Summoner.png',
+        bomber: 'assets/bomber.png',
+        charger: 'assets/changer.png',
+        healer: 'assets/healer.png',
+        tank: 'assets/bomber.png', // Reusing bomber for tank
+        reaper: 'assets/Summoner.png', // Reusing summoner for reaper
+        chainLightning: 'assets/Skillrelampago_em_cadeia_vertical.gif',
+        ground: 'assets/Chãoblocoretangulo.png'
+    },
+    _imagesToFlip: {
+        chaser_left: 'chaser_right',
+        speeder_right: 'speeder_left'
+    },
+    _soundPaths: {
+        xp: 'assets/xp.wav',
+        levelUp: 'assets/levelUp.wav',
+        damage: 'assets/damage.wav',
+        lance: 'assets/lance.wav',
+        nuke: 'assets/nuke.wav',
+        uiClick: 'assets/uiClick.wav',
+        land: 'assets/land.wav',
+        bgm1: 'assets/Bloody Stream [8-Bit_ VRC6] - JoJo_s Bizarre Adventure OP 2(M4A_128K).m4a',
+        bgm2: 'assets/Fun Epic 8-Bit Music - Boss Time _ Royalty Free boss battle music(M4A_128K).m4a',
+        bgm3: 'assets/Giorno_s Theme _ _il vento d_oro_ [8-Bit_ VRC6] - JoJo_s Bizarre Adventure_ Golden Wind(M4A_128K).m4a'
+    },
+    loadAll(callback) {
+        const imageKeys = Object.keys(this._imagePaths);
+        const soundKeys = Object.keys(this._soundPaths);
+        this.totalAssets = imageKeys.length + soundKeys.length;
+        if (this.totalAssets === 0) {
+            if(callback) callback();
+            return;
+        }
+        const assetLoaded = () => {
+            this.loadedAssets++;
+            if (this.isDone()) {
+                this._createFlippedVersions();
+                if (callback) callback();
+            }
+        };
+        for (const key of imageKeys) {
+            const path = this._imagePaths[key];
+            const img = new Image();
+            img.src = path;
+            img.onload = assetLoaded;
+            img.onerror = () => { console.error(`Failed to load image: ${path}`); assetLoaded(); };
+            this.images[key] = img;
+        }
+        for (const key of soundKeys) {
+            const path = this._soundPaths[key];
+            const snd = new Audio();
+            snd.src = path;
+            snd.addEventListener('canplaythrough', assetLoaded, { once: true });
+            snd.addEventListener('error', () => { console.error(`Failed to load sound: ${path}`); assetLoaded(); }, { once: true });
+            this.sounds[key] = snd;
+        }
+    },
+    _createFlippedVersions() {
+        for (const originalKey in this._imagesToFlip) {
+            const flippedKey = this._imagesToFlip[originalKey];
+            const originalImage = this.images[originalKey];
 
-// Other assets
-const chainLightningImg = new Image();
-chainLightningImg.src = 'assets/Skillrelampago_em_cadeia_vertical.gif';
-const chaoImg = new Image();
-chaoImg.src = 'assets/Chãoblocoretangulo.png';
+            if (!originalImage || originalImage.width === 0) continue;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = originalImage.width;
+            canvas.height = originalImage.height;
+            const ctx = canvas.getContext('2d');
+
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(originalImage, 0, 0);
+
+            this.images[flippedKey] = canvas;
+        }
+    },
+    isDone() {
+        return this.loadedAssets >= this.totalAssets;
+    },
+    getProgress() {
+        if (this.totalAssets === 0) return 1;
+        return this.loadedAssets / this.totalAssets;
+    }
+};
 
 // Variáveis globais que serão inicializadas dentro de window.onload ou initGame
 let player;
@@ -523,53 +594,45 @@ window.onload = () => {
 
         // --- GESTOR DE SOM OTIMIZADO ---
         const SoundManager = {
-            sfx: {
-                xp: 'assets/xp.wav',
-                levelUp: 'assets/levelUp.wav',
-                damage: 'assets/damage.wav',
-                lance: 'assets/lance.wav',
-                nuke: 'assets/nuke.wav',
-                uiClick: 'assets/uiClick.wav',
-                land: 'assets/land.wav',
-            },
-            bgmTracks: [
-                'assets/Bloody Stream [8-Bit_ VRC6] - JoJo_s Bizarre Adventure OP 2(M4A_128K).m4a',
-                'assets/Fun Epic 8-Bit Music - Boss Time _ Royalty Free boss battle music(M4A_128K).m4a',
-                'assets/Giorno_s Theme _ _il vento d_oro_ [8-Bit_ VRC6] - JoJo_s Bizarre Adventure_ Golden Wind(M4A_128K).m4a'
-            ],
-
-            _audioPool: {},
-            _bgmPool: [],
+            _sfx: {},
+            _bgm: [],
             _currentBgm: null,
             initialized: false,
 
             init() {
                 if (this.initialized) return;
-                console.log("A pré-carregar sons...");
 
-                // Pre-load SFX
-                for (const effectName in this.sfx) {
-                    const path = this.sfx[effectName];
-                    this._audioPool[effectName] = new Audio(path);
-                    this._audioPool[effectName].volume = 0.4;
-                }
+                // Assign pre-loaded sounds from AssetManager
+                this._sfx = {
+                    xp: AssetManager.sounds.xp,
+                    levelUp: AssetManager.sounds.levelUp,
+                    damage: AssetManager.sounds.damage,
+                    lance: AssetManager.sounds.lance,
+                    nuke: AssetManager.sounds.nuke,
+                    uiClick: AssetManager.sounds.uiClick,
+                    land: AssetManager.sounds.land,
+                };
 
-                // Pre-load BGM
-                this.bgmTracks.forEach(path => {
-                    const audio = new Audio(path);
-                    audio.volume = 0.3;
-                    audio.loop = false; // We handle looping manually to shuffle
-                    audio.addEventListener('ended', () => this.playNextBgm());
-                    this._bgmPool.push(audio);
+                this._bgm = [
+                    AssetManager.sounds.bgm1,
+                    AssetManager.sounds.bgm2,
+                    AssetManager.sounds.bgm3,
+                ];
+
+                // Set volumes and event listeners
+                Object.values(this._sfx).forEach(sound => sound.volume = 0.4);
+                this._bgm.forEach(sound => {
+                    sound.volume = 0.3;
+                    sound.loop = false;
+                    sound.addEventListener('ended', () => this.playNextBgm());
                 });
 
                 this.initialized = true;
-                console.log("Sons carregados!");
             },
 
             playSfx(effectName) {
                 if (!this.initialized) this.init();
-                const audio = this._audioPool[effectName];
+                const audio = this._sfx[effectName];
                 if (audio) {
                     audio.currentTime = 0;
                     audio.play().catch(e => {}); // Ignore play errors for SFX
@@ -584,12 +647,13 @@ window.onload = () => {
             },
 
             playNextBgm() {
-                if (this._bgmPool.length === 0) return;
+                if (this._bgm.length === 0) return;
                 if (this._currentBgm) {
                     this._currentBgm.pause();
                 }
-                this._bgmPool.sort(() => Math.random() - 0.5);
-                this._currentBgm = this._bgmPool[0];
+                // Shuffle BGM tracks
+                this._bgm.sort(() => Math.random() - 0.5);
+                this._currentBgm = this._bgm[0];
                 this._currentBgm.currentTime = 0;
 
                 const playPromise = this._currentBgm.play();
@@ -772,17 +836,16 @@ window.onload = () => {
                 ctx.translate(-camera.x, -camera.y); // Aplica o deslocamento da câmara
 
                 if (this.isGround) {
-                    if (chaoImg.complete && chaoImg.naturalHeight > 0) {
+                    const groundImg = AssetManager.images.ground;
+                    if (groundImg && groundImg.complete && groundImg.naturalHeight > 0) {
                         const tileHeight = 64; // Altura fixa para os blocos
-                        const tileWidth = tileHeight * (chaoImg.naturalWidth / chaoImg.naturalHeight); // Largura baseada na proporção
+                        const tileWidth = tileHeight * (groundImg.naturalWidth / groundImg.naturalHeight); // Largura baseada na proporção
+                        const groundY = this.y;
 
                         for (let x = this.x; x < this.x + this.width; x += tileWidth) {
-                            for (let y = this.y; y < this.y + this.height; y += tileHeight) {
-                                // Otimização: Desenha apenas tiles que estão visíveis na câmara
-                                if (x + tileWidth > camera.x && x < camera.x + canvas.width &&
-                                    y + tileHeight > camera.y && y < camera.y + canvas.height) {
-                                    ctx.drawImage(chaoImg, x, y, tileWidth, tileHeight);
-                                }
+                            // Otimização: Desenha apenas tiles que estão horizontalmente visíveis
+                            if (x + tileWidth > camera.x && x < camera.x + canvas.width) {
+                                ctx.drawImage(groundImg, x, groundY, tileWidth, tileHeight);
                             }
                         }
                     } else {
@@ -815,10 +878,8 @@ window.onload = () => {
                 super(0, 0, 22); // Aumenta o raio de colisão para ~22 pixels
 
                 // --- INÍCIO DA ALTERAÇÃO 1: Carregar as imagens ---
-                this.spriteRight = new Image();
-                this.spriteRight.src = 'assets/mago direita.png';
-                this.spriteLeft = new Image();
-                this.spriteLeft.src = 'assets/mago esquerda.png';
+                this.spriteRight = AssetManager.images.playerRight;
+                this.spriteLeft = AssetManager.images.playerLeft;
                 // --- FIM DA ALTERAÇÃO 1 ---
 
                 const characterData = CHARACTER_DATABASE[characterId];
@@ -1650,41 +1711,37 @@ window.onload = () => {
                 ctx.save();
                 ctx.translate(this.x - camera.x, this.y - camera.y); // Aplica o deslocamento da câmara
 
-                if (!this.facingRight) {
-                    ctx.scale(-1, 1);
-                }
-
                 let img;
                 switch(this.type) {
                     case 'chaser':
-                        img = chaserImg;
+                        img = this.facingRight ? AssetManager.images.chaser_right : AssetManager.images.chaser_left;
                         break;
                     case 'speeder':
-                        img = speederImg;
+                        img = this.facingRight ? AssetManager.images.speeder_right : AssetManager.images.speeder_left;
                         break;
                     case 'tank':
-                        img = tankImg;
+                        img = AssetManager.images.tank;
                         break;
                     case 'bomber':
-                        img = bomberImg;
+                        img = AssetManager.images.bomber;
                         break;
                     case 'shooter':
-                        img = shooterImg;
+                        img = AssetManager.images.shooter;
                         break;
                     case 'healer':
-                        img = healerImg;
+                        img = AssetManager.images.healer;
                         break;
                     case 'summoner':
-                        img = summonerImg;
+                        img = AssetManager.images.summoner;
                         break;
                     case 'charger':
-                        img = chargerImg;
+                        img = AssetManager.images.charger;
                         break;
                     case 'reaper':
-                        img = reaperImg;
+                        img = AssetManager.images.reaper;
                         break;
                     default:
-                        img = chaserImg; // Default to chaser
+                        img = AssetManager.images.chaser_left; // Default to chaser
                 }
 
                 // Calcula as dimensões de desenho para manter a proporção da imagem
@@ -2967,7 +3024,6 @@ window.onload = () => {
             eventManager.currentEvent = null;
             eventManager.timeUntilNextEvent = 120 * 60; // Reinicia o temporizador para o próximo jogo
 
-            SoundManager.startBgm();
             setGameState('playing');
         }
 
@@ -3411,7 +3467,7 @@ window.onload = () => {
                     for(let j = 0; j < numBeams; j++) {
                         const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
                         const distance = Math.hypot(p2.y - p1.y, p2.x - p1.x);
-                        const blockHeight = chainLightningImg.height || 20; // Altura do GIF como um bloco
+                        const blockHeight = AssetManager.images.chainLightning.height || 20; // Altura do GIF como um bloco
                         const offset = (Math.random() - 0.5) * 15; // Desvio perpendicular
 
                         const startX = p1.x + offset * Math.cos(angle + Math.PI/2);
@@ -3425,7 +3481,7 @@ window.onload = () => {
                             ctx.translate(currentX, currentY);
                             ctx.rotate(angle + Math.PI / 2); // Rotaciona o GIF vertical para o ângulo certo
 
-                            ctx.drawImage(chainLightningImg, -chainLightningImg.width / 2, -blockHeight / 2);
+                            ctx.drawImage(AssetManager.images.chainLightning, -AssetManager.images.chainLightning.width / 2, -blockHeight / 2);
                             ctx.restore();
                         }
                     }
@@ -3510,6 +3566,14 @@ window.onload = () => {
 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 demoPlayer.draw(ctx);
+            } else if (gameState === 'loading') {
+                // Draw loading screen
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const progress = AssetManager.getProgress();
+                const bar = document.getElementById('loading-progress-bar');
+                if (bar) {
+                    bar.style.width = `${progress * 100}%`;
+                }
             }
 
             if (gameState === 'playing') {
@@ -3542,6 +3606,7 @@ window.onload = () => {
             upgradesMenu: document.getElementById('upgrades-menu'),
             characterSelectScreen: document.getElementById('character-select-screen'),
             achievementsScreen: document.getElementById('achievements-screen'),
+            loadingScreen: document.getElementById('loading-screen'),
             hud: document.getElementById('hud'),
             temporaryMessage: document.getElementById('temporary-message'),
             dashButtonMobile: document.getElementById('dash-button-mobile')
@@ -3579,8 +3644,13 @@ window.onload = () => {
             container.querySelectorAll('.select-button').forEach(button => {
                 button.onclick = () => {
                     const charId = button.getAttribute('data-character-id');
-                    initGame(charId);
-                    lastFrameTime = performance.now(); // CORREÇÃO: Evita um grande deltaTime
+                    setGameState('loading');
+                    AssetManager.loadAll(() => {
+                        initGame(charId);
+                        SoundManager.init();
+                        SoundManager.startBgm();
+                        lastFrameTime = performance.now();
+                    });
                 };
             });
         }
@@ -3601,7 +3671,7 @@ window.onload = () => {
                 debugStatus.style.display = 'block';
             }
 
-            const isMenuState = ['menu', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades', 'paused', 'characterSelect', 'achievements'].includes(newState);
+            const isMenuState = ['menu', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades', 'paused', 'characterSelect', 'achievements', 'loading'].includes(newState);
 
             ui.layer.style.backgroundColor = (newState === 'menu') ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.7)';
             ui.layer.classList.toggle('active-menu', isMenuState);
@@ -3657,6 +3727,8 @@ window.onload = () => {
             } else if (newState === 'achievements') {
                 populateAchievementsScreen();
                 ui.achievementsScreen.classList.remove('hidden');
+            } else if (newState === 'loading') {
+                ui.loadingScreen.classList.remove('hidden');
             }
         }
         window.setGameState = setGameState; // Make it accessible for verification script
