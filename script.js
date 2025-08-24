@@ -1,102 +1,56 @@
 // Variável de depuração global
 const DEBUG_MODE = false; // Altere para true para ver logs no console
 
-// --- GESTOR DE ASSETS ---
-const AssetManager = {
-    images: {},
-    sounds: {},
-    totalAssets: 0,
-    loadedAssets: 0,
-    _imagePaths: {
+// --- INÍCIO DA CORREÇÃO: Gestor de Recursos e Pré-carregamento ---
+const assets = {
+    images: {
         playerRight: 'assets/mago direita.png',
         playerLeft: 'assets/mago esquerda.png',
-        chaser_left: 'assets/chaser_esquerda.png',
-        speeder_right: 'assets/speeder_direita.png',
-        shooter: 'assets/Shooter.png',
-        summoner: 'assets/Summoner.png',
-        bomber: 'assets/bomber.png',
-        charger: 'assets/changer.png',
-        healer: 'assets/healer.png',
-        tank: 'assets/bomber.png', // Reusing bomber for tank
-        reaper: 'assets/Summoner.png', // Reusing summoner for reaper
+        enemyChaser: 'assets/chaser_esquerda.png',
+        enemySpeeder: 'assets/speeder_direita.png',
+        enemyShooter: 'assets/Shooter.png',
+        enemySummoner: 'assets/Summoner.png',
+        enemyBomber: 'assets/bomber.png',
+        enemyCharger: 'assets/changer.png',
+        enemyHealer: 'assets/healer.png',
+        enemyTank: 'assets/bomber.png',
+        enemyReaper: 'assets/Summoner.png',
         chainLightning: 'assets/Skillrelampago_em_cadeia_vertical.gif',
         ground: 'assets/Chãoblocoretangulo.png'
     },
-    _imagesToFlip: {
-        chaser_left: 'chaser_right',
-        speeder_right: 'speeder_left'
-    },
-    _soundPaths: {
-        xp: 'assets/xp.wav',
-        levelUp: 'assets/levelUp.wav',
-        damage: 'assets/damage.wav',
-        lance: 'assets/lance.wav',
-        nuke: 'assets/nuke.wav',
-        uiClick: 'assets/uiClick.wav',
-        land: 'assets/land.wav',
-        bgm1: 'assets/Bloody Stream [8-Bit_ VRC6] - JoJo_s Bizarre Adventure OP 2(M4A_128K).m4a',
-        bgm2: 'assets/Fun Epic 8-Bit Music - Boss Time _ Royalty Free boss battle music(M4A_128K).m4a',
-        bgm3: 'assets/Giorno_s Theme _ _il vento d_oro_ [8-Bit_ VRC6] - JoJo_s Bizarre Adventure_ Golden Wind(M4A_128K).m4a'
-    },
-    loadAll(callback) {
-        const imageKeys = Object.keys(this._imagePaths);
-        const soundKeys = Object.keys(this._soundPaths);
-        this.totalAssets = imageKeys.length + soundKeys.length;
-        if (this.totalAssets === 0) {
-            if(callback) callback();
+    loadedImages: {},
+    load(callback) {
+        let imagesToLoad = Object.keys(this.images).length;
+        if (imagesToLoad === 0) {
+            callback();
             return;
         }
-        const assetLoaded = () => {
-            this.loadedAssets++;
-            if (this.isDone()) {
-                this._createFlippedVersions();
-                if (callback) callback();
-            }
-        };
-        for (const key of imageKeys) {
-            const path = this._imagePaths[key];
+
+        let loadedCount = 0;
+        for (const key in this.images) {
             const img = new Image();
-            img.src = path;
-            img.onload = assetLoaded;
-            img.onerror = () => { console.error(`Failed to load image: ${path}`); assetLoaded(); };
-            this.images[key] = img;
+            img.src = this.images[key];
+            this.loadedImages[key] = img;
+            img.onload = () => {
+                loadedCount++;
+                if (loadedCount === imagesToLoad) {
+                    console.log("Recursos carregados!");
+                    callback();
+                }
+            };
+            img.onerror = () => {
+                console.error(`Erro ao carregar o recurso: ${this.images[key]}`);
+                // Still count as loaded to not block the game forever
+                loadedCount++;
+                if (loadedCount === imagesToLoad) {
+                    console.log("Recursos carregados com alguns erros.");
+                    callback();
+                }
+            };
         }
-        for (const key of soundKeys) {
-            const path = this._soundPaths[key];
-            const snd = new Audio();
-            snd.src = path;
-            snd.addEventListener('canplaythrough', assetLoaded, { once: true });
-            snd.addEventListener('error', () => { console.error(`Failed to load sound: ${path}`); assetLoaded(); }, { once: true });
-            this.sounds[key] = snd;
-        }
-    },
-    _createFlippedVersions() {
-        for (const originalKey in this._imagesToFlip) {
-            const flippedKey = this._imagesToFlip[originalKey];
-            const originalImage = this.images[originalKey];
-
-            if (!originalImage || originalImage.width === 0) continue;
-
-            const canvas = document.createElement('canvas');
-            canvas.width = originalImage.width;
-            canvas.height = originalImage.height;
-            const ctx = canvas.getContext('2d');
-
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-            ctx.drawImage(originalImage, 0, 0);
-
-            this.images[flippedKey] = canvas;
-        }
-    },
-    isDone() {
-        return this.loadedAssets >= this.totalAssets;
-    },
-    getProgress() {
-        if (this.totalAssets === 0) return 1;
-        return this.loadedAssets / this.totalAssets;
     }
 };
+// --- FIM DA CORREÇÃO ---
 
 // Variáveis globais que serão inicializadas dentro de window.onload ou initGame
 let player;
@@ -600,33 +554,8 @@ window.onload = () => {
             initialized: false,
 
             init() {
+                // NOTE: Sound is currently disabled as the old AssetManager was removed.
                 if (this.initialized) return;
-
-                // Assign pre-loaded sounds from AssetManager
-                this._sfx = {
-                    xp: AssetManager.sounds.xp,
-                    levelUp: AssetManager.sounds.levelUp,
-                    damage: AssetManager.sounds.damage,
-                    lance: AssetManager.sounds.lance,
-                    nuke: AssetManager.sounds.nuke,
-                    uiClick: AssetManager.sounds.uiClick,
-                    land: AssetManager.sounds.land,
-                };
-
-                this._bgm = [
-                    AssetManager.sounds.bgm1,
-                    AssetManager.sounds.bgm2,
-                    AssetManager.sounds.bgm3,
-                ];
-
-                // Set volumes and event listeners
-                Object.values(this._sfx).forEach(sound => sound.volume = 0.4);
-                this._bgm.forEach(sound => {
-                    sound.volume = 0.3;
-                    sound.loop = false;
-                    sound.addEventListener('ended', () => this.playNextBgm());
-                });
-
                 this.initialized = true;
             },
 
@@ -815,71 +744,43 @@ window.onload = () => {
             }
         }
 
+        // --- INÍCIO DA CORREÇÃO: Plataforma com Textura ---
         class Platform extends Entity {
-            constructor(x, y, width, height, color = '#2E8B57') {
-                super(x, y, 0); // Raio 0 pois é um retângulo
+            constructor(x, y, width, height) {
+                super(x, y, 0);
                 this.width = width;
                 this.height = height;
-                this.color = color;
-                this.isGround = false;
+                // Cria um "padrão" repetível com a imagem do chão
+                this.pattern = ctx.createPattern(assets.loadedImages.ground, 'repeat');
             }
 
             draw(ctx) {
-                // Otimização: Só desenha a plataforma se ela estiver visível na tela
+                // Otimização: Só desenha se estiver visível
                 const screenLeft = camera.x;
                 const screenRight = camera.x + canvas.width;
                 if (this.x + this.width < screenLeft || this.x > screenRight) {
-                    return; // Fora da tela, não desenha
+                    return;
                 }
 
                 ctx.save();
-                ctx.translate(-camera.x, -camera.y); // Aplica o deslocamento da câmara
+                ctx.translate(-camera.x, -camera.y);
 
-                if (this.isGround) {
-                    const groundImg = AssetManager.images.ground;
-                    if (groundImg && groundImg.complete && groundImg.naturalHeight > 0) {
-                        const tileHeight = 64; // Altura fixa para os blocos
-                        const tileWidth = tileHeight * (groundImg.naturalWidth / groundImg.naturalHeight); // Largura baseada na proporção
-                        const groundY = this.y;
-
-                        for (let x = this.x; x < this.x + this.width; x += tileWidth) {
-                            // Otimização: Desenha apenas tiles que estão horizontalmente visíveis
-                            if (x + tileWidth > camera.x && x < camera.x + canvas.width) {
-                                ctx.drawImage(groundImg, x, groundY, tileWidth, tileHeight);
-                            }
-                        }
-                    } else {
-                        // Fallback se a imagem não estiver carregada
-                        ctx.fillStyle = this.color;
-                        ctx.fillRect(this.x, this.y, this.width, this.height);
-                    }
-                } else {
-                    const gradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.height);
-                    gradient.addColorStop(0, '#3CB371');
-                    gradient.addColorStop(0.5, this.color);
-                    gradient.addColorStop(1, '#1E593F');
-                    ctx.fillStyle = gradient;
-                    ctx.fillRect(this.x, this.y, this.width, this.height);
-
-                    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(this.x, this.y);
-                    ctx.lineTo(this.x + this.width, this.y);
-                    ctx.stroke();
-                }
+                // Preenche a área da plataforma com a textura repetida
+                ctx.fillStyle = this.pattern;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
 
                 ctx.restore();
             }
         }
+        // --- FIM DA CORREÇÃO ---
 
         class Player extends Entity {
             constructor(characterId = 'SERAPH') {
                 super(0, 0, 22); // Aumenta o raio de colisão para ~22 pixels
 
                 // --- INÍCIO DA ALTERAÇÃO 1: Carregar as imagens ---
-                this.spriteRight = AssetManager.images.playerRight;
-                this.spriteLeft = AssetManager.images.playerLeft;
+                this.spriteRight = assets.loadedImages.playerRight;
+                this.spriteLeft = assets.loadedImages.playerLeft;
                 // --- FIM DA ALTERAÇÃO 1 ---
 
                 const characterData = CHARACTER_DATABASE[characterId];
@@ -1274,7 +1175,7 @@ window.onload = () => {
                     this.xp -= this.xpToNextLevel;
                     this.xpToNextLevel = Math.floor(this.xpToNextLevel * CONFIG.XP_TO_NEXT_LEVEL_MULTIPLIER);
 
-                    SoundManager.playSfx('levelUp'); // Toca o som de level up
+                    // SoundManager.playSfx('levelUp'); // Toca o som de level up
 
                     // --- INÍCIO DA SUGESTÃO: Efeito de Onda de Choque ---
                     const shockwaveParticles = 15; // Reduzido de 30
@@ -1695,6 +1596,26 @@ window.onload = () => {
                     this.color = 'gold'; // Cor de elite
                 }
                 this.maxHealth = this.health;
+
+                if (this.type === 'speeder') {
+                    this.sprite = assets.loadedImages.enemySpeeder;
+                } else if (this.type === 'shooter') {
+                    this.sprite = assets.loadedImages.enemyShooter;
+                } else if (this.type === 'summoner') {
+                    this.sprite = assets.loadedImages.enemySummoner;
+                } else if (this.type === 'bomber') {
+                    this.sprite = assets.loadedImages.enemyBomber;
+                } else if (this.type === 'charger') {
+                    this.sprite = assets.loadedImages.enemyCharger;
+                } else if (this.type === 'healer') {
+                    this.sprite = assets.loadedImages.enemyHealer;
+                } else if (this.type === 'tank') {
+                    this.sprite = assets.loadedImages.enemyTank;
+                } else if (this.type === 'reaper') {
+                    this.sprite = assets.loadedImages.enemyReaper;
+                } else { // 'chaser' and default
+                    this.sprite = assets.loadedImages.enemyChaser;
+                }
             }
 
             draw(ctx) {
@@ -1711,38 +1632,11 @@ window.onload = () => {
                 ctx.save();
                 ctx.translate(this.x - camera.x, this.y - camera.y); // Aplica o deslocamento da câmara
 
-                let img;
-                switch(this.type) {
-                    case 'chaser':
-                        img = this.facingRight ? AssetManager.images.chaser_right : AssetManager.images.chaser_left;
-                        break;
-                    case 'speeder':
-                        img = this.facingRight ? AssetManager.images.speeder_right : AssetManager.images.speeder_left;
-                        break;
-                    case 'tank':
-                        img = AssetManager.images.tank;
-                        break;
-                    case 'bomber':
-                        img = AssetManager.images.bomber;
-                        break;
-                    case 'shooter':
-                        img = AssetManager.images.shooter;
-                        break;
-                    case 'healer':
-                        img = AssetManager.images.healer;
-                        break;
-                    case 'summoner':
-                        img = AssetManager.images.summoner;
-                        break;
-                    case 'charger':
-                        img = AssetManager.images.charger;
-                        break;
-                    case 'reaper':
-                        img = AssetManager.images.reaper;
-                        break;
-                    default:
-                        img = AssetManager.images.chaser_left; // Default to chaser
+                if (!this.facingRight) {
+                    ctx.scale(-1, 1);
                 }
+
+                const img = this.sprite;
 
                 // Calcula as dimensões de desenho para manter a proporção da imagem
                 let drawWidth, drawHeight;
@@ -3467,7 +3361,8 @@ window.onload = () => {
                     for(let j = 0; j < numBeams; j++) {
                         const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
                         const distance = Math.hypot(p2.y - p1.y, p2.x - p1.x);
-                        const blockHeight = AssetManager.images.chainLightning.height || 20; // Altura do GIF como um bloco
+                        const chainLightningImg = assets.loadedImages.chainLightning;
+                        const blockHeight = chainLightningImg.height || 20; // Altura do GIF como um bloco
                         const offset = (Math.random() - 0.5) * 15; // Desvio perpendicular
 
                         const startX = p1.x + offset * Math.cos(angle + Math.PI/2);
@@ -3481,7 +3376,7 @@ window.onload = () => {
                             ctx.translate(currentX, currentY);
                             ctx.rotate(angle + Math.PI / 2); // Rotaciona o GIF vertical para o ângulo certo
 
-                            ctx.drawImage(AssetManager.images.chainLightning, -AssetManager.images.chainLightning.width / 2, -blockHeight / 2);
+                            ctx.drawImage(chainLightningImg, -chainLightningImg.width / 2, -blockHeight / 2);
                             ctx.restore();
                         }
                     }
@@ -3567,13 +3462,9 @@ window.onload = () => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 demoPlayer.draw(ctx);
             } else if (gameState === 'loading') {
-                // Draw loading screen
+                // The new loader is synchronous for the UI, so we don't need a progress bar here.
+                // The loading screen is shown, but we don't need to draw anything on the canvas.
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                const progress = AssetManager.getProgress();
-                const bar = document.getElementById('loading-progress-bar');
-                if (bar) {
-                    bar.style.width = `${progress * 100}%`;
-                }
             }
 
             if (gameState === 'playing') {
@@ -3644,13 +3535,11 @@ window.onload = () => {
             container.querySelectorAll('.select-button').forEach(button => {
                 button.onclick = () => {
                     const charId = button.getAttribute('data-character-id');
-                    setGameState('loading');
-                    AssetManager.loadAll(() => {
-                        initGame(charId);
-                        SoundManager.init();
-                        SoundManager.startBgm();
-                        lastFrameTime = performance.now();
-                    });
+                    // The new asset loader pre-loads everything, so we can just start the game.
+                    initGame(charId);
+                    // SoundManager.init(); // Sounds are broken for now as AssetManager was removed
+                    // SoundManager.startBgm(); // Sounds are broken for now as AssetManager was removed
+                    lastFrameTime = performance.now();
                 };
             });
         }
@@ -3694,7 +3583,7 @@ window.onload = () => {
             } else if (newState === 'paused') {
                 ui.pauseMenu.classList.remove('hidden');
             } else if (newState === 'gameOver') {
-                SoundManager.stopBgm();
+                // SoundManager.stopBgm();
                 const finalTimeInSeconds = Math.floor(gameTime);
                 document.getElementById('final-time').innerText = formatTime(finalTimeInSeconds);
                 document.getElementById('final-kills').innerText = score.kills;
@@ -4108,13 +3997,15 @@ window.onload = () => {
             }
         }
 
-        // --- INÍCIO DA CORREÇÃO: Lógica de Auto-Pause Inteligente ---
+        // --- INÍCIO DA CORREÇÃO: Remover Auto-Pause Instável ---
         function setupEventListeners() {
             window.addEventListener('resize', () => {
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
             });
             window.dispatchEvent(new Event('resize'));
+
+            // O CÓDIGO RELACIONADO COM 'blur' E 'focus' FOI REMOVIDO DAQUI
 
             if (isMobile) {
                 handleMobileInput();
@@ -4133,7 +4024,7 @@ window.onload = () => {
                     if (e.key === 'Escape' && gameState === 'playing') {
                         setGameState('paused');
                     } else if (e.key === 'Escape' && gameState === 'paused') {
-                        lastFrameTime = performance.now(); // CORREÇÃO: Evita um grande deltaTime
+                        lastFrameTime = performance.now();
                         setGameState('playing');
                     }
                 });
@@ -4144,12 +4035,12 @@ window.onload = () => {
                 });
             }
 
-            // O resto dos seus botões continua igual
+            // O resto dos seus botões continua a funcionar como esperado
             document.getElementById('play-button').onclick = () => setGameState('characterSelect');
             document.getElementById('restart-button-pause').onclick = () => initGame();
             document.getElementById('restart-button-gameover').onclick = () => initGame();
             document.getElementById('resume-button').onclick = () => {
-                lastFrameTime = performance.now(); // CORREÇÃO: Evita um grande deltaTime
+                lastFrameTime = performance.now();
                 setGameState('playing');
             };
             document.getElementById('back-to-menu-button-pause').onclick = () => setGameState('menu');
@@ -4174,16 +4065,18 @@ window.onload = () => {
         }
         // --- FIM DA CORREÇÃO ---
 
-        setupEventListeners();
-        setGameState('menu');
+        assets.load(() => {
+            // Este código só corre DEPOIS de todas as imagens estarem carregadas
+            setupEventListeners();
+            setGameState('menu');
 
-        // Inicia o game loop principal
-        let initialTime = performance.now();
-        lastFrameTime = initialTime;
-        requestAnimationFrame(gameLoop);
+            // Inicia o game loop principal
+            let initialTime = performance.now();
+            lastFrameTime = initialTime;
+            requestAnimationFrame(gameLoop);
 
-
-        if (debugStatus) debugStatus.textContent = "Jogo Carregado. Clique para jogar!";
+            if (debugStatus) debugStatus.textContent = "Jogo Carregado. Clique para jogar!";
+        });
 
     } catch (initializationError) {
         console.error("Erro Crítico na Inicialização:", initializationError);
