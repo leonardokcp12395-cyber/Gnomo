@@ -7,6 +7,43 @@ const mobLvl2Img = new Image();
 mobLvl2Img.src = 'assets/moblvl2.png';
 const chainLightningImg = new Image();
 chainLightningImg.src = 'assets/Skillrelampago_em_cadeia_vertical.gif';
+const groundTileImg = new Image();
+groundTileImg.src = 'assets/Chãoblocoretangulo.png';
+
+// --- CONFIGURAÇÃO DE SPRITES DOS INIMIGOS ---
+const ENEMY_SPRITES_CONFIG = {
+    'mago': { left: 'assets/mago esquerda.png', right: 'assets/mago direita.png', width: 50, height: 50 },
+    'chaser': { src: 'assets/chaser_esquerda.png', baseDirection: 'left', width: 40, height: 40 },
+    'speeder': { src: 'assets/speeder_direita.png', baseDirection: 'right', width: 40, height: 40 },
+    'bomber': { src: 'assets/bomber.png', width: 50, height: 50 },
+    'changer': { src: 'assets/changer.png', width: 50, height: 50 },
+    'healer': { src: 'assets/healer.png', width: 50, height: 50 },
+    'shooter': { src: 'assets/Shooter.png', width: 50, height: 50 },
+    'summoner': { src: 'assets/Summoner.png', width: 60, height: 60 }
+};
+
+const ENEMY_SPRITES = {};
+
+// Pré-carrega todos os sprites dos inimigos para evitar pop-in
+for (const type in ENEMY_SPRITES_CONFIG) {
+    const config = ENEMY_SPRITES_CONFIG[type];
+    ENEMY_SPRITES[type] = { ...config, images: {} };
+    if (config.src) {
+        const img = new Image();
+        img.src = config.src;
+        ENEMY_SPRITES[type].images.default = img;
+    }
+    if (config.left) {
+        const imgLeft = new Image();
+        imgLeft.src = config.left;
+        ENEMY_SPRITES[type].images.left = imgLeft;
+    }
+    if (config.right) {
+        const imgRight = new Image();
+        imgRight.src = config.right;
+        ENEMY_SPRITES[type].images.right = imgRight;
+    }
+}
 
 // Variáveis globais que serão inicializadas dentro de window.onload ou initGame
 let player;
@@ -751,16 +788,22 @@ window.onload = () => {
                 ctx.save();
                 ctx.translate(-camera.x, -camera.y); // Aplica o deslocamento da câmara
 
-                const gradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.height);
-                gradient.addColorStop(0, '#3CB371');
-                gradient.addColorStop(0.5, this.color);
-                gradient.addColorStop(1, '#1E593F');
-                ctx.fillStyle = gradient;
-                ctx.fillRect(this.x, this.y, this.width, this.height);
+                // ALTERAÇÃO: Usar textura para o chão principal
+                // A altura > 100 é um bom indicador para a plataforma do chão principal
+                if (this.height > 100 && groundTileImg.complete && groundTileImg.naturalHeight > 0) {
+                    const pattern = ctx.createPattern(groundTileImg, 'repeat');
+                    ctx.fillStyle = pattern;
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                } else {
+                    const gradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.height);
+                    gradient.addColorStop(0, '#3CB371');
+                    gradient.addColorStop(0.5, this.color);
+                    gradient.addColorStop(1, '#1E593F');
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                }
 
-                // OTIMIZAÇÃO: shadowBlur removido para desempenho
-                // ctx.shadowColor = 'rgba(0, 255, 0, 0.5)';
-                // ctx.shadowBlur = 10;
+                // Mantém a linha de contorno verde no topo
                 ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -1528,6 +1571,8 @@ window.onload = () => {
                 this.hitTimer = 0;
                 this.hitBy = new Set(); // Para dano por tick
                 this.animationFrame = 0; // Para animações de pulso
+                this.facingRight = true; // Direção inicial
+                this.spriteConfig = ENEMY_SPRITES[type]; // Guarda a configuração do sprite para este inimigo
                 this.attackTimer = 0; // Para inimigos atiradores
                 this.knockbackVelocity = { x: 0, y: 0 }; // Para efeito de recuo
                 this.orbHitCooldown = 0; // Cooldown para ser atingido por orbes
@@ -1610,8 +1655,77 @@ window.onload = () => {
                 }
 
                 ctx.save();
-                ctx.translate(this.x - camera.x, this.y - camera.y); // Aplica o deslocamento da câmara
+                ctx.translate(this.x - camera.x, this.y - camera.y);
 
+                // Se este tipo de inimigo tem uma configuração de sprite personalizada, use-a
+                if (this.spriteConfig) {
+                    const config = this.spriteConfig;
+                    const images = config.images;
+                    let currentSprite;
+
+                    if (images.left && images.right) {
+                        // Caso 1: Tem sprites separados para esquerda e direita (ex: 'mago')
+                        currentSprite = this.facingRight ? images.right : images.left;
+                    } else {
+                        // Caso 2 & 3: Tem um único sprite padrão
+                        currentSprite = images.default;
+                    }
+
+                    if (currentSprite && currentSprite.complete && currentSprite.naturalHeight > 0) {
+                        const drawWidth = config.width || this.radius * 2.5;
+                        const drawHeight = config.height || this.radius * 2.5;
+
+                        ctx.save(); // Guarda o contexto para uma possível inversão
+
+                        // Caso 2: Necessita de lógica de inversão
+                        if (config.baseDirection) {
+                            const needsFlip = (this.facingRight && config.baseDirection === 'left') ||
+                                              (!this.facingRight && config.baseDirection === 'right');
+                            if (needsFlip) {
+                                ctx.scale(-1, 1);
+                            }
+                        }
+
+                        if (this.hitTimer > 0) {
+                            ctx.filter = 'brightness(1.8)';
+                            this.hitTimer--;
+                        }
+
+                        ctx.drawImage(currentSprite, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+                        ctx.filter = 'none';
+
+                        ctx.restore(); // Restaura a partir da possível inversão
+                    } else {
+                        // Fallback para a lógica de desenho antiga se a imagem ainda não carregou
+                        this.drawFallback(ctx);
+                    }
+                } else {
+                    // Fallback para inimigos sem sprites personalizados (tank, reaper, etc.)
+                    this.drawFallback(ctx);
+                }
+
+                this.animationFrame++;
+
+                // Mantém a aura de elite e a barra de vida
+                if (this.isElite) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius * 1.2, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'gold';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+
+                    const healthBarWidth = this.radius * 2;
+                    const healthPercentage = this.health / this.maxHealth;
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(-healthBarWidth / 2, this.radius + 10, healthBarWidth, 5);
+                    ctx.fillStyle = 'red';
+                    ctx.fillRect(-healthBarWidth / 2, this.radius + 10, healthBarWidth * healthPercentage, 5);
+                }
+
+                ctx.restore();
+            }
+
+            drawFallback(ctx) {
                 let img;
                 switch(this.type) {
                     case 'chaser':
@@ -1641,27 +1755,6 @@ window.onload = () => {
 
                 ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
                 ctx.filter = 'none';
-
-                this.animationFrame++;
-
-                // Desenha aura de elite
-                if (this.isElite) {
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius * 1.2, 0, Math.PI * 2);
-                    ctx.strokeStyle = 'gold';
-                    ctx.lineWidth = 3;
-                    ctx.stroke();
-
-                    // Adiciona a barra de vida para elites
-                    const healthBarWidth = this.radius * 2;
-                    const healthPercentage = this.health / this.maxHealth;
-                    ctx.fillStyle = '#333';
-                    ctx.fillRect(-healthBarWidth / 2, this.radius + 10, healthBarWidth, 5);
-                    ctx.fillStyle = 'red';
-                    ctx.fillRect(-healthBarWidth / 2, this.radius + 10, healthBarWidth * healthPercentage, 5);
-                }
-
-                ctx.restore();
             }
 
             update() {
@@ -1728,6 +1821,7 @@ window.onload = () => {
                 // Inimigos voadores movem-se em direção ao jogador em X e Y, a menos que estejam em knockback forte
                 if (Math.hypot(this.knockbackVelocity.x, this.knockbackVelocity.y) < 5) { // Só se move se o knockback for pequeno
                     let angle = Math.atan2(player.y - this.y, player.x - this.x);
+                    this.facingRight = (player.x > this.x); // Atualiza a direção do inimigo
                     let currentSpeed = this.speed;
 
                     // Lógica específica para o 'shooter'
