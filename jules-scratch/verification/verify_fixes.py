@@ -19,13 +19,13 @@ async def main():
 
         # Wait for the HUD to become visible, which indicates the game has started
         hud = page.locator("#hud")
-        await hud.wait_for(state="visible", timeout=10000) # Wait for 10 seconds
+        await hud.wait_for(state="visible", timeout=10000)
 
         # Wait for a few seconds to let enemies spawn and move around
-        await page.wait_for_timeout(3000)
+        await page.wait_for_timeout(4000) # A bit longer to see more enemies
 
         # Take a screenshot
-        await page.screenshot(path="jules-scratch/verification/game_verification.png")
+        await page.screenshot(path="jules-scratch/verification/fixes_verification.png")
 
         await browser.close()
 

@@ -788,13 +788,22 @@ window.onload = () => {
                 ctx.save();
                 ctx.translate(-camera.x, -camera.y); // Aplica o deslocamento da câmara
 
-                // ALTERAÇÃO: Usar textura para o chão principal
-                // A altura > 100 é um bom indicador para a plataforma do chão principal
+                // Verifica se é a plataforma principal do chão
                 if (this.height > 100 && groundTileImg.complete && groundTileImg.naturalHeight > 0) {
-                    const pattern = ctx.createPattern(groundTileImg, 'repeat');
-                    ctx.fillStyle = pattern;
-                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                    const tileWidth = groundTileImg.width;
+                    const tileHeight = groundTileImg.height;
+
+                    // Desenha a textura em blocos para preencher a plataforma
+                    for (let y = this.y; y < this.y + this.height; y += tileHeight) {
+                        for (let x = this.x; x < this.x + this.width; x += tileWidth) {
+                            // Otimização: só desenha o tile se estiver visível na câmara
+                            if (x + tileWidth > screenLeft && x < screenRight) {
+                                ctx.drawImage(groundTileImg, x, y, tileWidth, tileHeight);
+                            }
+                        }
+                    }
                 } else {
+                    // Lógica original para as outras plataformas
                     const gradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.height);
                     gradient.addColorStop(0, '#3CB371');
                     gradient.addColorStop(0.5, this.color);
@@ -888,16 +897,7 @@ window.onload = () => {
                 // Move o canvas para a posição do jogador
                 ctx.translate(this.x - camera.x, this.y - camera.y);
 
-                // Efeito "Squash and Stretch" ao aterrar (opcional, mas mantém o feeling)
-                let scaleX = 1;
-                let scaleY = 1;
-                if (this.squashStretchTimer > 0) {
-                    const progress = this.squashStretchTimer / CONFIG.PLAYER_LANDING_SQUASH_DURATION;
-                    scaleY = 1 - (0.3 * Math.sin(Math.PI * progress));
-                    scaleX = 1 + (0.3 * Math.sin(Math.PI * progress));
-                    this.squashStretchTimer--;
-                }
-                ctx.scale(scaleX, scaleY);
+                // O efeito "Squash and Stretch" foi removido para evitar a distorção da imagem.
 
                 // Escolhe a imagem correta (direita ou esquerda)
                 const currentSprite = this.facingRight ? this.spriteRight : this.spriteLeft;
