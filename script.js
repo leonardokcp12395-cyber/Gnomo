@@ -18,34 +18,78 @@ const assets = {
         chainLightning: 'assets/Skillrelampago_em_cadeia_vertical.gif',
         ground: 'assets/Chãoblocoretangulo.png'
     },
+    sounds: {
+        bgm1: 'assets/bgm1.m4a',
+        bgm2: 'assets/bgm2.m4a',
+        bgmBoss: 'assets/bgm_boss.m4a',
+    },
+    sfx: {
+        xp: 'pickupCoin',
+        levelUp: 'powerUp',
+        damage: 'hitHurt',
+        lance: 'laserShoot',
+        nuke: 'explosion',
+        uiClick: 'blipSelect',
+        land: 'jump'
+    },
     loadedImages: {},
+    loadedSounds: {},
     load(callback) {
-        let imagesToLoad = Object.keys(this.images).length;
-        if (imagesToLoad === 0) {
-            callback();
+        // 1. Gerar SFX de forma síncrona, pois são data URIs
+        for (const key in this.sfx) {
+            const preset = this.sfx[key];
+            const soundParams = jsfxr.sfxr.generate(preset);
+            const audio = jsfxr.sfxr.toAudio(soundParams);
+            this.loadedSounds[key] = audio;
+        }
+
+        // 2. Carregar imagens e sons de fundo de forma assíncrona
+        const totalImages = Object.keys(this.images).length;
+        const totalBgm = Object.keys(this.sounds).length;
+        let loadedImages = 0;
+        let loadedBgm = 0;
+
+        const checkDone = () => {
+            if (loadedImages === totalImages && loadedBgm === totalBgm) {
+                console.log("Todos os recursos foram carregados!");
+                callback();
+            }
+        };
+
+        if (totalImages === 0 && totalBgm === 0) {
+            checkDone();
             return;
         }
 
-        let loadedCount = 0;
+        // Carregar sons de fundo (BGM)
+        for (const key in this.sounds) {
+            const audio = new Audio();
+            audio.src = this.sounds[key];
+            this.loadedSounds[key] = audio;
+            audio.onloadeddata = () => {
+                loadedBgm++;
+                checkDone();
+            };
+            audio.onerror = () => {
+                console.error(`Erro ao carregar o som: ${this.sounds[key]}`);
+                loadedBgm++;
+                checkDone();
+            };
+        }
+
+        // Carregar imagens
         for (const key in this.images) {
             const img = new Image();
             img.src = this.images[key];
             this.loadedImages[key] = img;
             img.onload = () => {
-                loadedCount++;
-                if (loadedCount === imagesToLoad) {
-                    console.log("Recursos carregados!");
-                    callback();
-                }
+                loadedImages++;
+                checkDone();
             };
             img.onerror = () => {
                 console.error(`Erro ao carregar o recurso: ${this.images[key]}`);
-                // Still count as loaded to not block the game forever
-                loadedCount++;
-                if (loadedCount === imagesToLoad) {
-                    console.log("Recursos carregados com alguns erros.");
-                    callback();
-                }
+                loadedImages++;
+                checkDone();
             };
         }
     }
@@ -550,28 +594,55 @@ window.onload = () => {
         const SoundManager = {
             _sfx: {},
             _bgm: [],
+            _bossBgm: null,
             _currentBgm: null,
             initialized: false,
 
             init() {
-                // NOTE: Sound is currently disabled as the old AssetManager was removed.
                 if (this.initialized) return;
+                
+                // Atribuir SFX gerado
+                for (const key in assets.sfx) {
+                    this._sfx[key] = assets.loadedSounds[key];
+                }
+
+                // Atribuir BGM
+                this._bgm = [assets.loadedSounds.bgm1, assets.loadedSounds.bgm2];
+                this._bossBgm = assets.loadedSounds.bgmBoss;
+
+                // Definir volumes e ouvintes de eventos
+                Object.values(this._sfx).forEach(sound => {
+                    if (sound) sound.volume = 0.25;
+                });
+                this._bgm.forEach(sound => {
+                    if(sound) {
+                        sound.volume = 0.2;
+                        sound.loop = false;
+                        sound.addEventListener('ended', () => this.playNextBgm());
+                    }
+                });
+                if (this._bossBgm) {
+                    this._bossBgm.volume = 0.3;
+                    this._bossBgm.loop = true;
+                }
+
                 this.initialized = true;
             },
 
             playSfx(effectName) {
-                if (!this.initialized) this.init();
+                if (!this.initialized) return;
                 const audio = this._sfx[effectName];
                 if (audio) {
                     audio.currentTime = 0;
-                    audio.play().catch(e => {}); // Ignore play errors for SFX
+                    audio.play().catch(e => {}); // Ignora erros de reprodução para SFX
                 } else {
                     if(DEBUG_MODE) console.warn(`Efeito sonoro não encontrado: ${effectName}`);
                 }
             },
 
             startBgm() {
-                if (!this.initialized) this.init();
+                if (!this.initialized) return;
+                this.stopAllMusic();
                 this.playNextBgm();
             },
 
@@ -580,28 +651,35 @@ window.onload = () => {
                 if (this._currentBgm) {
                     this._currentBgm.pause();
                 }
-                // Shuffle BGM tracks
+                // Baralhar faixas de BGM
                 this._bgm.sort(() => Math.random() - 0.5);
                 this._currentBgm = this._bgm[0];
+                if (!this._currentBgm) return;
+                
                 this._currentBgm.currentTime = 0;
 
                 const playPromise = this._currentBgm.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
-                        if(DEBUG_MODE) console.log("BGM playback failed, requires user interaction.", error);
-                        const startMusicOnClick = () => {
-                            this._currentBgm.play().catch(e => { if(DEBUG_MODE) console.error("Could not start BGM even after interaction.", e) });
-                        };
-                        window.addEventListener('click', startMusicOnClick, { once: true });
+                        if(DEBUG_MODE) console.log("A reprodução de BGM falhou, requer interação do usuário.", error);
                     });
                 }
             },
 
-            stopBgm() {
+            startBossMusic() {
+                if (!this.initialized || !this._bossBgm) return;
+                this.stopAllMusic();
+                this._currentBgm = this._bossBgm;
+                this._currentBgm.currentTime = 0;
+                this._currentBgm.play().catch(e => {});
+            },
+
+            stopAllMusic() {
                 if (this._currentBgm) {
                     this._currentBgm.pause();
                     this._currentBgm.currentTime = 0;
                 }
+                this._currentBgm = null;
             }
         };
 
@@ -764,11 +842,11 @@ window.onload = () => {
 
                 ctx.save();
                 ctx.translate(-camera.x, -camera.y);
-
+                
                 // Preenche a área da plataforma com a textura repetida
                 ctx.fillStyle = this.pattern;
                 ctx.fillRect(this.x, this.y, this.width, this.height);
-
+                
                 ctx.restore();
             }
         }
@@ -1141,6 +1219,8 @@ window.onload = () => {
                     return;
                 }
 
+                SoundManager.playSfx('damage');
+                hitStopTimer = 5; // Adiciona um pequeno "hit stop" para o jogador
                 this.health -= amount;
                 this.hitTimer = 30;
                 screenShake = { intensity: 5, duration: 15 };
@@ -1175,7 +1255,7 @@ window.onload = () => {
                     this.xp -= this.xpToNextLevel;
                     this.xpToNextLevel = Math.floor(this.xpToNextLevel * CONFIG.XP_TO_NEXT_LEVEL_MULTIPLIER);
 
-                    // SoundManager.playSfx('levelUp'); // Toca o som de level up
+                    SoundManager.playSfx('levelUp'); // Toca o som de level up
 
                     // --- INÍCIO DA SUGESTÃO: Efeito de Onda de Choque ---
                     const shockwaveParticles = 15; // Reduzido de 30
@@ -1272,6 +1352,7 @@ window.onload = () => {
 
                             if(targetEnemy) {
                                 let angle = Math.atan2(targetEnemy.y - this.y, targetEnemy.x - this.x);
+                                SoundManager.playSfx('lance');
                                 for (let i = 0; i < levelData.count; i++) {
                                     const spreadAngle = (i - (levelData.count - 1) / 2) * 0.1;
                                     const projectileDamage = levelData.damage * this.damageModifier;
@@ -2928,13 +3009,15 @@ window.onload = () => {
             // A CADA 5 ONDAS, UMA ONDA DE BOSS
             if (waveNumber > 0 && waveNumber % 5 === 0) {
                 showTemporaryMessage(`BOSS - ONDA ${waveNumber}`, "red");
+                SoundManager.startBossMusic();
                 enemies.push(new BossEnemy(player.x + canvas.width / 2 + 100, player.y - 100));
                 waveEnemiesRemaining = 1;
                 currentWaveConfig = { enemies: [], eliteChance: 0 };
                 return;
             }
 
-            // Para ondas normais, toca a BGM principal e a evolui
+            // Para ondas normais, toca a BGM principal
+            SoundManager.startBgm();
 
             // Ondas pré-definidas
             if (waveNumber <= WAVE_CONFIGS.length) {
@@ -3077,20 +3160,32 @@ window.onload = () => {
         }
 
         function createLightningBolt(startPos, endPos) {
-                // Esta função será desenhada diretamente no canvas principal durante o loop de desenho,
-                // por isso precisamos guardar os seus pontos em uma array global temporária.
-                const bolt = {
-                    points: [],
-                    life: 5 // Duração do raio em frames
-                };
+            const bolt = {
+                points: [],
+                life: 15 // Aumenta a vida para melhor visibilidade
+            };
 
             const dx = endPos.x - startPos.x;
             const dy = endPos.y - startPos.y;
-                bolt.points.push({x: startPos.x, y: startPos.y});
-                bolt.points.push({x: endPos.x, y: endPos.y});
-                
-                // Adiciona o raio a uma lista para ser desenhado
-                activeLightningBolts.push(bolt);
+            const distance = Math.hypot(dx, dy);
+            const angle = Math.atan2(dy, dx);
+
+            bolt.points.push({ x: startPos.x, y: startPos.y });
+
+            const segmentCount = Math.floor(distance / 15); // Um segmento a cada 15 pixels
+            for (let i = 1; i < segmentCount; i++) {
+                const progress = i / segmentCount;
+                const x = startPos.x + progress * dx;
+                const y = startPos.y + progress * dy;
+                const offset = (Math.random() - 0.5) * 20; // Desvio de até 10px
+                bolt.points.push({
+                    x: x + offset * Math.cos(angle + Math.PI / 2),
+                    y: y + offset * Math.sin(angle + Math.PI / 2)
+                });
+            }
+
+            bolt.points.push({ x: endPos.x, y: endPos.y });
+            activeLightningBolts.push(bolt);
         }
 
             function createSlashEffect(x, y, angle, range, arc) {
@@ -3347,39 +3442,30 @@ window.onload = () => {
                 activeSanctuaryZones.forEach(s => s.draw(ctx));
             activeMeteorWarnings.forEach(w => w.draw(ctx));
 
-                // Desenha os raios (efeito de blocos)
+                // Desenha os raios (efeito procedural)
                 ctx.save();
                 ctx.translate(-camera.x, -camera.y);
                 activeLightningBolts.forEach(bolt => {
-                    ctx.globalAlpha = bolt.life / 5.0; // Efeito de fade out
+                    ctx.save();
+                    ctx.globalAlpha = bolt.life / 15.0; // Efeito de fade out
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 5;
+                    ctx.shadowColor = 'cyan';
+                    ctx.shadowBlur = 15;
 
-                    const p1 = bolt.points[0];
-                    const p2 = bolt.points[1];
-
-                    const numBeams = Math.floor(Math.random() * 2) + 2; // 2 ou 3 raios
-
-                    for(let j = 0; j < numBeams; j++) {
-                        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-                        const distance = Math.hypot(p2.y - p1.y, p2.x - p1.x);
-                        const chainLightningImg = assets.loadedImages.chainLightning;
-                        const blockHeight = chainLightningImg.height || 20; // Altura do GIF como um bloco
-                        const offset = (Math.random() - 0.5) * 15; // Desvio perpendicular
-
-                        const startX = p1.x + offset * Math.cos(angle + Math.PI/2);
-                        const startY = p1.y + offset * Math.sin(angle + Math.PI/2);
-
-                        // Desenha o GIF em blocos ao longo da linha
-                        for (let i = 0; i < distance; i += blockHeight) {
-                            ctx.save();
-                            const currentX = startX + i * Math.cos(angle);
-                            const currentY = startY + i * Math.sin(angle);
-                            ctx.translate(currentX, currentY);
-                            ctx.rotate(angle + Math.PI / 2); // Rotaciona o GIF vertical para o ângulo certo
-
-                            ctx.drawImage(chainLightningImg, -chainLightningImg.width / 2, -blockHeight / 2);
-                            ctx.restore();
-                        }
+                    ctx.beginPath();
+                    ctx.moveTo(bolt.points[0].x, bolt.points[0].y);
+                    for (let i = 1; i < bolt.points.length; i++) {
+                        ctx.lineTo(bolt.points[i].x, bolt.points[i].y);
                     }
+                    ctx.stroke();
+
+                    // Desenha um núcleo interior para um efeito mais "elétrico"
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = 'cyan';
+                    ctx.stroke(); 
+
+                    ctx.restore();
                 });
                 ctx.restore();
 
@@ -3535,10 +3621,9 @@ window.onload = () => {
             container.querySelectorAll('.select-button').forEach(button => {
                 button.onclick = () => {
                     const charId = button.getAttribute('data-character-id');
-                    // The new asset loader pre-loads everything, so we can just start the game.
+                    SoundManager.init(); // Initialize with loaded assets first
                     initGame(charId);
-                    // SoundManager.init(); // Sounds are broken for now as AssetManager was removed
-                    // SoundManager.startBgm(); // Sounds are broken for now as AssetManager was removed
+                    SoundManager.startBgm(); // Now start the music
                     lastFrameTime = performance.now();
                 };
             });
@@ -3583,7 +3668,7 @@ window.onload = () => {
             } else if (newState === 'paused') {
                 ui.pauseMenu.classList.remove('hidden');
             } else if (newState === 'gameOver') {
-                // SoundManager.stopBgm();
+                SoundManager.stopAllMusic();
                 const finalTimeInSeconds = Math.floor(gameTime);
                 document.getElementById('final-time').innerText = formatTime(finalTimeInSeconds);
                 document.getElementById('final-kills').innerText = score.kills;
@@ -4069,12 +4154,12 @@ window.onload = () => {
             // Este código só corre DEPOIS de todas as imagens estarem carregadas
             setupEventListeners();
             setGameState('menu');
-
+            
             // Inicia o game loop principal
             let initialTime = performance.now();
             lastFrameTime = initialTime;
             requestAnimationFrame(gameLoop);
-
+            
             if (debugStatus) debugStatus.textContent = "Jogo Carregado. Clique para jogar!";
         });
 
