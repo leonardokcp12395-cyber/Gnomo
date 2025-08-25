@@ -590,98 +590,93 @@ window.onload = () => {
             }
         };
 
-        // --- GESTOR DE SOM OTIMIZADO ---
-        const SoundManager = {
-            _sfx: {},
-            _bgm: [],
-            _bossBgm: null,
-            _currentBgm: null,
-            initialized: false,
+// --- INÍCIO DA CORREÇÃO DEFINITIVA: SoundManager à Prova de Falhas ---
 
-            init() {
-                if (this.initialized) return;
-                
-                // Atribuir SFX gerado
-                for (const key in assets.sfx) {
-                    this._sfx[key] = assets.loadedSounds[key];
-                }
+const SoundManager = {
+    sfx: {
+        xp: 'assets/xp.wav',
+        levelUp: 'assets/levelUp.wav',
+        damage: 'assets/damage.wav',
+        lance: 'assets/lance.wav',
+        nuke: 'assets/nuke.wav',
+        uiClick: 'assets/uiClick.wav',
+        land: 'assets/land.wav',
+    },
+    bgm: {
+        main: 'assets/bgm1.m4a',
+        boss: 'assets/bgm_boss.m4a',
+        main2: 'assets/bgm2.m4a'
+    },
+    _sfxPool: {},
+    _bgmPool: {},
+    currentBGM: null,
 
-                // Atribuir BGM
-                this._bgm = [assets.loadedSounds.bgm1, assets.loadedSounds.bgm2];
-                this._bossBgm = assets.loadedSounds.bgmBoss;
+    init() {
+        console.log("A pré-carregar sons...");
+        for (const key in this.sfx) {
+            const path = this.sfx[key];
+            this._sfxPool[key] = new Audio(path);
+            this._sfxPool[key].volume = 0.4;
+        }
+        for (const key in this.bgm) {
+            const path = this.bgm[key];
+            this._bgmPool[key] = new Audio(path);
+            this._bgmPool[key].volume = 0.3;
+            this._bgmPool[key].loop = true;
+        }
+        console.log("Sons carregados!");
+    },
 
-                // Definir volumes e ouvintes de eventos
-                Object.values(this._sfx).forEach(sound => {
-                    if (sound) sound.volume = 0.25;
+    play(effectName) {
+        const audio = this._sfxPool[effectName];
+        if (audio) {
+            audio.currentTime = 0;
+            const playPromise = audio.play();
+
+            // VERIFICAÇÃO ESSENCIAL: Só usa o .catch() se o navegador devolver uma Promise.
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    // Isto agora só acontece se o navegador ativamente bloquear o som.
+                    // O jogo não irá crashar.
+                    console.warn(`Erro ao tocar o efeito sonoro "${effectName}":`, error);
                 });
-                this._bgm.forEach(sound => {
-                    if(sound) {
-                        sound.volume = 0.2;
-                        sound.loop = false;
-                        sound.addEventListener('ended', () => this.playNextBgm());
-                    }
-                });
-                if (this._bossBgm) {
-                    this._bossBgm.volume = 0.3;
-                    this._bossBgm.loop = true;
-                }
-
-                this.initialized = true;
-            },
-
-            playSfx(effectName) {
-                if (!this.initialized) return;
-                const audio = this._sfx[effectName];
-                if (audio) {
-                    audio.currentTime = 0;
-                    audio.play().catch(e => {}); // Ignora erros de reprodução para SFX
-                } else {
-                    if(DEBUG_MODE) console.warn(`Efeito sonoro não encontrado: ${effectName}`);
-                }
-            },
-
-            startBgm() {
-                if (!this.initialized) return;
-                this.stopAllMusic();
-                this.playNextBgm();
-            },
-
-            playNextBgm() {
-                if (this._bgm.length === 0) return;
-                if (this._currentBgm) {
-                    this._currentBgm.pause();
-                }
-                // Baralhar faixas de BGM
-                this._bgm.sort(() => Math.random() - 0.5);
-                this._currentBgm = this._bgm[0];
-                if (!this._currentBgm) return;
-                
-                this._currentBgm.currentTime = 0;
-
-                const playPromise = this._currentBgm.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        if(DEBUG_MODE) console.log("A reprodução de BGM falhou, requer interação do usuário.", error);
-                    });
-                }
-            },
-
-            startBossMusic() {
-                if (!this.initialized || !this._bossBgm) return;
-                this.stopAllMusic();
-                this._currentBgm = this._bossBgm;
-                this._currentBgm.currentTime = 0;
-                this._currentBgm.play().catch(e => {});
-            },
-
-            stopAllMusic() {
-                if (this._currentBgm) {
-                    this._currentBgm.pause();
-                    this._currentBgm.currentTime = 0;
-                }
-                this._currentBgm = null;
             }
-        };
+        } else {
+            console.warn(`Efeito sonoro não encontrado: ${effectName}`);
+        }
+    },
+
+    playBGM(track) {
+        if (this.currentBGM && this.currentBGM.src.includes(this.bgm[track])) {
+            return; // Não faz nada se a música pedida já estiver a tocar
+        }
+
+        if (this.currentBGM) {
+            this.currentBGM.pause();
+        }
+
+        const newBgm = this._bgmPool[track];
+        if (newBgm) {
+            newBgm.currentTime = 0;
+            const playPromise = newBgm.play();
+
+            // VERIFICAÇÃO ESSENCIAL: Aplicada também à música de fundo.
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.warn(`Erro ao tocar a música "${track}":`, error);
+                });
+            }
+            this.currentBGM = newBgm;
+        }
+    },
+
+    stopBGM() {
+        if (this.currentBGM) {
+            this.currentBGM.pause();
+            this.currentBGM = null;
+        }
+    }
+};
 
         // --- AGRUPAMENTO DE OBJETOS ---
         // Funções genéricas para gerir agrupamentos de objetos
