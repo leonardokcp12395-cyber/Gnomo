@@ -3557,8 +3557,18 @@ window.onload = () => {
                 try {
                     updateGame(deltaTime);
                 } catch (error) {
-                    if (DEBUG_MODE) console.error("Erro em updateGame:", error);
-                    setGameState('paused');
+                    // MOSTRA O ERRO NA CONSOLA PARA ANÁLISE DETALHADA
+                    console.error("Erro crítico durante o update do jogo:", error);
+
+                    // MOSTRA UMA MENSAGEM DE ERRO NO JOGO
+                    const debugStatus = document.getElementById('debug-status');
+                    if (debugStatus) {
+                        debugStatus.style.display = 'block';
+                        debugStatus.style.color = 'red';
+                        debugStatus.innerHTML = `ERRO CRÍTICO: O jogo foi pausado.<br>Verifique a consola (F12) para detalhes.<br>Erro: ${error.message}`;
+                    }
+
+                    setGameState('paused'); // Pausa o jogo para evitar mais erros
                 }
             }
 
