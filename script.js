@@ -4,19 +4,19 @@ const DEBUG_MODE = false; // Altere para true para ver logs no console
 // --- INÍCIO DA CORREÇÃO: Gestor de Recursos e Pré-carregamento ---
 const assets = {
     images: {
-        playerRight: 'assets/mago direita.png',
-        playerLeft: 'assets/mago esquerda.png',
+        playerRight: 'assets/mago_direita.png',
+        playerLeft: 'assets/mago_esquerda.png',
         enemyChaser: 'assets/chaser_esquerda.png',
         enemySpeeder: 'assets/speeder_direita.png',
         enemyShooter: 'assets/shooter.png',
         enemySummoner: 'assets/summoner.png',
         enemyBomber: 'assets/bomber.png',
-        enemyCharger: 'assets/changer.png',
+        enemyCharger: 'assets/charger.png',
         enemyHealer: 'assets/healer.png',
         enemyTank: 'assets/bomber.png',
         enemyReaper: 'assets/summoner.png',
         chainLightning: 'assets/skillrelampago_em_cadeia_vertical.gif',
-        ground: 'assets/chaoblocoretangulo.png'
+        ground: 'assets/chao.png'
     },
     sounds: {
         bgm1: 'assets/bgm1.m4a',
@@ -3557,8 +3557,18 @@ window.onload = () => {
                 try {
                     updateGame(deltaTime);
                 } catch (error) {
-                    if (DEBUG_MODE) console.error("Erro em updateGame:", error);
-                    setGameState('paused');
+                    // MOSTRA O ERRO NA CONSOLA PARA ANÁLISE DETALHADA
+                    console.error("Erro crítico durante o update do jogo:", error);
+
+                    // MOSTRA UMA MENSAGEM DE ERRO NO JOGO
+                    const debugStatus = document.getElementById('debug-status');
+                    if (debugStatus) {
+                        debugStatus.style.display = 'block';
+                        debugStatus.style.color = 'red';
+                        debugStatus.innerHTML = `ERRO CRÍTICO: O jogo foi pausado.<br>Verifique a consola (F12) para detalhes.<br>Erro: ${error.message}`;
+                    }
+
+                    setGameState('paused'); // Pausa o jogo para evitar mais erros
                 }
             }
 
