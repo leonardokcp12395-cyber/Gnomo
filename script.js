@@ -16,7 +16,7 @@ const assets = {
         enemyTank: 'assets/bomber.png',
         enemyReaper: 'assets/summoner.png',
         chainLightning: 'assets/skillrelampago_em_cadeia_vertical.gif',
-        ground: 'assets/Chãoblocoretangulo.png'
+        ground: 'assets/chaoblocoretangulo.png'
     },
     sounds: {
         bgm1: 'assets/bgm1.m4a',
@@ -590,93 +590,98 @@ window.onload = () => {
             }
         };
 
-// --- INÍCIO DA CORREÇÃO DEFINITIVA: SoundManager à Prova de Falhas ---
+        // --- GESTOR DE SOM OTIMIZADO ---
+        const SoundManager = {
+            _sfx: {},
+            _bgm: [],
+            _bossBgm: null,
+            _currentBgm: null,
+            initialized: false,
 
-const SoundManager = {
-    sfx: {
-        xp: 'assets/xp.wav',
-        levelUp: 'assets/levelUp.wav',
-        damage: 'assets/damage.wav',
-        lance: 'assets/lance.wav',
-        nuke: 'assets/nuke.wav',
-        uiClick: 'assets/uiClick.wav',
-        land: 'assets/land.wav',
-    },
-    bgm: {
-        main: 'assets/bgm1.m4a',
-        boss: 'assets/bgm_boss.m4a',
-        main2: 'assets/bgm2.m4a'
-    },
-    _sfxPool: {},
-    _bgmPool: {},
-    currentBGM: null,
+            init() {
+                if (this.initialized) return;
 
-    init() {
-        console.log("A pré-carregar sons...");
-        for (const key in this.sfx) {
-            const path = this.sfx[key];
-            this._sfxPool[key] = new Audio(path);
-            this._sfxPool[key].volume = 0.4;
-        }
-        for (const key in this.bgm) {
-            const path = this.bgm[key];
-            this._bgmPool[key] = new Audio(path);
-            this._bgmPool[key].volume = 0.3;
-            this._bgmPool[key].loop = true;
-        }
-        console.log("Sons carregados!");
-    },
+                // Atribuir SFX gerado
+                for (const key in assets.sfx) {
+                    this._sfx[key] = assets.loadedSounds[key];
+                }
 
-    play(effectName) {
-        const audio = this._sfxPool[effectName];
-        if (audio) {
-            audio.currentTime = 0;
-            const playPromise = audio.play();
+                // Atribuir BGM
+                this._bgm = [assets.loadedSounds.bgm1, assets.loadedSounds.bgm2];
+                this._bossBgm = assets.loadedSounds.bgmBoss;
 
-            // VERIFICAÇÃO ESSENCIAL: Só usa o .catch() se o navegador devolver uma Promise.
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    // Isto agora só acontece se o navegador ativamente bloquear o som.
-                    // O jogo não irá crashar.
-                    console.warn(`Erro ao tocar o efeito sonoro "${effectName}":`, error);
+                // Definir volumes e ouvintes de eventos
+                Object.values(this._sfx).forEach(sound => {
+                    if (sound) sound.volume = 0.25;
                 });
-            }
-        } else {
-            console.warn(`Efeito sonoro não encontrado: ${effectName}`);
-        }
-    },
-
-    playBGM(track) {
-        if (this.currentBGM && this.currentBGM.src.includes(this.bgm[track])) {
-            return; // Não faz nada se a música pedida já estiver a tocar
-        }
-
-        if (this.currentBGM) {
-            this.currentBGM.pause();
-        }
-
-        const newBgm = this._bgmPool[track];
-        if (newBgm) {
-            newBgm.currentTime = 0;
-            const playPromise = newBgm.play();
-
-            // VERIFICAÇÃO ESSENCIAL: Aplicada também à música de fundo.
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.warn(`Erro ao tocar a música "${track}":`, error);
+                this._bgm.forEach(sound => {
+                    if(sound) {
+                        sound.volume = 0.2;
+                        sound.loop = false;
+                        sound.addEventListener('ended', () => this.playNextBgm());
+                    }
                 });
-            }
-            this.currentBGM = newBgm;
-        }
-    },
+                if (this._bossBgm) {
+                    this._bossBgm.volume = 0.3;
+                    this._bossBgm.loop = true;
+                }
 
-    stopBGM() {
-        if (this.currentBGM) {
-            this.currentBGM.pause();
-            this.currentBGM = null;
-        }
-    }
-};
+                this.initialized = true;
+            },
+
+            playSfx(effectName) {
+                if (!this.initialized) return;
+                const audio = this._sfx[effectName];
+                if (audio) {
+                    audio.currentTime = 0;
+                    audio.play().catch(e => {}); // Ignora erros de reprodução para SFX
+                } else {
+                    if(DEBUG_MODE) console.warn(`Efeito sonoro não encontrado: ${effectName}`);
+                }
+            },
+
+            startBgm() {
+                if (!this.initialized) return;
+                this.stopAllMusic();
+                this.playNextBgm();
+            },
+
+            playNextBgm() {
+                if (this._bgm.length === 0) return;
+                if (this._currentBgm) {
+                    this._currentBgm.pause();
+                }
+                // Baralhar faixas de BGM
+                this._bgm.sort(() => Math.random() - 0.5);
+                this._currentBgm = this._bgm[0];
+                if (!this._currentBgm) return;
+
+                this._currentBgm.currentTime = 0;
+
+                const playPromise = this._currentBgm.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        if(DEBUG_MODE) console.log("A reprodução de BGM falhou, requer interação do usuário.", error);
+                    });
+                }
+            },
+
+            startBossMusic() {
+                if (!this.initialized || !this._bossBgm) return;
+                this.stopAllMusic();
+                this._currentBgm = this._bossBgm;
+                this._currentBgm.currentTime = 0;
+                this._currentBgm.play().catch(e => {});
+            },
+
+            stopAllMusic() {
+                if (this._currentBgm) {
+                    this._currentBgm.pause();
+                    this._currentBgm.currentTime = 0;
+                }
+                this._currentBgm = null;
+            }
+        };
 
         // --- AGRUPAMENTO DE OBJETOS ---
         // Funções genéricas para gerir agrupamentos de objetos
@@ -3552,18 +3557,8 @@ const SoundManager = {
                 try {
                     updateGame(deltaTime);
                 } catch (error) {
-                    // MOSTRA O ERRO NA CONSOLA PARA ANÁLISE DETALHADA
-                    console.error("Erro crítico durante o update do jogo:", error);
-
-                    // MOSTRA UMA MENSAGEM DE ERRO NO JOGO
-                    const debugStatus = document.getElementById('debug-status');
-                    if (debugStatus) {
-                        debugStatus.style.display = 'block';
-                        debugStatus.style.color = 'red';
-                        debugStatus.innerHTML = `ERRO CRÍTICO: O jogo foi pausado.<br>Verifique a consola (F12) para detalhes.<br>Erro: ${error.message}`;
-                    }
-
-                    setGameState('paused'); // Pausa o jogo para evitar mais erros
+                    if (DEBUG_MODE) console.error("Erro em updateGame:", error);
+                    setGameState('paused');
                 }
             }
 
@@ -4087,7 +4082,7 @@ const SoundManager = {
             }
         }
 
-        // --- INÍCIO DA CORREÇÃO DEFINITIVA: Remover a Funcionalidade de Auto-Pause Instável ---
+        // --- INÍCIO DA CORREÇÃO: Remover a Funcionalidade de Auto-Pause Instável ---
         function setupEventListeners() {
             window.addEventListener('resize', () => {
                 canvas.width = window.innerWidth;
@@ -4095,8 +4090,8 @@ const SoundManager = {
             });
             window.dispatchEvent(new Event('resize'));
 
-            // O CÓDIGO RELACIONADO COM 'blur' E 'focus' FOI COMPLETAMENTE REMOVIDO DAQUI
-            // Esta remoção resolve o problema das pausas automáticas indesejadas de uma vez por todas.
+            // O CÓDIGO RELACIONADO COM 'blur' E 'focus' FOI REMOVIDO DAQUI
+            // Esta remoção resolve o problema das pausas automáticas indesejadas.
 
             if (isMobile) {
                 handleMobileInput();
@@ -4115,7 +4110,7 @@ const SoundManager = {
                     if (e.key === 'Escape' && gameState === 'playing') {
                         setGameState('paused');
                     } else if (e.key === 'Escape' && gameState === 'paused') {
-                        lastFrameTime = performance.now(); // Corrigido para reiniciar o tempo
+                        lastFrameTime = performance.now(); // Correct timing reset
                         setGameState('playing');
                     }
                 });
@@ -4128,16 +4123,10 @@ const SoundManager = {
 
             // O resto dos seus botões continua a funcionar como esperado
             document.getElementById('play-button').onclick = () => setGameState('characterSelect');
-            document.getElementById('restart-button-pause').onclick = () => {
-                initGame();
-                lastFrameTime = performance.now();
-            };
-            document.getElementById('restart-button-gameover').onclick = () => {
-                initGame();
-                lastFrameTime = performance.now();
-            };
+            document.getElementById('restart-button-pause').onclick = () => initGame();
+            document.getElementById('restart-button-gameover').onclick = () => initGame();
             document.getElementById('resume-button').onclick = () => {
-                lastFrameTime = performance.now(); // Corrigido para reiniciar o tempo
+                lastFrameTime = performance.now(); // Correct timing reset
                 setGameState('playing');
             };
             document.getElementById('back-to-menu-button-pause').onclick = () => setGameState('menu');
@@ -4160,7 +4149,7 @@ const SoundManager = {
             };
             document.getElementById('back-from-upgrades-button').onclick = () => setGameState('menu');
         }
-        // --- FIM DA CORREÇÃO DEFINITIVA ---
+        // --- FIM DA CORREÇÃO ---
 
         assets.load(() => {
             // Este código só corre DEPOIS de todas as imagens estarem carregadas
