@@ -8,14 +8,14 @@ const assets = {
         playerLeft: 'assets/mago esquerda.png',
         enemyChaser: 'assets/chaser_esquerda.png',
         enemySpeeder: 'assets/speeder_direita.png',
-        enemyShooter: 'assets/Shooter.png',
-        enemySummoner: 'assets/Summoner.png',
+        enemyShooter: 'assets/shooter.png',
+        enemySummoner: 'assets/summoner.png',
         enemyBomber: 'assets/bomber.png',
         enemyCharger: 'assets/changer.png',
         enemyHealer: 'assets/healer.png',
         enemyTank: 'assets/bomber.png',
-        enemyReaper: 'assets/Summoner.png',
-        chainLightning: 'assets/Skillrelampago_em_cadeia_vertical.gif',
+        enemyReaper: 'assets/summoner.png',
+        chainLightning: 'assets/skillrelampago_em_cadeia_vertical.gif',
         ground: 'assets/Chãoblocoretangulo.png'
     },
     sounds: {
