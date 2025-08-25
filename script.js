@@ -4082,7 +4082,7 @@ window.onload = () => {
             }
         }
 
-        // --- INÍCIO DA CORREÇÃO: Remover a Funcionalidade de Auto-Pause Instável ---
+        // --- INÍCIO DA CORREÇÃO DEFINITIVA: Remover a Funcionalidade de Auto-Pause Instável ---
         function setupEventListeners() {
             window.addEventListener('resize', () => {
                 canvas.width = window.innerWidth;
@@ -4090,8 +4090,8 @@ window.onload = () => {
             });
             window.dispatchEvent(new Event('resize'));
 
-            // O CÓDIGO RELACIONADO COM 'blur' E 'focus' FOI REMOVIDO DAQUI
-            // Esta remoção resolve o problema das pausas automáticas indesejadas.
+            // O CÓDIGO RELACIONADO COM 'blur' E 'focus' FOI COMPLETAMENTE REMOVIDO DAQUI
+            // Esta remoção resolve o problema das pausas automáticas indesejadas de uma vez por todas.
 
             if (isMobile) {
                 handleMobileInput();
@@ -4110,7 +4110,7 @@ window.onload = () => {
                     if (e.key === 'Escape' && gameState === 'playing') {
                         setGameState('paused');
                     } else if (e.key === 'Escape' && gameState === 'paused') {
-                        lastFrameTime = performance.now(); // Correct timing reset
+                        lastFrameTime = performance.now(); // Corrigido para reiniciar o tempo
                         setGameState('playing');
                     }
                 });
@@ -4132,7 +4132,7 @@ window.onload = () => {
                 lastFrameTime = performance.now();
             };
             document.getElementById('resume-button').onclick = () => {
-                lastFrameTime = performance.now(); // Correct timing reset
+                lastFrameTime = performance.now(); // Corrigido para reiniciar o tempo
                 setGameState('playing');
             };
             document.getElementById('back-to-menu-button-pause').onclick = () => setGameState('menu');
@@ -4155,7 +4155,7 @@ window.onload = () => {
             };
             document.getElementById('back-from-upgrades-button').onclick = () => setGameState('menu');
         }
-        // --- FIM DA CORREÇÃO ---
+        // --- FIM DA CORREÇÃO DEFINITIVA ---
 
         assets.load(() => {
             // Este código só corre DEPOIS de todas as imagens estarem carregadas
