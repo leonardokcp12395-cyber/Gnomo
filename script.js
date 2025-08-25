@@ -4123,8 +4123,14 @@ window.onload = () => {
 
             // O resto dos seus botões continua a funcionar como esperado
             document.getElementById('play-button').onclick = () => setGameState('characterSelect');
-            document.getElementById('restart-button-pause').onclick = () => initGame();
-            document.getElementById('restart-button-gameover').onclick = () => initGame();
+            document.getElementById('restart-button-pause').onclick = () => {
+                initGame();
+                lastFrameTime = performance.now();
+            };
+            document.getElementById('restart-button-gameover').onclick = () => {
+                initGame();
+                lastFrameTime = performance.now();
+            };
             document.getElementById('resume-button').onclick = () => {
                 lastFrameTime = performance.now(); // Correct timing reset
                 setGameState('playing');
