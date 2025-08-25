@@ -4082,7 +4082,7 @@ window.onload = () => {
             }
         }
 
-        // --- INÍCIO DA CORREÇÃO: Remover Auto-Pause Instável ---
+        // --- INÍCIO DA CORREÇÃO: Remover a Funcionalidade de Auto-Pause Instável ---
         function setupEventListeners() {
             window.addEventListener('resize', () => {
                 canvas.width = window.innerWidth;
@@ -4091,6 +4091,7 @@ window.onload = () => {
             window.dispatchEvent(new Event('resize'));
 
             // O CÓDIGO RELACIONADO COM 'blur' E 'focus' FOI REMOVIDO DAQUI
+            // Esta remoção resolve o problema das pausas automáticas indesejadas.
 
             if (isMobile) {
                 handleMobileInput();
@@ -4109,7 +4110,7 @@ window.onload = () => {
                     if (e.key === 'Escape' && gameState === 'playing') {
                         setGameState('paused');
                     } else if (e.key === 'Escape' && gameState === 'paused') {
-                        lastFrameTime = performance.now();
+                        lastFrameTime = performance.now(); // Correct timing reset
                         setGameState('playing');
                     }
                 });
@@ -4125,7 +4126,7 @@ window.onload = () => {
             document.getElementById('restart-button-pause').onclick = () => initGame();
             document.getElementById('restart-button-gameover').onclick = () => initGame();
             document.getElementById('resume-button').onclick = () => {
-                lastFrameTime = performance.now();
+                lastFrameTime = performance.now(); // Correct timing reset
                 setGameState('playing');
             };
             document.getElementById('back-to-menu-button-pause').onclick = () => setGameState('menu');
