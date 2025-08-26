@@ -3631,10 +3631,22 @@ window.onload = () => {
             container.querySelectorAll('.select-button').forEach(button => {
                 button.onclick = () => {
                     const charId = button.getAttribute('data-character-id');
-                    SoundManager.init(); // Initialize with loaded assets first
-                    initGame(charId);
-                    SoundManager.startBgm(); // Now start the music
-                    lastFrameTime = performance.now();
+                    try {
+                        SoundManager.init(); // Initialize with loaded assets first
+                        initGame(charId);
+                        SoundManager.startBgm(); // Now start the music
+                        lastFrameTime = performance.now();
+                    } catch (error) {
+                        console.error("Erro crítico ao iniciar o jogo:", error);
+                        const debugStatus = document.getElementById('debug-status');
+                        if (debugStatus) {
+                            debugStatus.style.display = 'block';
+                            debugStatus.style.color = 'red';
+                            debugStatus.innerHTML = `ERRO CRÍTICO AO INICIAR:<br>${error.message}<br>Verifique a consola (F12).`;
+                        }
+                        // Volta para o menu para que o jogador possa tentar novamente ou o problema possa ser corrigido.
+                        setGameState('menu');
+                    }
                 };
             });
         }
