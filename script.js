@@ -634,7 +634,10 @@ window.onload = () => {
                 const audio = this._sfx[effectName];
                 if (audio) {
                     audio.currentTime = 0;
-                    audio.play().catch(e => {}); // Ignora erros de reprodução para SFX
+                    const playPromise = audio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(e => {}); // Ignora erros de reprodução para SFX
+                    }
                 } else {
                     if(DEBUG_MODE) console.warn(`Efeito sonoro não encontrado: ${effectName}`);
                 }
@@ -671,7 +674,10 @@ window.onload = () => {
                 this.stopAllMusic();
                 this._currentBgm = this._bossBgm;
                 this._currentBgm.currentTime = 0;
-                this._currentBgm.play().catch(e => {});
+                const playPromise = this._currentBgm.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => {});
+                }
             },
 
             stopAllMusic() {
