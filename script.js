@@ -16,7 +16,7 @@ const assets = {
         enemyTank: 'assets/bomber.png',
         enemyReaper: 'assets/summoner.png',
         chainLightning: 'assets/skillrelampago_em_cadeia_vertical.gif',
-        ground: 'assets/chao.png'
+        ground: 'assets/Chãoblocoretangulo.png'
     },
     sounds: {
         bgm1: 'assets/bgm1.m4a',
