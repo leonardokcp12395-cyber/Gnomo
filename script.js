@@ -598,19 +598,38 @@ window.onload = () => {
             _currentBgm: null,
             initialized: false,
 
+            // --- INÍCIO DA CORREÇÃO: Função de Reprodução de Som Robusta ---
+            // Função ajudante centralizada para tocar qualquer áudio com segurança.
+            _safePlay(audioElement) {
+                if (!audioElement) return;
+
+                // Garante que o áudio está no início
+                audioElement.currentTime = 0;
+
+                const playPromise = audioElement.play();
+
+                // Verifica se .play() devolveu uma promessa antes de usar .catch
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        // Ignora erros comuns de interação do utilizador, que são esperados.
+                        if (error.name !== 'NotAllowedError') {
+                            console.error("Erro ao reproduzir áudio:", error);
+                        }
+                    });
+                }
+            },
+            // --- FIM DA CORREÇÃO ---
+
             init() {
                 if (this.initialized) return;
 
-                // Atribuir SFX gerado
                 for (const key in assets.sfx) {
                     this._sfx[key] = assets.loadedSounds[key];
                 }
 
-                // Atribuir BGM
                 this._bgm = [assets.loadedSounds.bgm1, assets.loadedSounds.bgm2];
                 this._bossBgm = assets.loadedSounds.bgmBoss;
 
-                // Definir volumes e ouvintes de eventos
                 Object.values(this._sfx).forEach(sound => {
                     if (sound) sound.volume = 0.25;
                 });
@@ -631,16 +650,7 @@ window.onload = () => {
 
             playSfx(effectName) {
                 if (!this.initialized) return;
-                const audio = this._sfx[effectName];
-                if (audio) {
-                    audio.currentTime = 0;
-                    const playPromise = audio.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(e => {}); // Ignora erros de reprodução para SFX
-                    }
-                } else {
-                    if(DEBUG_MODE) console.warn(`Efeito sonoro não encontrado: ${effectName}`);
-                }
+                this._safePlay(this._sfx[effectName]);
             },
 
             startBgm() {
@@ -654,30 +664,16 @@ window.onload = () => {
                 if (this._currentBgm) {
                     this._currentBgm.pause();
                 }
-                // Baralhar faixas de BGM
                 this._bgm.sort(() => Math.random() - 0.5);
                 this._currentBgm = this._bgm[0];
-                if (!this._currentBgm) return;
-
-                this._currentBgm.currentTime = 0;
-
-                const playPromise = this._currentBgm.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        if(DEBUG_MODE) console.log("A reprodução de BGM falhou, requer interação do usuário.", error);
-                    });
-                }
+                this._safePlay(this._currentBgm);
             },
 
             startBossMusic() {
                 if (!this.initialized || !this._bossBgm) return;
                 this.stopAllMusic();
                 this._currentBgm = this._bossBgm;
-                this._currentBgm.currentTime = 0;
-                const playPromise = this._currentBgm.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(e => {});
-                }
+                this._safePlay(this._currentBgm);
             },
 
             stopAllMusic() {
