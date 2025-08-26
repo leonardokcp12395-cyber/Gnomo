@@ -590,8 +590,8 @@ window.onload = () => {
             }
         };
 
-        // --- GESTOR DE SOM OTIMIZADO ---
-        const SoundManager = {
+        // --- GESTOR DE SOM OTIMIZADO (DESATIVADO PARA DEBUG) ---
+        /* const SoundManager = {
             _sfx: {},
             _bgm: [],
             _bossBgm: null,
@@ -683,7 +683,7 @@ window.onload = () => {
                 }
                 this._currentBgm = null;
             }
-        };
+        }; */
 
         // --- AGRUPAMENTO DE OBJETOS ---
         // Funções genéricas para gerir agrupamentos de objetos
@@ -1221,7 +1221,7 @@ window.onload = () => {
                     return;
                 }
 
-                SoundManager.playSfx('damage');
+                // SoundManager.playSfx('damage');
                 hitStopTimer = 5; // Adiciona um pequeno "hit stop" para o jogador
                 this.health -= amount;
                 this.hitTimer = 30;
@@ -1257,7 +1257,7 @@ window.onload = () => {
                     this.xp -= this.xpToNextLevel;
                     this.xpToNextLevel = Math.floor(this.xpToNextLevel * CONFIG.XP_TO_NEXT_LEVEL_MULTIPLIER);
 
-                    SoundManager.playSfx('levelUp'); // Toca o som de level up
+                    // SoundManager.playSfx('levelUp'); // Toca o som de level up
 
                     // --- INÍCIO DA SUGESTÃO: Efeito de Onda de Choque ---
                     const shockwaveParticles = 15; // Reduzido de 30
@@ -1354,7 +1354,7 @@ window.onload = () => {
 
                             if(targetEnemy) {
                                 let angle = Math.atan2(targetEnemy.y - this.y, targetEnemy.x - this.x);
-                                SoundManager.playSfx('lance');
+                                // SoundManager.playSfx('lance');
                                 for (let i = 0; i < levelData.count; i++) {
                                     const spreadAngle = (i - (levelData.count - 1) / 2) * 0.1;
                                     const projectileDamage = levelData.damage * this.damageModifier;
@@ -3011,7 +3011,7 @@ window.onload = () => {
             // A CADA 5 ONDAS, UMA ONDA DE BOSS
             if (waveNumber > 0 && waveNumber % 5 === 0) {
                 showTemporaryMessage(`BOSS - ONDA ${waveNumber}`, "red");
-                SoundManager.startBossMusic();
+                // SoundManager.startBossMusic();
                 enemies.push(new BossEnemy(player.x + canvas.width / 2 + 100, player.y - 100));
                 waveEnemiesRemaining = 1;
                 currentWaveConfig = { enemies: [], eliteChance: 0 };
@@ -3019,7 +3019,7 @@ window.onload = () => {
             }
 
             // Para ondas normais, toca a BGM principal
-            SoundManager.startBgm();
+            // SoundManager.startBgm();
 
             // Ondas pré-definidas
             if (waveNumber <= WAVE_CONFIGS.length) {
@@ -3634,9 +3634,9 @@ window.onload = () => {
                 button.onclick = () => {
                     const charId = button.getAttribute('data-character-id');
                     try {
-                        SoundManager.init(); // Initialize with loaded assets first
+                        // SoundManager.init(); // Initialize with loaded assets first
                         initGame(charId);
-                        SoundManager.startBgm(); // Now start the music
+                        // SoundManager.startBgm(); // Now start the music
                         lastFrameTime = performance.now();
                     } catch (error) {
                         console.error("Erro crítico ao iniciar o jogo:", error);
@@ -3692,7 +3692,7 @@ window.onload = () => {
             } else if (newState === 'paused') {
                 ui.pauseMenu.classList.remove('hidden');
             } else if (newState === 'gameOver') {
-                SoundManager.stopAllMusic();
+                // SoundManager.stopAllMusic();
                 const finalTimeInSeconds = Math.floor(gameTime);
                 document.getElementById('final-time').innerText = formatTime(finalTimeInSeconds);
                 document.getElementById('final-kills').innerText = score.kills;
