@@ -43,38 +43,21 @@ const assets = {
             this.loadedSounds[key] = audio;
         }
 
-        // 2. Carregar imagens e sons de fundo de forma assíncrona
+        // 2. Carregar APENAS IMAGENS de forma assíncrona
         const totalImages = Object.keys(this.images).length;
-        const totalBgm = Object.keys(this.sounds).length;
         let loadedImages = 0;
-        let loadedBgm = 0;
 
         const checkDone = () => {
-            if (loadedImages === totalImages && loadedBgm === totalBgm) {
-                console.log("Todos os recursos foram carregados!");
+            // A condição agora só verifica as imagens
+            if (loadedImages === totalImages) {
+                console.log("Recursos visuais carregados! Iniciando o jogo...");
                 callback();
             }
         };
 
-        if (totalImages === 0 && totalBgm === 0) {
+        if (totalImages === 0) {
             checkDone();
             return;
-        }
-
-        // Carregar sons de fundo (BGM)
-        for (const key in this.sounds) {
-            const audio = new Audio();
-            audio.src = this.sounds[key];
-            this.loadedSounds[key] = audio;
-            audio.onloadeddata = () => {
-                loadedBgm++;
-                checkDone();
-            };
-            audio.onerror = () => {
-                console.error(`Erro ao carregar o som: ${this.sounds[key]}`);
-                loadedBgm++;
-                checkDone();
-            };
         }
 
         // Carregar imagens
@@ -88,7 +71,7 @@ const assets = {
             };
             img.onerror = () => {
                 console.error(`Erro ao carregar o recurso: ${this.images[key]}`);
-                loadedImages++;
+                loadedImages++; // Ainda incrementa para não bloquear o carregamento
                 checkDone();
             };
         }
@@ -593,40 +576,50 @@ window.onload = () => {
         // --- GESTOR DE SOM OTIMIZADO ---
         const SoundManager = {
             _sfx: {},
-            _bgm: [],
+            _bgm: {}, // Alterado para um objeto para armazenar objetos de Áudio conforme são criados
             _bossBgm: null,
             _currentBgm: null,
             initialized: false,
+            bgmInitialized: false, // Novo sinalizador para carregamento tardio
 
-            init() {
+            init() { // Agora inicializa apenas SFX
                 if (this.initialized) return;
 
                 // Atribuir SFX gerado
                 for (const key in assets.sfx) {
                     this._sfx[key] = assets.loadedSounds[key];
                 }
-
-                // Atribuir BGM
-                this._bgm = [assets.loadedSounds.bgm1, assets.loadedSounds.bgm2];
-                this._bossBgm = assets.loadedSounds.bgmBoss;
-
-                // Definir volumes e ouvintes de eventos
                 Object.values(this._sfx).forEach(sound => {
                     if (sound) sound.volume = 0.25;
                 });
-                this._bgm.forEach(sound => {
-                    if(sound) {
-                        sound.volume = 0.2;
-                        sound.loop = false;
-                        sound.addEventListener('ended', () => this.playNextBgm());
-                    }
-                });
-                if (this._bossBgm) {
-                    this._bossBgm.volume = 0.3;
-                    this._bossBgm.loop = true;
-                }
 
                 this.initialized = true;
+            },
+
+            // Nova função para carregar BGM tardiamente
+            _initializeBgm() {
+                if (this.bgmInitialized) return;
+                console.log("Lazy loading BGM...");
+
+                // Criar objetos de Áudio para BGM a partir dos caminhos
+                for (const key in assets.sounds) {
+                    const audio = new Audio();
+                    audio.src = assets.sounds[key];
+                    audio.volume = key === 'bgmBoss' ? 0.3 : 0.2;
+                    audio.loop = key === 'bgmBoss'; // Apenas a música do chefe faz loop
+
+                    if (key !== 'bgmBoss') {
+                        audio.addEventListener('ended', () => this.playNextBgm());
+                    }
+
+                    if (key === 'bgmBoss') {
+                        this._bossBgm = audio;
+                    } else {
+                        this._bgm[key] = audio;
+                    }
+                }
+
+                this.bgmInitialized = true;
             },
 
             playSfx(effectName) {
@@ -642,18 +635,23 @@ window.onload = () => {
 
             startBgm() {
                 if (!this.initialized) return;
+                this._initializeBgm(); // Carrega BGM tardiamente na primeira chamada
                 this.stopAllMusic();
                 this.playNextBgm();
             },
 
             playNextBgm() {
-                if (this._bgm.length === 0) return;
+                const bgmTracks = Object.values(this._bgm);
+                if (bgmTracks.length === 0) return;
+
                 if (this._currentBgm) {
                     this._currentBgm.pause();
                 }
-                // Baralhar faixas de BGM
-                this._bgm.sort(() => Math.random() - 0.5);
-                this._currentBgm = this._bgm[0];
+
+                // Seleciona uma faixa aleatória
+                const randomTrack = bgmTracks[Math.floor(Math.random() * bgmTracks.length)];
+                this._currentBgm = randomTrack;
+
                 if (!this._currentBgm) return;
 
                 this._currentBgm.currentTime = 0;
@@ -661,13 +659,19 @@ window.onload = () => {
                 const playPromise = this._currentBgm.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
-                        if(DEBUG_MODE) console.log("A reprodução de BGM falhou, requer interação do usuário.", error);
+                        if(DEBUG_MODE) console.log("A reprodução de BGM foi adiada, requer interação do usuário.", error);
                     });
                 }
             },
 
             startBossMusic() {
-                if (!this.initialized || !this._bossBgm) return;
+                if (!this.initialized) return;
+                this._initializeBgm(); // Garante que o BGM esteja inicializado
+
+                if (!this._bossBgm) {
+                    console.error("Música de boss não encontrada!");
+                    return;
+                }
                 this.stopAllMusic();
                 this._currentBgm = this._bossBgm;
                 this._currentBgm.currentTime = 0;
@@ -679,6 +683,10 @@ window.onload = () => {
                     this._currentBgm.pause();
                     this._currentBgm.currentTime = 0;
                 }
+                // Também para qualquer outro BGM que possa estar carregando/tocando
+                Object.values(this._bgm).forEach(audio => audio.pause());
+                if (this._bossBgm) this._bossBgm.pause();
+
                 this._currentBgm = null;
             }
         };
@@ -4200,9 +4208,7 @@ window.onload = () => {
             container.querySelectorAll('.select-button').forEach(button => {
                 button.onclick = () => {
                     const charId = button.getAttribute('data-character-id');
-                    SoundManager.init(); // Initialize with loaded assets first
                     initGame(charId);
-                    SoundManager.startBgm(); // Now start the music
                     lastFrameTime = performance.now();
                 };
             });
@@ -4732,6 +4738,7 @@ window.onload = () => {
 
         assets.load(() => {
             // Este código só corre DEPOIS de todas as imagens estarem carregadas
+            SoundManager.init(); // Inicializa o gestor de som (apenas SFX agora)
             setupEventListeners();
             setGameState('menu');
             
