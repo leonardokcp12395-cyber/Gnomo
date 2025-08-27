@@ -590,46 +590,27 @@ window.onload = () => {
             }
         };
 
-        // --- GESTOR DE SOM OTIMIZADO (DESATIVADO PARA DEBUG) ---
-        /* const SoundManager = {
+        // --- GESTOR DE SOM OTIMIZADO ---
+        const SoundManager = {
             _sfx: {},
             _bgm: [],
             _bossBgm: null,
             _currentBgm: null,
             initialized: false,
 
-            // --- INÍCIO DA CORREÇÃO: Função de Reprodução de Som Robusta ---
-            // Função ajudante centralizada para tocar qualquer áudio com segurança.
-            _safePlay(audioElement) {
-                if (!audioElement) return;
-
-                // Garante que o áudio está no início
-                audioElement.currentTime = 0;
-
-                const playPromise = audioElement.play();
-
-                // Verifica se .play() devolveu uma promessa antes de usar .catch
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        // Ignora erros comuns de interação do utilizador, que são esperados.
-                        if (error.name !== 'NotAllowedError') {
-                            console.error("Erro ao reproduzir áudio:", error);
-                        }
-                    });
-                }
-            },
-            // --- FIM DA CORREÇÃO ---
-
             init() {
                 if (this.initialized) return;
 
+                // Atribuir SFX gerado
                 for (const key in assets.sfx) {
                     this._sfx[key] = assets.loadedSounds[key];
                 }
 
+                // Atribuir BGM
                 this._bgm = [assets.loadedSounds.bgm1, assets.loadedSounds.bgm2];
                 this._bossBgm = assets.loadedSounds.bgmBoss;
 
+                // Definir volumes e ouvintes de eventos
                 Object.values(this._sfx).forEach(sound => {
                     if (sound) sound.volume = 0.25;
                 });
@@ -650,7 +631,13 @@ window.onload = () => {
 
             playSfx(effectName) {
                 if (!this.initialized) return;
-                this._safePlay(this._sfx[effectName]);
+                const audio = this._sfx[effectName];
+                if (audio) {
+                    audio.currentTime = 0;
+                    audio.play().catch(e => {}); // Ignora erros de reprodução para SFX
+                } else {
+                    if(DEBUG_MODE) console.warn(`Efeito sonoro não encontrado: ${effectName}`);
+                }
             },
 
             startBgm() {
@@ -664,16 +651,27 @@ window.onload = () => {
                 if (this._currentBgm) {
                     this._currentBgm.pause();
                 }
+                // Baralhar faixas de BGM
                 this._bgm.sort(() => Math.random() - 0.5);
                 this._currentBgm = this._bgm[0];
-                this._safePlay(this._currentBgm);
+                if (!this._currentBgm) return;
+
+                this._currentBgm.currentTime = 0;
+
+                const playPromise = this._currentBgm.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        if(DEBUG_MODE) console.log("A reprodução de BGM falhou, requer interação do usuário.", error);
+                    });
+                }
             },
 
             startBossMusic() {
                 if (!this.initialized || !this._bossBgm) return;
                 this.stopAllMusic();
                 this._currentBgm = this._bossBgm;
-                this._safePlay(this._currentBgm);
+                this._currentBgm.currentTime = 0;
+                this._currentBgm.play().catch(e => {});
             },
 
             stopAllMusic() {
@@ -683,7 +681,7 @@ window.onload = () => {
                 }
                 this._currentBgm = null;
             }
-        }; */
+        };
 
         // --- AGRUPAMENTO DE OBJETOS ---
         // Funções genéricas para gerir agrupamentos de objetos
@@ -1221,7 +1219,7 @@ window.onload = () => {
                     return;
                 }
 
-                // SoundManager.playSfx('damage');
+                SoundManager.playSfx('damage');
                 hitStopTimer = 5; // Adiciona um pequeno "hit stop" para o jogador
                 this.health -= amount;
                 this.hitTimer = 30;
@@ -1257,7 +1255,7 @@ window.onload = () => {
                     this.xp -= this.xpToNextLevel;
                     this.xpToNextLevel = Math.floor(this.xpToNextLevel * CONFIG.XP_TO_NEXT_LEVEL_MULTIPLIER);
 
-                    // SoundManager.playSfx('levelUp'); // Toca o som de level up
+                    SoundManager.playSfx('levelUp'); // Toca o som de level up
 
                     // --- INÍCIO DA SUGESTÃO: Efeito de Onda de Choque ---
                     const shockwaveParticles = 15; // Reduzido de 30
@@ -1354,7 +1352,7 @@ window.onload = () => {
 
                             if(targetEnemy) {
                                 let angle = Math.atan2(targetEnemy.y - this.y, targetEnemy.x - this.x);
-                                // SoundManager.playSfx('lance');
+                                SoundManager.playSfx('lance');
                                 for (let i = 0; i < levelData.count; i++) {
                                     const spreadAngle = (i - (levelData.count - 1) / 2) * 0.1;
                                     const projectileDamage = levelData.damage * this.damageModifier;
@@ -3011,7 +3009,7 @@ window.onload = () => {
             // A CADA 5 ONDAS, UMA ONDA DE BOSS
             if (waveNumber > 0 && waveNumber % 5 === 0) {
                 showTemporaryMessage(`BOSS - ONDA ${waveNumber}`, "red");
-                // SoundManager.startBossMusic();
+                SoundManager.startBossMusic();
                 enemies.push(new BossEnemy(player.x + canvas.width / 2 + 100, player.y - 100));
                 waveEnemiesRemaining = 1;
                 currentWaveConfig = { enemies: [], eliteChance: 0 };
@@ -3019,7 +3017,7 @@ window.onload = () => {
             }
 
             // Para ondas normais, toca a BGM principal
-            // SoundManager.startBgm();
+            SoundManager.startBgm();
 
             // Ondas pré-definidas
             if (waveNumber <= WAVE_CONFIGS.length) {
@@ -3390,6 +3388,573 @@ window.onload = () => {
             if (screenShake.duration > 0) {
                 screenShake.duration--;
                 if (screenShake.duration <= 0) screenShake.intensity = 0;
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+- Lógica de Hit Stop: se o temporizador estiver ativo, pausa a lógica do jogo.
+            if (hitStopTimer > 0) {
+                hitStopTimer--;
+                return; // Pula o resto da função de atualização
+            }
+
+            gameTime += deltaTime;
+            frameCount++;
+
+            eventManager.update();
+
+            // Redefinir e preencher o Quadtree em cada frame
+            const worldBounds = new Rectangle(-CONFIG.WORLD_BOUNDS.width, -CONFIG.WORLD_BOUNDS.height, CONFIG.WORLD_BOUNDS.width * 2, CONFIG.WORLD_BOUNDS.height * 2);
+            qtree = new Quadtree(worldBounds, 4);
+
+            for (const enemy of enemies) {
+                if (!enemy.isDead) {
+                    qtree.insert(enemy);
+                }
+            }
+
+            if (player) player.update();
+            if (camera) camera.update();
+
+            enemies.forEach(e => e.update());
+            for (const p of projectilePool) { if (p.active) p.update(); }
+            for (const p of enemyProjectilePool) { if (p.active) p.update(); }
+            for (const o of xpOrbPool) { if (o.active) o.update(); }
+            particleManager.update(); // <<<<<<< MUDANÇA 1
+            activeDamageNumbers.forEach(dn => dn.update());
+
+            powerUps.forEach(p => p.update());
+            activeVortexes.forEach(v => v.update());
+            activeStaticFields.forEach(sf => sf.update());
+                activeSanctuaryZones.forEach(s => s.update());
+            activeMeteorWarnings.forEach(w => w.update());
+
+                for (let i = activeLightningBolts.length - 1; i >= 0; i--) {
+                    const bolt = activeLightningBolts[i];
+                    bolt.life--;
+                    if (bolt.life <= 0) {
+                        activeLightningBolts.splice(i, 1);
+                    }
+                }
+
+            spawnEnemies();
+            handleCollisions();
+
+            // OTIMIZAÇÃO: Substituindo .filter() por loops `for` reversos com `splice()`
+            removeDeadEntities(enemies);
+            removeDeadEntities(powerUps);
+            removeDeadEntities(activeVortexes);
+            removeDeadEntities(activeStaticFields);
+                removeDeadEntities(activeSanctuaryZones);
+            removeDeadEntities(activeDamageNumbers);
+            removeDeadEntities(activeMeteorWarnings);
+
+            if (screenShake.duration > 0) {
+                screenShake.duration--;
+                if (screenShake.duration <= 0) screenShake.intensity = 0;
             }
         }
 
@@ -3559,18 +4124,8 @@ window.onload = () => {
                 try {
                     updateGame(deltaTime);
                 } catch (error) {
-                    // MOSTRA O ERRO NA CONSOLA PARA ANÁLISE DETALHADA
-                    console.error("Erro crítico durante o update do jogo:", error);
-
-                    // MOSTRA UMA MENSAGEM DE ERRO NO JOGO
-                    const debugStatus = document.getElementById('debug-status');
-                    if (debugStatus) {
-                        debugStatus.style.display = 'block';
-                        debugStatus.style.color = 'red';
-                        debugStatus.innerHTML = `ERRO CRÍTICO: O jogo foi pausado.<br>Verifique a consola (F12) para detalhes.<br>Erro: ${error.message}`;
-                    }
-
-                    setGameState('paused'); // Pausa o jogo para evitar mais erros
+                    if (DEBUG_MODE) console.error("Erro em updateGame:", error);
+                    setGameState('paused');
                 }
             }
 
@@ -3633,22 +4188,10 @@ window.onload = () => {
             container.querySelectorAll('.select-button').forEach(button => {
                 button.onclick = () => {
                     const charId = button.getAttribute('data-character-id');
-                    try {
-                        // SoundManager.init(); // Initialize with loaded assets first
-                        initGame(charId);
-                        // SoundManager.startBgm(); // Now start the music
-                        lastFrameTime = performance.now();
-                    } catch (error) {
-                        console.error("Erro crítico ao iniciar o jogo:", error);
-                        const debugStatus = document.getElementById('debug-status');
-                        if (debugStatus) {
-                            debugStatus.style.display = 'block';
-                            debugStatus.style.color = 'red';
-                            debugStatus.innerHTML = `ERRO CRÍTICO AO INICIAR:<br>${error.message}<br>Verifique a consola (F12).`;
-                        }
-                        // Volta para o menu para que o jogador possa tentar novamente ou o problema possa ser corrigido.
-                        setGameState('menu');
-                    }
+                    SoundManager.init(); // Initialize with loaded assets first
+                    initGame(charId);
+                    SoundManager.startBgm(); // Now start the music
+                    lastFrameTime = performance.now();
                 };
             });
         }
@@ -3692,7 +4235,7 @@ window.onload = () => {
             } else if (newState === 'paused') {
                 ui.pauseMenu.classList.remove('hidden');
             } else if (newState === 'gameOver') {
-                // SoundManager.stopAllMusic();
+                SoundManager.stopAllMusic();
                 const finalTimeInSeconds = Math.floor(gameTime);
                 document.getElementById('final-time').innerText = formatTime(finalTimeInSeconds);
                 document.getElementById('final-kills').innerText = score.kills;
