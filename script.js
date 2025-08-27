@@ -258,14 +258,14 @@ window.onload = () => {
                 { desc: "Lanças mais rápidas e fortes.", count: 3, damage: 20, pierce: 4, speed: 9 }
             ]},
             'orbital_shield': { name: "Escudo Orbital", icon: "O", type: 'orbital', cooldown: 0, levels: [
-                { desc: "Um orbe sagrado gira ao seu redor.", count: 1, damage: 5, radius: 70, speed: 0.05 },
+                { desc: "Um orbe sagrado gira ao seu redor.", count: 1, damage: 10, radius: 70, speed: 0.05 },
                 { desc: "Adiciona um segundo orbe.", count: 2, damage: 8, radius: 75, speed: 0.05 },
                 { desc: "Aumenta o dano dos orbes.", count: 2, damage: 15, radius: 80, speed: 0.05 },
                 { desc: "Adiciona um terceiro orbe.", count: 3, damage: 15, radius: 85, speed: 0.06 },
                 { desc: "Orbes mais rápidos e fortes.", count: 3, damage: 20, radius: 90, speed: 0.07 }
             ]},
-            'vortex': { name: "Vórtice Sagrado", icon: "V", type: 'aura', cooldown: 400, levels: [
-                { desc: "Cria um vórtice que puxa inimigos.", radius: 150, duration: 120, force: 1.5, damage: 1 },
+            'vortex': { name: "Vórtice Sagrado", icon: "V", type: 'aura', cooldown: 300, levels: [
+                { desc: "Cria um vórtice que puxa inimigos.", radius: 150, duration: 120, force: 1.5, damage: 5 },
                 { desc: "Aumenta a força de atração.", radius: 160, duration: 120, force: 2.0, damage: 1 },
                 { desc: "Aumenta o raio do vórtice.", radius: 200, duration: 150, force: 2.0, damage: 2 },
                 { desc: "Vórtice mais duradouro e forte.", radius: 220, duration: 180, force: 2.5, damage: 2 },
@@ -390,7 +390,7 @@ window.onload = () => {
             'CHERUB': {
                 name: "Cherub",
                 description: "Rápido e ágil, mas mais frágil. Protegido por orbes sagrados.",
-                baseHealth: CONFIG.PLAYER_HEALTH * 0.8,
+                baseHealth: CONFIG.PLAYER_HEALTH * 0.9,
                 speed: CONFIG.PLAYER_SPEED * 1.2,
                 initialSkill: 'orbital_shield'
             },
@@ -4091,6 +4091,18 @@ window.onload = () => {
             }
 
             ctx.restore();
+
+            // --- EFEITO DE VINHETA ---
+            const vignetteOuterRadius = canvas.width * 0.7;
+            const gradient = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, canvas.width / 4,
+                canvas.width / 2, canvas.height / 2, vignetteOuterRadius
+            );
+            gradient.addColorStop(0, 'rgba(0,0,0,0)');
+            gradient.addColorStop(1, 'rgba(0,0,0,0.4)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
             updateHUD();
         }
 
