@@ -576,106 +576,80 @@ window.onload = () => {
         // --- GESTOR DE SOM OTIMIZADO ---
         const SoundManager = {
             _sfx: {},
-            _bgm: {}, // Alterado para um objeto para armazenar objetos de Áudio conforme são criados
+            _bgm: {},
             _bossBgm: null,
             _currentBgm: null,
             initialized: false,
-            bgmInitialized: false, // Novo sinalizador para carregamento tardio
+            bgmInitialized: false,
 
-            init() { // Agora inicializa apenas SFX
-                if (this.initialized) return;
-
-                // Atribuir SFX gerado
+            init() {
+                if (this.initialized) { return; }
                 for (const key in assets.sfx) {
                     this._sfx[key] = assets.loadedSounds[key];
                 }
-                Object.values(this._sfx).forEach(sound => {
-                    if (sound) sound.volume = 0.25;
-                });
-
+                Object.values(this._sfx).forEach(s => { if(s) s.volume = 0.25; });
                 this.initialized = true;
             },
 
-            // Nova função para carregar BGM tardiamente
             _initializeBgm() {
-                if (this.bgmInitialized) return;
+                if (this.bgmInitialized) { return; }
                 console.log("Lazy loading BGM...");
-
-                // Criar objetos de Áudio para BGM a partir dos caminhos
                 for (const key in assets.sounds) {
                     const audio = new Audio();
                     audio.src = assets.sounds[key];
-                    audio.volume = key === 'bgmBoss' ? 0.3 : 0.2;
-                    audio.loop = key === 'bgmBoss'; // Apenas a música do chefe faz loop
-
-                    if (key !== 'bgmBoss') {
-                        audio.addEventListener('ended', () => this.playNextBgm());
-                    }
-
                     if (key === 'bgmBoss') {
+                        audio.volume = 0.3;
+                        audio.loop = true;
                         this._bossBgm = audio;
                     } else {
+                        audio.volume = 0.2;
+                        audio.loop = false;
+                        audio.addEventListener('ended', () => this.playNextBgm());
                         this._bgm[key] = audio;
                     }
                 }
-
                 this.bgmInitialized = true;
             },
 
-            playSfx(effectName) {
-                if (!this.initialized) return;
-                const audio = this._sfx[effectName];
-                if (audio) {
-                    audio.currentTime = 0;
-                    audio.play().catch(e => {}); // Ignora erros de reprodução para SFX
-                } else {
-                    if(DEBUG_MODE) console.warn(`Efeito sonoro não encontrado: ${effectName}`);
+            playSfx(name) {
+                if (!this.initialized) { return; }
+                const s = this._sfx[name];
+                if (s) {
+                    s.currentTime = 0;
+                    s.play().catch(()=>{});
                 }
             },
 
             startBgm() {
-                if (!this.initialized) return;
-                this._initializeBgm(); // Carrega BGM tardiamente na primeira chamada
+                if (!this.initialized) { return; }
+                this._initializeBgm();
                 this.stopAllMusic();
                 this.playNextBgm();
             },
 
             playNextBgm() {
-                const bgmTracks = Object.values(this._bgm);
-                if (bgmTracks.length === 0) return;
-
+                const tracks = Object.values(this._bgm);
+                if (tracks.length === 0) { return; }
                 if (this._currentBgm) {
                     this._currentBgm.pause();
                 }
-
-                // Seleciona uma faixa aleatória
-                const randomTrack = bgmTracks[Math.floor(Math.random() * bgmTracks.length)];
-                this._currentBgm = randomTrack;
-
-                if (!this._currentBgm) return;
-
-                this._currentBgm.currentTime = 0;
-
-                const playPromise = this._currentBgm.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        if(DEBUG_MODE) console.log("A reprodução de BGM foi adiada, requer interação do usuário.", error);
-                    });
+                this._currentBgm = tracks[Math.floor(Math.random() * tracks.length)];
+                if (this._currentBgm) {
+                    this._currentBgm.currentTime = 0;
+                    const p = this._currentBgm.play();
+                    if (p) { p.catch(()=>{}); }
                 }
             },
 
             startBossMusic() {
-                if (!this.initialized) return;
-                this._initializeBgm(); // Garante que o BGM esteja inicializado
-
-                if (!this._bossBgm) {
-                    console.error("Música de boss não encontrada!");
-                    return;
-                }
+                if (!this.initialized) { return; }
+                this._initializeBgm();
+                if (!this._bossBgm) { return; }
                 this.stopAllMusic();
                 this._currentBgm = this._bossBgm;
                 this._currentBgm.currentTime = 0;
-                this._currentBgm.play().catch(e => {});
+                const p = this._currentBgm.play();
+                if (p) { p.catch(()=>{}); }
             },
 
             stopAllMusic() {
@@ -683,10 +657,8 @@ window.onload = () => {
                     this._currentBgm.pause();
                     this._currentBgm.currentTime = 0;
                 }
-                // Também para qualquer outro BGM que possa estar carregando/tocando
-                Object.values(this._bgm).forEach(audio => audio.pause());
-                if (this._bossBgm) this._bossBgm.pause();
-
+                Object.values(this._bgm).forEach(a => a.pause());
+                if (this._bossBgm) { this._bossBgm.pause(); }
                 this._currentBgm = null;
             }
         };
