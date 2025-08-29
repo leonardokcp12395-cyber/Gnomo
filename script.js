@@ -20,9 +20,9 @@ const assets = {
         ground: 'assets/Chãoblocoretangulo.png'
     },
     sounds: {
-        bgm1: 'assets/bgm1.m4a',
-        bgm2: 'assets/bgm2.m4a',
-        bgmBoss: 'assets/bgm_boss.m4a',
+        // bgm1: 'assets/bgm1.m4a',
+        // bgm2: 'assets/bgm2.m4a',
+        // bgmBoss: 'assets/bgm_boss.m4a',
     },
     sfx: {
         xp: 'pickupCoin',
@@ -3621,6 +3621,11 @@ window.onload = () => {
         }
 
         function setGameState(newState) {
+            // Impede a re-pausa, que pode causar um loop se houver um erro de tempo de execução
+            if (newState === 'paused' && gameState === 'paused') {
+                return;
+            }
+
             if (['menu', 'paused', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades', 'characterSelect'].includes(newState) && newState !== gameState) {
             }
 
