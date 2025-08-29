@@ -614,10 +614,17 @@ window.onload = () => {
 
             playSfx(name) {
                 if (!this.initialized) { return; }
+
+                // CORREÇÃO: Impede o som de clique da UI, que o utilizador considera irritante
+                if (name === 'uiClick') {
+                    return;
+                }
+
                 const s = this._sfx[name];
                 if (s) {
                     s.currentTime = 0;
-                    s.play().catch(()=>{});
+                    const p = s.play();
+                    if (p) { p.catch(()=>{}); }
                 }
             },
 
