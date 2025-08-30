@@ -30,7 +30,7 @@ const assets = {
         damage: 'hitHurt',
         lance: 'laserShoot',
         nuke: 'explosion',
-        uiClick: 'blipSelect',
+        // uiClick: 'blipSelect', // Mantido desativado conforme solicitado
         land: 'jump'
     },
     loadedImages: {},
