@@ -19,32 +19,9 @@ const assets = {
         chainLightning: 'assets/skillrelampago_em_cadeia_vertical.gif',
         ground: 'assets/Chãoblocoretangulo.png'
     },
-    sounds: {
-        // bgm1: 'assets/bgm1.m4a',
-        // bgm2: 'assets/bgm2.m4a',
-        // bgmBoss: 'assets/bgm_boss.m4a',
-    },
-    sfx: {
-        xp: 'pickupCoin',
-        levelUp: 'powerUp',
-        damage: 'hitHurt',
-        lance: 'laserShoot',
-        nuke: 'explosion',
-        // uiClick: 'blipSelect', // Mantido desativado conforme solicitado
-        land: 'jump'
-    },
     loadedImages: {},
-    loadedSounds: {},
     load(callback) {
-        // 1. Gerar SFX de forma síncrona, pois são data URIs
-        for (const key in this.sfx) {
-            const preset = this.sfx[key];
-            const soundParams = jsfxr.sfxr.generate(preset);
-            const audio = jsfxr.sfxr.toAudio(soundParams);
-            this.loadedSounds[key] = audio;
-        }
-
-        // 2. Carregar APENAS IMAGENS de forma assíncrona
+        // Carregar APENAS IMAGENS de forma assíncrona
         const totalImages = Object.keys(this.images).length;
         let loadedImages = 0;
 
@@ -574,102 +551,6 @@ window.onload = () => {
             }
         };
 
-        // --- GESTOR DE SOM OTIMIZADO ---
-        const SoundManager = {
-            _sfx: {},
-            _bgm: {},
-            _bossBgm: null,
-            _currentBgm: null,
-            initialized: false,
-            bgmInitialized: false,
-
-            init() {
-                if (this.initialized) { return; }
-                for (const key in assets.sfx) {
-                    this._sfx[key] = assets.loadedSounds[key];
-                }
-                Object.values(this._sfx).forEach(s => { if(s) s.volume = 0.25; });
-                this.initialized = true;
-            },
-
-            _initializeBgm() {
-                if (this.bgmInitialized) { return; }
-                console.log("Lazy loading BGM...");
-                for (const key in assets.sounds) {
-                    const audio = new Audio();
-                    audio.src = assets.sounds[key];
-                    if (key === 'bgmBoss') {
-                        audio.volume = 0.3;
-                        audio.loop = true;
-                        this._bossBgm = audio;
-                    } else {
-                        audio.volume = 0.2;
-                        audio.loop = false;
-                        audio.addEventListener('ended', () => this.playNextBgm());
-                        this._bgm[key] = audio;
-                    }
-                }
-                this.bgmInitialized = true;
-            },
-
-            playSfx(name) {
-                if (!this.initialized) { return; }
-
-                // CORREÇÃO: Impede o som de clique da UI, que o utilizador considera irritante
-                if (name === 'uiClick') {
-                    return;
-                }
-
-                const s = this._sfx[name];
-                if (s) {
-                    s.currentTime = 0;
-                    const p = s.play();
-                    if (p) { p.catch(()=>{}); }
-                }
-            },
-
-            startBgm() {
-                if (!this.initialized) { return; }
-                this._initializeBgm();
-                this.stopAllMusic();
-                this.playNextBgm();
-            },
-
-            playNextBgm() {
-                const tracks = Object.values(this._bgm);
-                if (tracks.length === 0) { return; }
-                if (this._currentBgm) {
-                    this._currentBgm.pause();
-                }
-                this._currentBgm = tracks[Math.floor(Math.random() * tracks.length)];
-                if (this._currentBgm) {
-                    this._currentBgm.currentTime = 0;
-                    const p = this._currentBgm.play();
-                    if (p) { p.catch(()=>{}); }
-                }
-            },
-
-            startBossMusic() {
-                if (!this.initialized) { return; }
-                this._initializeBgm();
-                if (!this._bossBgm) { return; }
-                this.stopAllMusic();
-                this._currentBgm = this._bossBgm;
-                this._currentBgm.currentTime = 0;
-                const p = this._currentBgm.play();
-                if (p) { p.catch(()=>{}); }
-            },
-
-            stopAllMusic() {
-                if (this._currentBgm) {
-                    this._currentBgm.pause();
-                    this._currentBgm.currentTime = 0;
-                }
-                Object.values(this._bgm).forEach(a => a.pause());
-                if (this._bossBgm) { this._bossBgm.pause(); }
-                this._currentBgm = null;
-            }
-        };
 
         // --- AGRUPAMENTO DE OBJETOS ---
         // Funções genéricas para gerir agrupamentos de objetos
@@ -1207,7 +1088,6 @@ window.onload = () => {
                     return;
                 }
 
-                SoundManager.playSfx('damage');
                 hitStopTimer = 5; // Adiciona um pequeno "hit stop" para o jogador
                 this.health -= amount;
                 this.hitTimer = 30;
@@ -1242,8 +1122,6 @@ window.onload = () => {
                     this.level++;
                     this.xp -= this.xpToNextLevel;
                     this.xpToNextLevel = Math.floor(this.xpToNextLevel * CONFIG.XP_TO_NEXT_LEVEL_MULTIPLIER);
-
-                    SoundManager.playSfx('levelUp'); // Toca o som de level up
 
                     // --- INÍCIO DA SUGESTÃO: Efeito de Onda de Choque ---
                     const shockwaveParticles = 15; // Reduzido de 30
@@ -1340,7 +1218,6 @@ window.onload = () => {
 
                             if(targetEnemy) {
                                 let angle = Math.atan2(targetEnemy.y - this.y, targetEnemy.x - this.x);
-                                SoundManager.playSfx('lance');
                                 for (let i = 0; i < levelData.count; i++) {
                                     const spreadAngle = (i - (levelData.count - 1) / 2) * 0.1;
                                     const projectileDamage = levelData.damage * this.damageModifier;
@@ -2997,15 +2874,11 @@ window.onload = () => {
             // A CADA 5 ONDAS, UMA ONDA DE BOSS
             if (waveNumber > 0 && waveNumber % 5 === 0) {
                 showTemporaryMessage(`BOSS - ONDA ${waveNumber}`, "red");
-                SoundManager.startBossMusic();
                 enemies.push(new BossEnemy(player.x + canvas.width / 2 + 100, player.y - 100));
                 waveEnemiesRemaining = 1;
                 currentWaveConfig = { enemies: [], eliteChance: 0 };
                 return;
             }
-
-            // Para ondas normais, toca a BGM principal
-            SoundManager.startBgm();
 
             // Ondas pré-definidas
             if (waveNumber <= WAVE_CONFIGS.length) {
@@ -3671,7 +3544,6 @@ window.onload = () => {
             } else if (newState === 'paused') {
                 ui.pauseMenu.classList.remove('hidden');
             } else if (newState === 'gameOver') {
-                SoundManager.stopAllMusic();
                 const finalTimeInSeconds = Math.floor(gameTime);
                 document.getElementById('final-time').innerText = formatTime(finalTimeInSeconds);
                 document.getElementById('final-kills').innerText = score.kills;
@@ -4156,7 +4028,6 @@ window.onload = () => {
 
         assets.load(() => {
             // Este código só corre DEPOIS de todas as imagens estarem carregadas
-            SoundManager.init(); // Inicializa o gestor de som (apenas SFX agora)
             setupEventListeners();
             setGameState('menu');
             
