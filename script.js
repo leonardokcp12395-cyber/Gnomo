@@ -678,9 +678,9 @@ window.onload = () => {
                 ctx.fillStyle = this.color; // Usa a cor da instância
                 ctx.font = 'bold 20px "Courier New", Courier, monospace';
                 ctx.textAlign = 'center';
-                // Adiciona uma sombra sutil para legibilidade
-                ctx.shadowColor = 'black';
-                ctx.shadowBlur = 2;
+                // Sombra removida para otimização
+                // ctx.shadowColor = 'black';
+                // ctx.shadowBlur = 2;
                 ctx.fillText(this.amount, 0, 0);
                 ctx.restore();
             }
@@ -780,15 +780,6 @@ window.onload = () => {
 
             // --- INÍCIO DA ALTERAÇÃO 2: Nova função de desenho com sprites ---
             draw(ctx) {
-                const screenLeft = camera.x;
-                const screenRight = camera.x + canvas.width;
-                const screenTop = camera.y;
-                const screenBottom = camera.y + canvas.height;
-                if (this.x + this.radius < screenLeft || this.x - this.radius > screenRight ||
-                    this.y + this.radius < screenTop || this.y - this.radius > screenBottom) {
-                    return;
-                }
-
                 // Efeito de piscar para invencibilidade (I-Frames)
                 if (this.invincibilityTimer > 0 && frameCount % 8 < 4) {
                     this.animationFrame++;
@@ -1223,20 +1214,14 @@ window.onload = () => {
 
                     if (skillData.type === 'projectile') {
                         if (skillId === 'divine_lance') {
-                            const targetEnemy = this.findNearestEnemy(); // Sempre procura o inimigo mais próximo
-
-                            if(targetEnemy) {
-                                let angle = Math.atan2(targetEnemy.y - this.y, targetEnemy.x - this.x);
-                                for (let i = 0; i < levelData.count; i++) {
-                                    const spreadAngle = (i - (levelData.count - 1) / 2) * 0.1;
-                                    const projectileDamage = levelData.damage * this.damageModifier;
-                                    // Passa o skillId para o projétil
-                                    getFromPool(projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage }, skillId);
-                                }
-                                skillState.timer = skillData.cooldown;
-                            } else {
-                                skillState.timer = 10; // Tenta a cada 10 frames
+                            // ALTERAÇÃO: Lança agora dispara na direção do movimento, não no inimigo mais próximo
+                            const angle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
+                            for (let i = 0; i < levelData.count; i++) {
+                                const spreadAngle = (i - (levelData.count - 1) / 2) * 0.15; // Aumenta um pouco o spread
+                                const projectileDamage = levelData.damage * this.damageModifier;
+                                getFromPool(projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage }, skillId);
                             }
+                            skillState.timer = skillData.cooldown;
                         } else if (skillId === 'celestial_ray') {
                             const rayAngle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
                             const rayDamage = levelData.damage * this.damageModifier;
@@ -2180,10 +2165,7 @@ window.onload = () => {
                 // Otimização: Só desenha se estiver na tela
                 const screenLeft = camera.x;
                 const screenRight = camera.x + canvas.width;
-                const screenTop = camera.y;
-                const screenBottom = camera.y + canvas.height;
-                if (this.x + this.radius < screenLeft || this.x - this.radius > screenRight ||
-                    this.y + this.radius < screenTop || this.y - this.radius > screenBottom) {
+                if (this.x + this.radius < screenLeft || this.x - this.radius > screenRight) {
                     return;
                 }
 
@@ -2240,10 +2222,7 @@ window.onload = () => {
                 // Otimização: Só desenha se estiver na tela
                 const screenLeft = camera.x;
                 const screenRight = camera.x + canvas.width;
-                const screenTop = camera.y;
-                const screenBottom = camera.y + canvas.height;
-                if (this.x + this.radius < screenLeft || this.x - this.radius > screenRight ||
-                    this.y + this.radius < screenTop || this.y - this.radius > screenBottom) {
+                if (this.x + this.radius < screenLeft || this.x - this.radius > screenRight) {
                     return;
                 }
 
@@ -2318,27 +2297,7 @@ window.onload = () => {
             }
 
             draw(ctx) {
-                ctx.save();
-                ctx.translate(-camera.x, -camera.y);
-
-                const particlesByColor = {};
-                this.activeParticles.forEach(p => {
-                    if (!particlesByColor[p.color]) {
-                        particlesByColor[p.color] = [];
-                    }
-                    particlesByColor[p.color].push(p);
-                });
-
-                for (const color in particlesByColor) {
-                    ctx.fillStyle = color;
-                    particlesByColor[color].forEach(p => {
-                        ctx.globalAlpha = p.alpha;
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                        ctx.fill();
-                    });
-                }
-                ctx.restore();
+                this.activeParticles.forEach(p => p.draw(ctx));
             }
         }
 
@@ -2358,8 +2317,14 @@ window.onload = () => {
             }
 
             draw(ctx) {
-                // This function is no longer called directly.
-                // The logic has been moved to ParticleManager.draw for optimization.
+                ctx.save();
+                ctx.translate(-camera.x, -camera.y); // Aplica o deslocamento da câmara
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
             }
 
             update() {
@@ -3183,13 +3148,11 @@ window.onload = () => {
 
         // OTIMIZAÇÃO: Função genérica para remover entidades mortas de forma eficiente
         function removeDeadEntities(array) {
-            let liveEntities = [];
-            for (let i = 0; i < array.length; i++) {
-                if (!array[i].isDead) {
-                    liveEntities.push(array[i]);
+            for (let i = array.length - 1; i >= 0; i--) {
+                if (array[i].isDead) {
+                    array.splice(i, 1);
                 }
             }
-            return liveEntities;
         }
 
         function populateAchievementsScreen() {
@@ -3269,13 +3232,13 @@ window.onload = () => {
             handleCollisions();
 
             // OTIMIZAÇÃO: Substituindo .filter() por loops `for` reversos com `splice()`
-            enemies = removeDeadEntities(enemies);
-            powerUps = removeDeadEntities(powerUps);
-            activeVortexes = removeDeadEntities(activeVortexes);
-            activeStaticFields = removeDeadEntities(activeStaticFields);
-            activeSanctuaryZones = removeDeadEntities(activeSanctuaryZones);
-            activeDamageNumbers = removeDeadEntities(activeDamageNumbers);
-            activeMeteorWarnings = removeDeadEntities(activeMeteorWarnings);
+            removeDeadEntities(enemies);
+            removeDeadEntities(powerUps);
+            removeDeadEntities(activeVortexes);
+            removeDeadEntities(activeStaticFields);
+                removeDeadEntities(activeSanctuaryZones);
+            removeDeadEntities(activeDamageNumbers);
+            removeDeadEntities(activeMeteorWarnings);
 
             if (screenShake.duration > 0) {
                 screenShake.duration--;
@@ -3342,8 +3305,9 @@ window.onload = () => {
                     ctx.globalAlpha = bolt.life / 15.0; // Efeito de fade out
                     ctx.strokeStyle = 'white';
                     ctx.lineWidth = 5;
-                    ctx.shadowColor = 'cyan';
-                    ctx.shadowBlur = 15;
+                    // Sombra removida para otimização
+                    // ctx.shadowColor = 'cyan';
+                    // ctx.shadowBlur = 15;
 
                     ctx.beginPath();
                     ctx.moveTo(bolt.points[0].x, bolt.points[0].y);
@@ -3461,8 +3425,8 @@ window.onload = () => {
                 try {
                     updateGame(deltaTime);
                 } catch (error) {
-                    console.error("Um erro ocorreu durante a atualização do jogo. Erro:", error);
-                    // O jogo não será mais pausado em caso de erro, para atender ao pedido do utilizador.
+                    if (DEBUG_MODE) console.error("Erro em updateGame:", error);
+                    setGameState('paused');
                 }
             }
 
