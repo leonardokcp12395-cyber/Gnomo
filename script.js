@@ -1101,7 +1101,9 @@ window.onload = () => {
                     const knockbackForce = 8; // Força do knockback
                     const angle = Math.atan2(this.y - source.y, this.x - source.x);
                     this.knockbackVelocity.x = Math.cos(angle) * knockbackForce;
-                    this.knockbackVelocity.y = Math.sin(angle) * knockbackForce;
+                    // A componente Y do knockback estava a causar o bug de "ficar preso".
+                    // Ao invés de empurrar para baixo, vamos adicionar uma pequena força para cima para uma sensação de "salto".
+                    this.velocityY = -2;
                 }
 
                 if (this.health <= 0) {
@@ -1592,12 +1594,13 @@ window.onload = () => {
                 }
 
                 if (this.hitTimer > 0) {
-                    ctx.filter = 'brightness(1.5) contrast(1.5)';
+                    // O filtro é caro, uma alternativa mais performática pode ser usada no futuro.
+                    // ctx.filter = 'brightness(1.5) contrast(1.5)';
                     this.hitTimer--;
                 }
 
                 ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-                ctx.filter = 'none';
+                // ctx.filter = 'none';
 
                 this.animationFrame++;
 
