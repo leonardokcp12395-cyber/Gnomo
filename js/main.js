@@ -521,6 +521,7 @@ function removeDeadEntities(array) {
 }
 
 function updateGame(deltaTime) {
+    console.time('updateGame');
     if (hitStopTimer > 0) {
         hitStopTimer--;
         return;
@@ -529,17 +530,21 @@ function updateGame(deltaTime) {
     gameTime += deltaTime;
     frameCount++;
 
+    console.time('eventManager.update');
     eventManager.update();
+    console.timeEnd('eventManager.update');
 
+    console.time('quadtree.build');
     const worldBounds = new Rectangle(-CONFIG.WORLD_BOUNDS.width, -CONFIG.WORLD_BOUNDS.height, CONFIG.WORLD_BOUNDS.width * 2, CONFIG.WORLD_BOUNDS.height * 2);
     qtree = new Quadtree(worldBounds, 4);
-
     for (const enemy of enemies) {
         if (!enemy.isDead) {
             qtree.insert(enemy);
         }
     }
+    console.timeEnd('quadtree.build');
 
+    console.time('entity.updates');
     if (player) player.update();
     if (camera) camera.update();
 
@@ -555,7 +560,9 @@ function updateGame(deltaTime) {
     activeStaticFields.forEach(sf => sf.update());
     activeSanctuaryZones.forEach(s => s.update());
     activeMeteorWarnings.forEach(w => w.update());
+    console.timeEnd('entity.updates');
 
+    console.time('lightning.update');
     for (let i = activeLightningBolts.length - 1; i >= 0; i--) {
         const bolt = activeLightningBolts[i];
         bolt.life--;
@@ -563,10 +570,17 @@ function updateGame(deltaTime) {
             activeLightningBolts.splice(i, 1);
         }
     }
+    console.timeEnd('lightning.update');
 
+    console.time('spawnEnemies');
     spawnEnemies();
-    handleCollisions();
+    console.timeEnd('spawnEnemies');
 
+    console.time('handleCollisions');
+    handleCollisions();
+    console.timeEnd('handleCollisions');
+
+    console.time('removeDeadEntities');
     removeDeadEntities(enemies);
     removeDeadEntities(powerUps);
     removeDeadEntities(activeVortexes);
@@ -574,14 +588,19 @@ function updateGame(deltaTime) {
     removeDeadEntities(activeSanctuaryZones);
     removeDeadEntities(activeDamageNumbers);
     removeDeadEntities(activeMeteorWarnings);
+    console.timeEnd('removeDeadEntities');
 
     if (screenShake.duration > 0) {
         screenShake.duration--;
         if (screenShake.duration <= 0) screenShake.intensity = 0;
     }
+    console.timeEnd('updateGame');
 }
 
 function drawGame() {
+    console.time('drawGame');
+
+    console.time('draw.background');
     if (player) {
         const parallaxX1 = -camera.x * 0.02;
         const parallaxY1 = -camera.y * 0.02;
@@ -596,10 +615,16 @@ function drawGame() {
             `${parallaxX3}px ${parallaxY3}px, ` +
             `${parallaxX3 * 1.5}px ${parallaxY3 * 1.5}px`;
     }
+    console.timeEnd('draw.background');
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
 
+    if (screenShake.intensity > 0) {
+        ctx.translate((Math.random() - 0.5) * screenShake.intensity, (Math.random() - 0.5) * screenShake.intensity);
+    }
+
+    console.time('draw.environment');
     ctx.save();
     ctx.translate(-camera.x * 0.5, -camera.y * 0.5);
     ambientParticles.forEach(p => {
@@ -609,54 +634,34 @@ function drawGame() {
         ctx.fill();
     });
     ctx.restore();
-
-    if (screenShake.intensity > 0) {
-        ctx.translate((Math.random() - 0.5) * screenShake.intensity, (Math.random() - 0.5) * screenShake.intensity);
-    }
-
     platforms.forEach(p => p.draw(ctx));
+    console.timeEnd('draw.environment');
 
+    console.time('draw.pickups');
     for (const o of xpOrbPool) { if (o.active) o.draw(ctx); }
     powerUps.forEach(p => p.draw(ctx));
+    console.timeEnd('draw.pickups');
+
+    console.time('draw.effects');
     activeVortexes.forEach(v => v.draw(ctx));
     activeStaticFields.forEach(sf => sf.draw(ctx));
     activeSanctuaryZones.forEach(s => s.draw(ctx));
     activeMeteorWarnings.forEach(w => w.draw(ctx));
+    particleManager.draw(ctx);
+    activeDamageNumbers.forEach(dn => dn.draw(ctx));
+    console.timeEnd('draw.effects');
 
-    ctx.save();
-    ctx.translate(-camera.x, -camera.y);
-    activeLightningBolts.forEach(bolt => {
-        ctx.save();
-        ctx.globalAlpha = bolt.life / 15.0;
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 5;
-        ctx.shadowColor = 'cyan';
-        ctx.shadowBlur = 15;
-
-        ctx.beginPath();
-        ctx.moveTo(bolt.points[0].x, bolt.points[0].y);
-        for (let i = 1; i < bolt.points.length; i++) {
-            ctx.lineTo(bolt.points[i].x, bolt.points[i].y);
-        }
-        ctx.stroke();
-
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = 'cyan';
-        ctx.stroke();
-
-        ctx.restore();
-    });
-    ctx.restore();
-
-    enemies.forEach(e => e.draw(ctx));
+    console.time('draw.projectiles');
     for (const p of projectilePool) { if (p.active) p.draw(ctx); }
     for (const p of enemyProjectilePool) { if (p.active) p.draw(ctx); }
-    particleManager.draw(ctx);
+    console.timeEnd('draw.projectiles');
 
-    activeDamageNumbers.forEach(dn => dn.draw(ctx));
-
+    console.time('draw.characters');
+    enemies.forEach(e => e.draw(ctx));
     if (player) player.draw(ctx);
+    console.timeEnd('draw.characters');
 
+    console.time('draw.orbitals');
     if (player && player.skills) {
         Object.keys(player.skills).forEach(skillId => {
             const skillData = SKILL_DATABASE[skillId];
@@ -698,9 +703,11 @@ function drawGame() {
             }
         });
     }
+    console.timeEnd('draw.orbitals');
 
     ctx.restore();
 
+    console.time('draw.vignette');
     const vignetteOuterRadius = canvas.width * 0.7;
     const gradient = ctx.createRadialGradient(
         canvas.width / 2, canvas.height / 2, canvas.width / 4,
@@ -710,8 +717,13 @@ function drawGame() {
     gradient.addColorStop(1, 'rgba(0,0,0,0.4)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    console.timeEnd('draw.vignette');
 
+    console.time('draw.hud');
     updateHUD();
+    console.timeEnd('draw.hud');
+
+    console.timeEnd('drawGame');
 }
 
 function gameLoop(currentTime) {
@@ -741,8 +753,8 @@ function gameLoop(currentTime) {
         try {
             updateGame(deltaTime);
         } catch (error) {
-                    console.error("Um erro ocorreu durante a atualização do jogo, o jogo foi pausado. Erro:", error);
-            setGameState('paused');
+    console.error("Um erro ocorreu durante a atualização do jogo. Erro:", error);
+    // O jogo não será mais pausado em caso de erro, para atender ao pedido do utilizador.
         }
     }
 
