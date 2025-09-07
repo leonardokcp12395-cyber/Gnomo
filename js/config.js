@@ -236,8 +236,8 @@ const CHARACTER_DATABASE = {
     'SERAPH': {
         name: "Seraph",
         description: "Um anjo guerreiro equilibrado, mestre da lança.",
-        baseHealth: 120, // Corrigido para usar CONFIG.PLAYER_HEALTH
-        speed: 3, // Corrigido para usar CONFIG.PLAYER_SPEED
+        baseHealth: 120,
+        speed: 3,
         initialSkill: 'divine_lance'
     },
     'CHERUB': {
