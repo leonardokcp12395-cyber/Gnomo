@@ -731,6 +731,7 @@ window.onload = () => {
                 // --- FIM DA ALTERAÇÃO 1 ---
 
                 const characterData = CHARACTER_DATABASE[characterId];
+                this.initialSkill = characterData.initialSkill;
 
                 // Aplica melhorias permanentes
                 const healthUpgradeLevel = playerUpgrades.max_health;
@@ -1017,6 +1018,26 @@ window.onload = () => {
                 }
             }
 
+            attack() {
+                const skillId = 'divine_lance';
+                if (this.skills[skillId]) {
+                    const skillState = this.skills[skillId];
+                    const skillData = SKILL_DATABASE[skillId];
+
+                    // Check if the skill is off cooldown
+                    if (skillState.timer <= 0) {
+                        const levelData = skillData.levels[skillState.level - 1];
+                        const angle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
+                        for (let i = 0; i < levelData.count; i++) {
+                            const spreadAngle = (i - (levelData.count - 1) / 2) * 0.15;
+                            const projectileDamage = levelData.damage * this.damageModifier;
+                            getFromPool(projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage }, skillId);
+                        }
+                        skillState.timer = skillData.cooldown; // Set cooldown
+                    }
+                }
+            }
+
             // <<<<<<< MUDANÇA DE FÍSICA: Lógica de gravidade e colisão com plataformas refeita
             applyGravity() {
                 const wasOnGround = this.onGround;
@@ -1215,16 +1236,7 @@ window.onload = () => {
                     }
 
                     if (skillData.type === 'projectile') {
-                        if (skillId === 'divine_lance') {
-                            // ALTERAÇÃO: Lança agora dispara na direção do movimento, não no inimigo mais próximo
-                            const angle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
-                            for (let i = 0; i < levelData.count; i++) {
-                                const spreadAngle = (i - (levelData.count - 1) / 2) * 0.15; // Aumenta um pouco o spread
-                                const projectileDamage = levelData.damage * this.damageModifier;
-                                getFromPool(projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage }, skillId);
-                            }
-                            skillState.timer = skillData.cooldown;
-                        } else if (skillId === 'celestial_ray') {
+                        if (skillId === 'celestial_ray') {
                             const rayAngle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
                             const rayDamage = levelData.damage * this.damageModifier;
                             // Passa o skillId para o projétil
@@ -3457,7 +3469,8 @@ window.onload = () => {
             loadingScreen: document.getElementById('loading-screen'),
             hud: document.getElementById('hud'),
             temporaryMessage: document.getElementById('temporary-message'),
-            dashButtonMobile: document.getElementById('dash-button-mobile')
+            dashButtonMobile: document.getElementById('dash-button-mobile'),
+            attackButtonMobile: document.getElementById('attack-button-mobile')
         };
 
         for (const key in ui) {
@@ -3528,10 +3541,11 @@ window.onload = () => {
             const showHud = (newState === 'playing' || newState === 'paused');
             ui.hud.classList.toggle('hidden', !showHud);
             ui.dashButtonMobile.classList.toggle('hidden', !isMobile || !showHud);
+            ui.attackButtonMobile.classList.toggle('hidden', !isMobile || !showHud);
 
 
             for (const panelKey in ui) {
-                if (ui[panelKey] && ui[panelKey].classList && panelKey !== 'layer' && panelKey !== 'hud' && panelKey !== 'temporaryMessage' && panelKey !== 'dashButtonMobile') {
+                if (ui[panelKey] && ui[panelKey].classList && panelKey !== 'layer' && panelKey !== 'hud' && panelKey !== 'temporaryMessage' && panelKey !== 'dashButtonMobile' && panelKey !== 'attackButtonMobile') {
                     ui[panelKey].classList.add('hidden');
                 }
             }
@@ -3648,7 +3662,7 @@ window.onload = () => {
         function populateLevelUpOptions() {
             const container = document.getElementById('skill-options');
             container.innerHTML = '';
-            let options = [];
+            let finalOptions = [];
             let evolutionOptions = [];
 
             // 1. Verifica por evoluções disponíveis
@@ -3683,39 +3697,64 @@ window.onload = () => {
                 container.appendChild(card);
             });
 
-            // 3. Preenche com opções normais se houver espaço
             const optionsToDisplay = 3 - evolutionOptions.length;
             if (optionsToDisplay > 0) {
-                for(const skillId in player.skills){
-                    const skillData = SKILL_DATABASE[skillId];
-                    // Não oferece upgrade para habilidades que podem evoluir
-                    const canEvolve = Object.values(EVOLUTION_DATABASE).some(e => e.baseSkill === skillId);
-                    if(player.skills[skillId].level < skillData.levels.length && !canEvolve) {
-                        options.push(skillId);
+                // 3. Garante a opção de melhoria da habilidade inicial
+                const initialSkillId = player.initialSkill;
+                const initialSkillState = player.skills[initialSkillId];
+                if (initialSkillState) {
+                    const initialSkillData = SKILL_DATABASE[initialSkillId];
+                    if (initialSkillState.level < initialSkillData.levels.length) {
+                        finalOptions.push(initialSkillId);
                     }
-                }
-                for(const skillId in SKILL_DATABASE){
-                    const skillData = SKILL_DATABASE[skillId];
-                    if(!player.skills[skillId] && skillData.type !== 'utility' && (skillData.unlocked !== false) && !options.includes(skillId)) {
-                        options.push(skillId);
-                    }
-                }
-                options.sort(() => 0.5 - Math.random());
-                if (options.length > 0 && options.length < optionsToDisplay && !options.includes('heal')) {
-                    options.push('heal');
                 }
 
-                options.slice(0, optionsToDisplay).forEach(skillId => {
+                // 4. Reúne todas as outras opções possíveis
+                let otherOptions = [];
+                // a. Outras habilidades para melhorar
+                for (const skillId in player.skills) {
+                    if (skillId === initialSkillId) continue; // Pula a habilidade inicial que já foi adicionada
+                    const skillData = SKILL_DATABASE[skillId];
+                    const canEvolve = Object.values(EVOLUTION_DATABASE).some(e => e.baseSkill === skillId);
+                    if (player.skills[skillId].level < skillData.levels.length && !canEvolve) {
+                        otherOptions.push(skillId);
+                    }
+                }
+                // b. Novas habilidades para aprender
+                for (const skillId in SKILL_DATABASE) {
+                    const skillData = SKILL_DATABASE[skillId];
+                    if (!player.skills[skillId] && skillData.type !== 'utility' && (skillData.unlocked !== false)) {
+                        if (!finalOptions.includes(skillId)) { // Garante que não é a habilidade inicial
+                           otherOptions.push(skillId);
+                        }
+                    }
+                }
+
+                // 5. Embaralha as outras opções e preenche os espaços restantes
+                otherOptions.sort(() => 0.5 - Math.random());
+                while (finalOptions.length < optionsToDisplay && otherOptions.length > 0) {
+                    const nextOption = otherOptions.shift();
+                    if (!finalOptions.includes(nextOption)) {
+                        finalOptions.push(nextOption);
+                    }
+                }
+
+                // 6. Adiciona "Cura" como um recurso de segurança se ainda não houver opções suficientes
+                if (finalOptions.length > 0 && finalOptions.length < optionsToDisplay && !finalOptions.includes('heal')) {
+                    finalOptions.push('heal');
+                }
+
+                // 7. Cria os cartões da UI a partir das opções finais
+                finalOptions.forEach(skillId => {
                     const skill = SKILL_DATABASE[skillId];
                     const card = document.createElement('div');
                     card.className = 'skill-card';
                     const currentLevel = player.skills[skillId]?.level || 0;
-                    const nextLevel = currentLevel; // The level we are about to get
+                    const nextLevel = currentLevel;
 
                     let levelText = skill.type !== 'utility' || (skill.levels && skill.levels.length > 1) ? ` (Nível ${currentLevel + 1})` : '';
                     let descText = skill.desc || (skill.levels && skill.levels[nextLevel] ? skill.levels[nextLevel].desc : '');
 
-                    // --- INÍCIO DA MODIFICAÇÃO: Adicionar estatísticas detalhadas ---
                     let statsHTML = '<div class="skill-stats">';
                     if (skill.levels && skill.levels[nextLevel]) {
                         const levelData = skill.levels[nextLevel];
@@ -3729,14 +3768,13 @@ window.onload = () => {
                         if (levelData.regenPerSecond) statsHTML += `<span><strong>Regen:</strong> ${levelData.regenPerSecond}/s</span>`;
                     }
                     statsHTML += '</div>';
-                    // --- FIM DA MODIFICAÇÃO ---
 
                     card.innerHTML = `<h3>${skill.name}${levelText}</h3><p>${descText}</p>${statsHTML}`;
                     card.onclick = (event) => {
                         event.stopPropagation();
                         player.addSkill(skillId);
                         setGameState('playing');
-                        lastFrameTime = performance.now(); // CORREÇÃO: Evita um grande deltaTime
+                        lastFrameTime = performance.now();
                     };
                     container.appendChild(card);
                 });
@@ -3975,12 +4013,22 @@ window.onload = () => {
                     if (gameState === 'playing' && player) {
                         player.dash();
                     }
+                    });
+                    ui.attackButtonMobile.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        if (gameState === 'playing' && player) {
+                            player.attack();
+                        }
                 });
             } else {
                 window.addEventListener('keydown', (e) => {
                     const key = e.key.toLowerCase();
                     keys[key] = true;
                     if(key === 'shift') keys['shift'] = true;
+
+                        if (key === 'e' && gameState === 'playing' && player) {
+                            player.attack();
+                        }
 
                     if (e.key === 'Escape' && gameState === 'playing') {
                         setGameState('paused');
