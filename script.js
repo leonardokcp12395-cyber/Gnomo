@@ -518,8 +518,11 @@ window.onload = () => {
 
         // --- VARIÁVEIS GLOBAIS DE ESTADO ---
         let gameState = 'menu'; // 'menu', 'playing', 'paused', 'levelUp', 'gameOver', 'guide', 'rank', 'upgrades'
+        let attackMode = 'auto'; // 'auto' ou 'manual'
         let activeMeteorWarnings = [];
         let keys = {}; // Para controlos de teclado
+        let mousePos = { x: 0, y: 0 };
+        let isMouseDown = false;
         let gameTime = 0; // Tempo em segundos (agora baseado em deltaTime)
         let frameCount = 0; // Contador de frames
         let score = {
@@ -534,6 +537,7 @@ window.onload = () => {
         // --- CONTROLO MÓVEL DINÂMICO ---
         let activeTouches = new Map(); // Armazena touch.identifier -> { joystickType: 'move', startX: ..., ... }
         let movementVector = { x: 0, y: 0 }; // Vetor de movimento do jogador (apenas para o joystick de movimento)
+        let attackVector = { x: 0, y: 0 }; // Vetor para o joystick de ataque
 
         // --- CÂMARA ---
         let camera = {
@@ -1018,26 +1022,6 @@ window.onload = () => {
                 }
             }
 
-            attack() {
-                const skillId = 'divine_lance';
-                if (this.skills[skillId]) {
-                    const skillState = this.skills[skillId];
-                    const skillData = SKILL_DATABASE[skillId];
-
-                    // Check if the skill is off cooldown
-                    if (skillState.timer <= 0) {
-                        const levelData = skillData.levels[skillState.level - 1];
-                        const angle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
-                        for (let i = 0; i < levelData.count; i++) {
-                            const spreadAngle = (i - (levelData.count - 1) / 2) * 0.15;
-                            const projectileDamage = levelData.damage * this.damageModifier;
-                            getFromPool(projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage }, skillId);
-                        }
-                        skillState.timer = skillData.cooldown; // Set cooldown
-                    }
-                }
-            }
-
             // <<<<<<< MUDANÇA DE FÍSICA: Lógica de gravidade e colisão com plataformas refeita
             applyGravity() {
                 const wasOnGround = this.onGround;
@@ -1224,6 +1208,66 @@ window.onload = () => {
             }
 
             updateSkills() {
+                // Lógica de ataque automático
+                if (attackMode === 'auto') {
+                    const skillId = 'divine_lance';
+                    if (this.skills[skillId]) {
+                        const skillState = this.skills[skillId];
+                        if (skillState.timer <= 0) {
+                            const target = this.findNearestEnemy();
+                            if (target) {
+                                const skillData = SKILL_DATABASE[skillId];
+                                const levelData = skillData.levels[skillState.level - 1];
+                                const angle = Math.atan2(target.y - this.y, target.x - this.x);
+                                for (let i = 0; i < levelData.count; i++) {
+                                    const spreadAngle = (i - (levelData.count - 1) / 2) * 0.15;
+                                    const projectileDamage = levelData.damage * this.damageModifier;
+                                    getFromPool(projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage }, skillId);
+                                }
+                                skillState.timer = skillData.cooldown;
+                            }
+                        }
+                    }
+                }
+
+                // Lógica de ataque manual
+                if (attackMode === 'manual') {
+                    const skillId = 'divine_lance';
+                    if (this.skills[skillId]) {
+                        const skillState = this.skills[skillId];
+                        if (skillState.timer <= 0) {
+                            let angle = null;
+
+                            if (isMobile) {
+                                // Lógica para joystick móvel
+                                const attackMagnitude = Math.hypot(attackVector.x, attackVector.y);
+                                if (attackMagnitude > 0.5) { // Deadzone
+                                    angle = Math.atan2(attackVector.y, attackVector.x);
+                                }
+                            } else {
+                                // Lógica para mouse no desktop
+                                if (isMouseDown) {
+                                    const worldMouseX = mousePos.x + camera.x;
+                                    const worldMouseY = mousePos.y + camera.y;
+                                    angle = Math.atan2(worldMouseY - this.y, worldMouseX - this.x);
+                                }
+                            }
+
+                            if (angle !== null) {
+                                const skillData = SKILL_DATABASE[skillId];
+                                const levelData = skillData.levels[skillState.level - 1];
+                                for (let i = 0; i < levelData.count; i++) {
+                                    const spreadAngle = (i - (levelData.count - 1) / 2) * 0.15;
+                                    const projectileDamage = levelData.damage * this.damageModifier;
+                                    getFromPool(projectilePool, this.x, this.y, angle + spreadAngle, { ...levelData, damage: projectileDamage }, skillId);
+                                }
+                                skillState.timer = skillData.cooldown;
+                            }
+                        }
+                    }
+                }
+
+
                 for (const skillId in this.skills) {
                     const skillState = this.skills[skillId];
                     const skillData = SKILL_DATABASE[skillId];
@@ -3469,8 +3513,7 @@ window.onload = () => {
             loadingScreen: document.getElementById('loading-screen'),
             hud: document.getElementById('hud'),
             temporaryMessage: document.getElementById('temporary-message'),
-            dashButtonMobile: document.getElementById('dash-button-mobile'),
-            attackButtonMobile: document.getElementById('attack-button-mobile')
+            dashButtonMobile: document.getElementById('dash-button-mobile')
         };
 
         for (const key in ui) {
@@ -3541,11 +3584,10 @@ window.onload = () => {
             const showHud = (newState === 'playing' || newState === 'paused');
             ui.hud.classList.toggle('hidden', !showHud);
             ui.dashButtonMobile.classList.toggle('hidden', !isMobile || !showHud);
-            ui.attackButtonMobile.classList.toggle('hidden', !isMobile || !showHud);
 
 
             for (const panelKey in ui) {
-                if (ui[panelKey] && ui[panelKey].classList && panelKey !== 'layer' && panelKey !== 'hud' && panelKey !== 'temporaryMessage' && panelKey !== 'dashButtonMobile' && panelKey !== 'attackButtonMobile') {
+                if (ui[panelKey] && ui[panelKey].classList && panelKey !== 'layer' && panelKey !== 'hud' && panelKey !== 'temporaryMessage' && panelKey !== 'dashButtonMobile') {
                     ui[panelKey].classList.add('hidden');
                 }
             }
@@ -3877,34 +3919,34 @@ window.onload = () => {
             activeTouches.clear();
 
             gameContainer.addEventListener('touchstart', (e) => {
-                if (e.target.classList.contains('ui-button')) {
-                    return;
-                }
+                if (e.target.classList.contains('ui-button')) return;
                 if (gameState !== 'playing') return;
                 e.preventDefault();
 
                 Array.from(e.changedTouches).forEach(touch => {
-                    const joystickType = 'move';
+                    const joystickType = touch.clientX < window.innerWidth / 2 ? 'move' : 'attack';
 
+                    // Impede a criação de múltiplos joysticks do mesmo tipo
                     let existingJoystick = false;
-                    for (let [id, joy] of activeTouches) {
+                    for (let joy of activeTouches.values()) {
                         if (joy.joystickType === joystickType) {
                             existingJoystick = true;
                             break;
                         }
                     }
-                    if (existingJoystick) {
-                        return;
-                    }
+                    if (existingJoystick) return;
 
                     const base = document.createElement('div');
                     base.className = 'joystick-base';
                     const handle = document.createElement('div');
                     handle.className = 'joystick-handle';
                     base.appendChild(handle);
-
                     base.style.left = `${touch.clientX - CONFIG.JOYSTICK_RADIUS}px`;
                     base.style.top = `${touch.clientY - CONFIG.JOYSTICK_RADIUS}px`;
+                    if (joystickType === 'attack') {
+                        base.style.borderColor = 'rgba(255, 50, 50, 0.5)';
+                        handle.style.backgroundColor = 'rgba(255, 50, 50, 0.5)';
+                    }
                     gameContainer.appendChild(base);
 
                     activeTouches.set(touch.identifier, {
@@ -3933,36 +3975,36 @@ window.onload = () => {
                     const limitedDist = Math.min(dist, CONFIG.JOYSTICK_RADIUS);
                     const handleX = Math.cos(angle) * limitedDist;
                     const handleY = Math.sin(angle) * limitedDist;
-
                     joy.handleElement.style.transform = `translate(${handleX}px, ${handleY}px)`;
 
-                    const normalizedDx = limitedDist > CONFIG.JOYSTICK_DEAD_ZONE ? dx / CONFIG.JOYSTICK_RADIUS : 0;
-                    const normalizedDy = limitedDist > CONFIG.JOYSTICK_DEAD_ZONE ? dy / CONFIG.JOYSTICK_RADIUS : 0;
+                    const normalizedDx = dist > CONFIG.JOYSTICK_DEAD_ZONE ? dx / CONFIG.JOYSTICK_RADIUS : 0;
+                    const normalizedDy = dist > CONFIG.JOYSTICK_DEAD_ZONE ? dy / CONFIG.JOYSTICK_RADIUS : 0;
 
-                    movementVector = { x: normalizedDx, y: normalizedDy };
+                    if (joy.joystickType === 'move') {
+                        movementVector = { x: normalizedDx, y: normalizedDy };
+                    } else if (joy.joystickType === 'attack') {
+                        attackVector = { x: normalizedDx, y: normalizedDy };
+                    }
                 });
             }, { passive: false });
 
-            gameContainer.addEventListener('touchend', (e) => {
+            const touchEndHandler = (e) => {
                 Array.from(e.changedTouches).forEach(touch => {
                     const joy = activeTouches.get(touch.identifier);
                     if (joy) {
                         joy.baseElement.remove();
+                        if (joy.joystickType === 'move') {
+                            movementVector = { x: 0, y: 0 };
+                        } else if (joy.joystickType === 'attack') {
+                            attackVector = { x: 0, y: 0 };
+                        }
                         activeTouches.delete(touch.identifier);
-                        movementVector = { x: 0, y: 0 };
                     }
                 });
-            });
-            gameContainer.addEventListener('touchcancel', (e) => {
-                Array.from(e.changedTouches).forEach(touch => {
-                    const joy = activeTouches.get(touch.identifier);
-                    if (joy) {
-                        joy.baseElement.remove();
-                        activeTouches.delete(touch.identifier);
-                        movementVector = { x: 0, y: 0 };
-                    }
-                });
-            });
+            };
+
+            gameContainer.addEventListener('touchend', touchEndHandler);
+            gameContainer.addEventListener('touchcancel', touchEndHandler);
         }
 
         // --- FUNÇÃO DE ECRÃ INTEIRO ---
@@ -4013,22 +4055,12 @@ window.onload = () => {
                     if (gameState === 'playing' && player) {
                         player.dash();
                     }
-                    });
-                    ui.attackButtonMobile.addEventListener('touchstart', (e) => {
-                        e.preventDefault();
-                        if (gameState === 'playing' && player) {
-                            player.attack();
-                        }
                 });
             } else {
                 window.addEventListener('keydown', (e) => {
                     const key = e.key.toLowerCase();
                     keys[key] = true;
                     if(key === 'shift') keys['shift'] = true;
-
-                        if (key === 'e' && gameState === 'playing' && player) {
-                            player.attack();
-                        }
 
                     if (e.key === 'Escape' && gameState === 'playing') {
                         setGameState('paused');
@@ -4041,6 +4073,23 @@ window.onload = () => {
                     const key = e.key.toLowerCase();
                     keys[key] = false;
                     if(key === 'shift') keys['shift'] = false;
+                });
+
+                canvas.addEventListener('mousemove', (e) => {
+                    mousePos.x = e.clientX;
+                    mousePos.y = e.clientY;
+                });
+
+                canvas.addEventListener('mousedown', (e) => {
+                    if (e.button === 0) { // Botão esquerdo do mouse
+                        isMouseDown = true;
+                    }
+                });
+
+                canvas.addEventListener('mouseup', (e) => {
+                    if (e.button === 0) {
+                        isMouseDown = false;
+                    }
                 });
             }
 
@@ -4071,6 +4120,17 @@ window.onload = () => {
                 setGameState('upgrades');
             };
             document.getElementById('back-from-upgrades-button').onclick = () => setGameState('menu');
+
+            const attackModeButton = document.getElementById('toggle-attack-mode-button');
+            attackModeButton.onclick = () => {
+                if (attackMode === 'auto') {
+                    attackMode = 'manual';
+                    attackModeButton.textContent = 'Modo de Ataque: Manual';
+                } else {
+                    attackMode = 'auto';
+                    attackModeButton.textContent = 'Modo de Ataque: Auto';
+                }
+            };
         }
         // --- FIM DA CORREÇÃO ---
 
