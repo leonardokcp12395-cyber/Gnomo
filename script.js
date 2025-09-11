@@ -1933,6 +1933,8 @@ window.onload = () => {
                 this.hitTimer = 0; // Para feedback visual de dano
                 this.orbHitCooldown = 0; // Para orbes orbitais
                 this.knockbackVelocity = { x: 0, y: 0 };
+                this.hitBy = new Set(); // Para dano por tick, como explosões
+                this.slowedTimer = 0; // Para efeito de lentidão
             }
 
             draw(ctx) {
@@ -3484,8 +3486,8 @@ window.onload = () => {
                 try {
                     updateGame(deltaTime);
                 } catch (error) {
-                    if (DEBUG_MODE) console.error("Erro em updateGame:", error);
-                    setGameState('paused');
+                    console.error("Erro em updateGame:", error);
+                    // O jogo não pausa mais em caso de erro, apenas regista na consola.
                 }
             }
 
